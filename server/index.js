@@ -25,10 +25,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const AVATAR_RE = /^card:[A-Za-z0-9-]{1,50}$/;
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
+  host: process.env.DB_HOST || 'app-pokemon-ghuart9207-4d09.g.aivencloud.com',
+  port: Number(process.env.DB_PORT) || 15418,
+  user: process.env.DB_USER || 'avnadmin',
+  password: process.env.DB_PASSWORD || 'AVNS_5lE__2Qf-DBXHRQBqlZ',
   database: process.env.DB_NAME || 'pokemon_tcg_plateau',
   charset: 'utf8mb4',
   waitForConnections: true,
