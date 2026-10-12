@@ -9,6 +9,6 @@ import { Platform } from 'react-native';
  *   (à définir avec la variable EXPO_PUBLIC_API_URL, par ex. dans un fichier .env à la racine)
  */
 const defaultUrl =
-  Platform.OS === 'android' ? 'http://10.0.2.2:3001' : 'http://localhost:3001';
+  Platform.OS === 'android' ? 'http://10.0.2.2:3001' : 'https://pokemon-app-distrib.onrender.comhttps://pokemon-app-distrib.onrender.com';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? defaultUrl;
