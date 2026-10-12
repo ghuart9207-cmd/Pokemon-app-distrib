@@ -41,7 +41,8 @@ export async function apiRequest<T>(
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      throw new ApiError(data?.error ?? 'Erreur du serveur.', response.status);
+      console.error("Détail de l'erreur serveur :", data); // Ajoutez ceci pour voir l'erreur dans la console
+      throw new ApiError(data?.error ?? `Erreur ${response.status}`, response.status);
     }
 
     return data as T;

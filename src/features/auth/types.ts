@@ -16,5 +16,5 @@ export type RegisterInput = {
   pseudo: string;
   password: string;
   email?: string;
-  avatar?: string;
+  avatar: string;
 };
