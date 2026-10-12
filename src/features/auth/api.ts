@@ -42,6 +42,7 @@ export async function apiRequest<T>(
 
     if (!response.ok) {
       console.error("Détail de l'erreur serveur :", data); // Ajoutez ceci pour voir l'erreur dans la console
+      console.log("URL de l'API active :", API_URL);
       throw new ApiError(data?.error ?? `Erreur ${response.status}`, response.status);
     }
 
