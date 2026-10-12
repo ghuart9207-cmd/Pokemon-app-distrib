@@ -6,15 +6,19 @@
  *   GET  /api/me         (Authorization: Bearer <token>)        -> { player }
  *   POST /api/logout     (Authorization: Bearer <token>)        -> { ok: true }
  *   GET  /api/health                                            -> { ok: true }
+ *
+ * + le serveur temps réel (WebSocket sur /ws) défini dans realtime.js.
  */
 require('dotenv').config();
 
 const crypto = require('crypto');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const mysql = require('mysql2/promise');
+const { attachRealtime } = require('./realtime');
 
 const PORT = Number(process.env.PORT) || 3001;
 const SESSION_DAYS = 30;
@@ -24,12 +28,46 @@ const PSEUDO_RE = /^[A-Za-z0-9_-]{3,20}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const AVATAR_RE = /^card:[A-Za-z0-9-]{1,50}$/;
 
+/**
+ * Configuration de la base. Deux façons de la définir :
+ *  - DATABASE_URL=mysql://utilisateur:motdepasse@hote:port/base   (ce que donnent les hébergeurs)
+ *  - ou les variables séparées DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+ * Pour une base hébergée en ligne, la connexion doit être chiffrée : DB_SSL=true
+ * (et DB_SSL_CA=ca.pem si l'hébergeur fournit un certificat à télécharger).
+ */
+function buildDatabaseConfig() {
+  const config = {
+    host: process.env.DB_HOST || 'localhost',
+    port: Number(process.env.DB_PORT) || 3306,
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'pokemon_tcg_plateau',
+  };
+  let useSsl = process.env.DB_SSL === 'true';
+
+  if (process.env.DATABASE_URL) {
+    const url = new URL(process.env.DATABASE_URL);
+    config.host = url.hostname;
+    config.port = Number(url.port) || 3306;
+    config.user = decodeURIComponent(url.username);
+    config.password = decodeURIComponent(url.password);
+    config.database =
+      decodeURIComponent(url.pathname.replace(/^\//, '')) || config.database;
+    if (url.searchParams.has('ssl-mode') || url.searchParams.has('ssl')) useSsl = true;
+  }
+
+  if (useSsl) {
+    config.ssl = {
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+      ...(process.env.DB_SSL_CA ? { ca: fs.readFileSync(process.env.DB_SSL_CA) } : {}),
+    };
+  }
+
+  return config;
+}
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'app-pokemon-ghuart9207-4d09.g.aivencloud.com',
-  port: Number(process.env.DB_PORT) || 15418,
-  user: process.env.DB_USER || 'avnadmin',
-  password: process.env.DB_PASSWORD || 'AVNS_5lE__2Qf-DBXHRQBqlZ',
-  database: process.env.DB_NAME || 'pokemon_tcg_plateau',
+  ...buildDatabaseConfig(),
   charset: 'utf8mb4',
   waitForConnections: true,
   connectionLimit: 10,
@@ -69,26 +107,95 @@ async function createSession(playerId) {
   return token;
 }
 
+/** Joueur correspondant à un jeton de session valide, ou null. */
+async function authenticateToken(token) {
+  if (typeof token !== 'string' || !token) return null;
+
+  const [rows] = await pool.execute(
+    `SELECT p.* FROM sessions s
+       JOIN players p ON p.id = s.player_id
+      WHERE s.token_hash = ? AND s.expires_at > NOW() AND p.is_active = TRUE`,
+    [sha256(token)]
+  );
+  return rows[0] || null;
+}
+
 async function requireAuth(req, res, next) {
   try {
     const header = req.headers.authorization || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
     if (!token) return res.status(401).json({ error: 'Non connecté.' });
 
-    const [rows] = await pool.execute(
-      `SELECT p.* FROM sessions s
-         JOIN players p ON p.id = s.player_id
-        WHERE s.token_hash = ? AND s.expires_at > NOW() AND p.is_active = TRUE`,
-      [sha256(token)]
-    );
-    if (!rows.length)
+    const player = await authenticateToken(token);
+    if (!player)
       return res.status(401).json({ error: 'Session expirée, reconnecte-toi.' });
 
-    req.player = rows[0];
+    req.player = player;
     req.tokenHash = sha256(token);
     next();
   } catch (error) {
     next(error);
+  }
+}
+
+/**
+ * Enregistre une partie terminée : historique (matches) + statistiques et ELO des deux joueurs.
+ * winnerSeat : 1 ou 2 pour le gagnant, 0 pour une égalité.
+ */
+const ELO_K = 32;
+
+async function recordMatch({ player1Id, player2Id, winnerSeat, startedAt }) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.execute(
+      'SELECT id, elo FROM players WHERE id IN (?, ?) FOR UPDATE',
+      [player1Id, player2Id]
+    );
+    const elo = Object.fromEntries(rows.map((row) => [row.id, row.elo]));
+
+    const score1 = winnerSeat === 1 ? 1 : winnerSeat === 2 ? 0 : 0.5;
+    const expected1 = 1 / (1 + 10 ** ((elo[player2Id] - elo[player1Id]) / 400));
+    const newElo1 = Math.max(
+      0,
+      Math.round(elo[player1Id] + ELO_K * (score1 - expected1))
+    );
+    const newElo2 = Math.max(
+      0,
+      Math.round(elo[player2Id] + ELO_K * (1 - score1 - (1 - expected1)))
+    );
+
+    const winnerId = winnerSeat === 1 ? player1Id : winnerSeat === 2 ? player2Id : null;
+    await connection.execute(
+      `INSERT INTO matches (player1_id, player2_id, winner_id, rounds_played, started_at, ended_at)
+       VALUES (?, ?, ?, 8, FROM_UNIXTIME(?), NOW())`,
+      [player1Id, player2Id, winnerId, Math.floor(startedAt / 1000)]
+    );
+
+    const update = `UPDATE players
+                       SET games_played = games_played + 1,
+                           wins = wins + ?, losses = losses + ?, elo = ?
+                     WHERE id = ?`;
+    await connection.execute(update, [
+      winnerSeat === 1 ? 1 : 0,
+      winnerSeat === 2 ? 1 : 0,
+      newElo1,
+      player1Id,
+    ]);
+    await connection.execute(update, [
+      winnerSeat === 2 ? 1 : 0,
+      winnerSeat === 1 ? 1 : 0,
+      newElo2,
+      player2Id,
+    ]);
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
 }
 
@@ -150,13 +257,9 @@ app.post('/api/register', authLimiter, async (req, res, next) => {
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY') {
         const emailTaken = String(error.sqlMessage).includes('uq_players_email');
-        return res
-          .status(409)
-          .json({
-            error: emailTaken
-              ? 'Cet email est déjà utilisé.'
-              : 'Ce pseudo est déjà pris.',
-          });
+        return res.status(409).json({
+          error: emailTaken ? 'Cet email est déjà utilisé.' : 'Ce pseudo est déjà pris.',
+        });
       }
       throw error;
     }
@@ -251,9 +354,11 @@ async function start() {
   await purgeExpiredSessions();
   setInterval(purgeExpiredSessions, 60 * 60 * 1000).unref();
 
-  app.listen(PORT, () =>
-    console.log(`API des comptes prête sur http://localhost:${PORT}`)
-  );
+  const server = app.listen(PORT, () => {
+    console.log(`API des comptes prête sur http://localhost:${PORT}`);
+    console.log(`Parties en ligne (WebSocket) sur ws://localhost:${PORT}/ws`);
+  });
+  attachRealtime(server, { authenticate: authenticateToken, recordMatch });
 }
 
 start();
