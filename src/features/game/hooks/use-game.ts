@@ -83,3 +83,6 @@ export function useGame() {
     ...screenActions,
   };
 }
+
+/** Tout ce que renvoie `useGame` : l'état de la partie et les actions du joueur. */
+export type GameApi = ReturnType<typeof useGame>;

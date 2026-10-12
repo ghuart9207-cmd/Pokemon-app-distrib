@@ -26,6 +26,10 @@ export const styles = StyleSheet.create({
     textShadowOffset: { width: 4, height: 5 },
     textShadowRadius: 0,
   },
+  buttons: {
+    alignItems: 'center',
+    gap: 18,
+  },
   playButton: {
     minWidth: 240,
     alignItems: 'center',
@@ -46,5 +50,23 @@ export const styles = StyleSheet.create({
     fontSize: 32,
     letterSpacing: 1,
     color: COLORS.text,
+  },
+  onlineButton: {
+    minWidth: 240,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: COLORS.yellow,
+  },
+  onlineButtonPressed: {
+    opacity: 0.7,
+  },
+  onlineText: {
+    fontFamily: FONTS.button,
+    fontSize: 22,
+    letterSpacing: 1,
+    color: COLORS.yellow,
   },
 });

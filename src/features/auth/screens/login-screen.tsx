@@ -85,8 +85,8 @@ export default function LoginScreen() {
         await login(pseudo.trim(), password);
       }
 
-      // connecté : on lance le jeu si le joueur avait cliqué sur Jouer, sinon retour à l'accueil
-      router.replace(next === 'jeu' ? '/jeu' : '/');
+      // connecté : on va là où le joueur voulait aller (jeu local, salon en ligne), sinon à l'accueil
+      router.replace(next === 'jeu' ? '/jeu' : next === 'en-ligne' ? '/en-ligne' : '/');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Une erreur est survenue.');
     } finally {

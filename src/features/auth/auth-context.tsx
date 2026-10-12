@@ -9,11 +9,15 @@ type SessionResponse = { token: string; player: Player };
 type AuthContextValue = {
   /** Joueur connecté, ou null. */
   player: Player | null;
+  /** Jeton de la session en cours (utilisé par la connexion en ligne), ou null. */
+  token: string | null;
   /** Vrai pendant la vérification de la connexion sauvegardée au démarrage. */
   isLoading: boolean;
   login: (pseudo: string, password: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
+  /** Recharge les infos du joueur depuis la base (statistiques, ELO…). */
+  refreshPlayer: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -92,8 +96,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPlayer(null);
   }
 
+  async function refreshPlayer() {
+    if (!token) return;
+
+    try {
+      const { player: fresh } = await apiRequest<{ player: Player }>('/me', { token });
+      setPlayer(fresh);
+    } catch {
+      // pas grave : les infos seront rechargées au prochain démarrage
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ player, isLoading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ player, token, isLoading, login, register, logout, refreshPlayer }}
+    >
       {children}
     </AuthContext.Provider>
   );

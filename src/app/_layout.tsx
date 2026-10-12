@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { AuthProvider } from '@/features/auth/auth-context';
+import { OnlineProvider } from '@/features/online/online-context';
 import { COLORS, FONTS } from '@/features/ui/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -28,25 +29,38 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: COLORS.background },
-        }}
-      >
-        {/* Sur l'écran de jeu, l'en-tête offre un bouton de retour vers le menu */}
-        <Stack.Screen
-          name="jeu"
-          options={{
-            headerShown: true,
-            title: 'Pokemon Version Vincent',
-            headerBackTitle: 'Menu',
-            headerStyle: { backgroundColor: COLORS.background },
-            headerTintColor: COLORS.yellow,
-            headerTitleStyle: { fontFamily: FONTS.title },
+      <OnlineProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: COLORS.background },
           }}
-        />
-      </Stack>
+        >
+          {/* Sur l'écran de jeu, l'en-tête offre un bouton de retour vers le menu */}
+          <Stack.Screen
+            name="jeu"
+            options={{
+              headerShown: true,
+              title: 'Pokemon Version Vincent',
+              headerBackTitle: 'Menu',
+              headerStyle: { backgroundColor: COLORS.background },
+              headerTintColor: COLORS.yellow,
+              headerTitleStyle: { fontFamily: FONTS.title },
+            }}
+          />
+          <Stack.Screen
+            name="partie"
+            options={{
+              headerShown: true,
+              title: 'Partie en ligne',
+              headerBackTitle: 'Salon',
+              headerStyle: { backgroundColor: COLORS.background },
+              headerTintColor: COLORS.yellow,
+              headerTitleStyle: { fontFamily: FONTS.title },
+            }}
+          />
+        </Stack>
+      </OnlineProvider>
     </AuthProvider>
   );
 }

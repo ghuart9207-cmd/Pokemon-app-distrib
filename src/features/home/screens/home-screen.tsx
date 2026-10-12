@@ -30,6 +30,14 @@ export default function HomeScreen() {
     }
   }
 
+  function handlePlayOnline() {
+    if (player) {
+      router.push('/en-ligne');
+    } else {
+      router.push({ pathname: '/connexion', params: { next: 'en-ligne' } });
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <AccountBar />
@@ -45,16 +53,29 @@ export default function HomeScreen() {
           Pokemon Version Vincent
         </Text>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.playButton,
-            pressed && styles.playButtonPressed,
-          ]}
-          onPress={handlePlay}
-          accessibilityRole="button"
-        >
-          <Text style={styles.playText}>Jouer</Text>
-        </Pressable>
+        <View style={styles.buttons}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.playButton,
+              pressed && styles.playButtonPressed,
+            ]}
+            onPress={handlePlay}
+            accessibilityRole="button"
+          >
+            <Text style={styles.playText}>Jouer</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.onlineButton,
+              pressed && styles.onlineButtonPressed,
+            ]}
+            onPress={handlePlayOnline}
+            accessibilityRole="button"
+          >
+            <Text style={styles.onlineText}>Jouer en ligne</Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
