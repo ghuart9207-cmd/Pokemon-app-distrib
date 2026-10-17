@@ -1,5 +1,5 @@
 import type { PokemonCard, TrainerCard } from '@/features/game/types';
-import { leviator } from './pokemon';
+import { anchwatt, araqua, azumarill, bacabouh, bombydou, bourrinos, brutapode, chrysacier, coatox, coxy, crabagarre, crabominable, elekable,  feuillajou, flamajou, flotajou, flotoutan, goupixdalola, hypotrempe, karaclee, kirlia, lamperoie, leviator, lougaroc, lougaroc2, lucario, marill, marshadowgx, miaouss, mystherbe, ohmassacre, porygon, psytigri, qulbutoke, rattatadalola, rhinocorne, rhinoferos, riolu, scobolide, seleroc, sepiatop, seviper, skelenox, sonistrelle, sovkipou, spododo, tarenbulle, tarsal, teraclope, tiboudet, togedemaru, trepassable, venipatte, zygarde } from './pokemon';
 import { bouldeneu } from './pokemon/bouldeneu';
 import { boumata } from './pokemon/boumata';
 import { chenipan } from './pokemon/chenipan';
@@ -18,11 +18,14 @@ import { magicarpe } from './pokemon/magicarpe';
 import { malamandreGx } from './pokemon/malamandre-gx';
 import { necrozmaGx } from './pokemon/necrozma-gx';
 import { noctunoir } from './pokemon/noctunoir';
+import { ortide } from './pokemon/ortide';
 import { papilusion } from './pokemon/papilusion';
 import { persian } from './pokemon/persian';
 import { pikachu } from './pokemon/pikachu';
 import { rafflesia } from './pokemon/rafflesia';
+import { raichu } from './pokemon/raichu';
 import { reptincel } from './pokemon/reptincel';
+import { salameche } from './pokemon/salameche';
 import { sarmurai } from './pokemon/sarmurai';
 import { scarhino } from './pokemon/scarhino';
 import { tokopiscoGx } from './pokemon/tokopisco-gx';
@@ -36,39 +39,101 @@ import { nephie } from './trainers/nephie';
 import { potion } from './trainers/potion';
 import { relais } from './trainers/relais';
 import { superRappel } from './trainers/super-rappel';
+import { elektek } from './pokemon/elektek';
+import { saquedeneu } from './pokemon/saquedeneu';
+import { quartermac } from './pokemon/quartermac';
+
 
 // Pour ajouter une carte : crée son fichier dans `pokemon/` ou `trainers/`,
 // puis ajoute-la à la liste correspondante ci-dessous.
 
 export const ALL_POKEMON_CARDS: PokemonCard[] = [
   chenipan,
+  chrysacier,
   papilusion,
+  mystherbe,
+  ortide,
   rafflesia,
+  saquedeneu,
   bouldeneu,
+  coxy,
   coxyclaque,
   scarhino,
+  feuillajou,
   feuiloutan,
+  araqua,
+  tarenbulle,
+  sovkipou,
   sarmurai,
+  salameche,
   reptincel,
   dracaufeuGx,
   hoohGx,
+  flamajou,
   flamoutan,
   malamandreGx,
   boumata,
+  goupixdalola,
   feunardalola,
+  hypotrempe,
   hyporoi,
   magicarpe,
   leviator,
+  marill,
+  azumarill,
+  flotajou,
+  flotoutan,
   denticrisse,
   tokopiscoGx,
   pikachu,
+  raichu,
+  elektek,
+  elekable,
+  anchwatt,
+  lamperoie,
+  ohmassacre,
+  togedemaru,
+  qulbutoke,
+  seviper,
+  skelenox,
+  teraclope,
   noctunoir,
   cradopaud,
+  coatox,
+  venipatte,
+  scobolide,
+  brutapode,
+  psytigri,
+  bacabouh,
+  trepassable,
   necrozmaGx,
   mackogneurGx,
+  rhinocorne,
+  rhinoferos,
+  seleroc,
+  riolu,
+  lucario,
+  karaclee,
+  crabagarre,
+  crabominable,
+  lougaroc2,
+  lougaroc,
+  tiboudet,
+  bourrinos,
+  quartermac,
+  marshadowgx,
+  rattatadalola,
+  sepiatop,
+  tarsal,
+  kirlia,
+  bombydou,
+  spododo,
+  zygarde,
+  miaouss,
   persian,
+  porygon,
   frison,
-  
+  sonistrelle,
 ];
 
 export const ALL_TRAINER_CARDS: TrainerCard[] = [

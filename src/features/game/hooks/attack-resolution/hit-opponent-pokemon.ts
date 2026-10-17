@@ -10,6 +10,9 @@ import type {
   TrainerCard,
 } from '@/features/game/types';
 import type { AttackResolutionContext } from './attack-resolution-context';
+import { doesTemporaryProtectionPreventDamage } from
+  '@/features/game/rules/temporary-attack-protection';
+
 
 /** Attaque qui touche le Pokémon adverse en face : dégâts, protections de la cible, K.O. et effets. */
 export function hitOpponentPokemon(
@@ -109,7 +112,19 @@ const attackEffectsPrevented =
 
   const isFixedDamageAttack = fixedDamage !== undefined;
 
-  let attackDamage: number = fixedDamage ?? totalDamage + opponentBenchBonus;
+  
+  // Bonus de dégâts subi au prochain tour
+  // après une attaque comme Grincement de Persian.
+  const ExtraDamage =
+    target.extraDamageNextTurnReady &&
+    target.extraDamageNextTurnSourcePlayer === attacker.owner
+      ? (target.extraDamageNextTurn ?? 0)
+      : 0;
+
+  let attackDamage: number =
+    (fixedDamage ?? totalDamage + opponentBenchBonus) +
+    ExtraDamage;
+
 
   // Bonus contre Pokémon évolué
   if (
@@ -120,16 +135,25 @@ const attackEffectsPrevented =
     attackDamage += attack.bonusDamageIfTargetEvolved;
   }
 
+  if (
+    !isFixedDamageAttack &&
+    attack.bonusDamageIfTargetNotEvolved &&
+    target.card.stage === 'base'  
+  ) {
+    attackDamage += attack.bonusDamageIfTargetNotEvolved;
+  }
+
   // Talent qui empêche les dégâts
- const damagePrevented =
-  temporaryAttackProtection
-    ? true
-    : isFixedDamageAttack
-      ? false
-      : doesTalentPreventDamage(
-          target,
-          attacker
-        );
+ 
+const damagePrevented =
+  temporaryAttackProtection ||
+  doesTemporaryProtectionPreventDamage(
+    target,
+    attacker
+  ) ||
+  (!isFixedDamageAttack &&
+    doesTalentPreventDamage(target, attacker));
+
 
   // Réduction de dégâts
   const activeDamageReduction = isFixedDamageAttack
@@ -138,24 +162,40 @@ const attackEffectsPrevented =
       ? (target.attackDamageReduction ?? 0)
       : 0;
 
+
+ 
+  // réduit les attaques des Pokémon Feu et Eau de 30 dégâts.
+  const fireWaterTalentReduction =
+    target.card.talent?.type === 'passive' &&
+    target.card.talent.effect === 'reduceDamageFromFireWater' &&
+    (attacker.card.type === 'feu' ||
+      attacker.card.type === 'eau')
+      ? (target.card.talent.amount ?? 30)
+      : 0;
+
+
   // Dégâts finaux
-  const damageToTarget =
-  damagePrevented
+  
+  const damageToTarget = damagePrevented
     ? 0
     : isFixedDamageAttack
-      ? attack.fixedDamage!
+      ? Math.max(0, attackDamage)
       : Math.max(
           0,
-          attackDamage -
-            activeDamageReduction
+          attackDamage - activeDamageReduction - fireWaterTalentReduction
         );
 
-        const targetProtectionMessage =
+
+        
+const targetProtectionMessage =
   temporaryAttackProtection
     ? `${target.card.name} est protégé et ne subit ni dégâts ni effets de cette attaque.`
-    : damagePrevented
-      ? `${target.card.name} ne subit aucun dégât grâce à son Talent ${target.card.talent?.name}.`
-      : `${attacker.card.name} utilise ${attack.name} sur ${target.card.name} : ${damageToTarget} dégâts.`;
+    : doesTemporaryProtectionPreventDamage(target, attacker)
+      ? `${target.card.name} évite les dégâts de ${attacker.card.name} grâce à sa protection temporaire.`
+      : damagePrevented
+        ? `${target.card.name} ne subit aucun dégât grâce à son Talent ${target.card.talent?.name}.`
+        : `${attacker.card.name} utilise ${attack.name} sur ${target.card.name} : ${damageToTarget} dégâts.`;
+
   const hasDrainEffect =
     resolvedAttack.effects?.some(
       (effect: AttackEffect) => effect.type === 'healSelfByDamageDealt'
@@ -224,21 +264,37 @@ const attackEffectsPrevented =
     .preventAllAttackDamageAndEffects ===
   true;
 
+
 const benchDamagePrevented =
   benchTemporaryAttackProtection ||
+  doesTemporaryProtectionPreventDamage(
+    benchPokemon,
+    attacker
+  ) ||
   doesTalentPreventDamage(
     benchPokemon,
     attacker
   );
+
 
       const benchDamageReduction =
         benchPokemon.attackDamageReductionEndPlayer === attacker.owner
           ? (benchPokemon.attackDamageReduction ?? 0)
           : 0;
 
+
+      const benchFireWaterReduction =
+        benchPokemon.card.talent?.type === 'passive' &&
+        benchPokemon.card.talent.effect === 'reduceDamageFromFireWater' &&
+        (attacker.card.type === 'feu' ||
+          attacker.card.type === 'eau')
+          ? (benchPokemon.card.talent.amount ?? 30)
+          : 0;
+
+
       const actualBenchDamage = benchDamagePrevented
         ? 0
-        : Math.max(0, benchSameTypeDamage - benchDamageReduction);
+        : Math.max(0, benchSameTypeDamage - benchDamageReduction - benchFireWaterReduction);
 
       if (actualBenchDamage <= 0) {
         return;
@@ -394,6 +450,8 @@ const benchDamagePrevented =
     ? undefined
     : resolvedAttack.effects?.find((effect) => effect.type === 'sleep');
 
+  
+
   const extraDamageNextTurnEffect = attackEffectsPrevented
     ? undefined
     : resolvedAttack.effects?.find((effect) => effect.type === 'takeExtraDamageNextTurn');
@@ -468,22 +526,26 @@ const benchDamagePrevented =
   // L'ADVERSAIRE ÉCHANGE SON POKÉMON
   // =====================================
 
-  if (forceOpponentSwitchEffect && hasOpponentBenchPokemon && !attackEffectsPrevented) {
-    setPendingOpponentActiveSwitch({
-      player: target.owner,
-      activeCell: targetCell,
-    });
+  
+if (
+  forceOpponentSwitchEffect &&
+  hasOpponentBenchPokemon &&
+  !attackEffectsPrevented
+) {
+  setPendingOpponentActiveSwitch({
+    player: target.owner,
+    activeCell: targetCell,
+  });
 
+  setMessage(
     targetProtectionMessage +
-        (damagedBenchPokemonNames.length > 0
-          ? ` Pokémon de banc touchés : ${damagedBenchPokemonNames.join(', ')}.`
-          : '') +
-        (attackerKO ? ` ${attacker.card.name} est également K.O.` : '') +
-        ` Joueur ${target.owner}, choisis maintenant l’un de tes Pokémon de banc pour remplacer ${target.card.name}.`
-    
+      ` Joueur ${target.owner}, choisis maintenant ` +
+      `l'un de tes Pokémon de banc pour remplacer ` +
+      `${target.card.name}.`
+  );
 
-    return;
-  }
+  return;
+}
 
   // =====================================
   // PAS D'ÉCHANGE POSSIBLE

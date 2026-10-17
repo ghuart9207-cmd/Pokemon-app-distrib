@@ -23,6 +23,17 @@ export function getDisplayedAttackDamage(
   player2Discard: GameCard[] = []
 ): number {
 
+
+  const globalDamageEffect = attack.effects?.find(
+    (effect) =>
+      effect.type === 'damageEveryoneIgnoringEffects'
+  );
+
+  if (globalDamageEffect) {
+    return globalDamageEffect.amount;
+  }
+
+
   if (attack.fixedDamage !== undefined) {
     return attack.fixedDamage;
   }
@@ -90,6 +101,9 @@ if (attack.bonusDamagePerOwnDiscardCard) {
     if (target && attack.bonusDamageIfTargetEvolved && target.card.stage !== 'base') {
       damage += attack.bonusDamageIfTargetEvolved;
     }
+    if (target && attack.bonusDamageIfTargetNotEvolved && target.card.stage === 'base' ) {
+      damage += attack.bonusDamageIfTargetNotEvolved;
+    }
   }
 
   return damage;
@@ -128,21 +142,37 @@ export function createAttackPaths(startCell: string, player: Player): string[][]
   return [cleanPath(leftPath), cleanPath(rightPath)];
 }
 
-export function canPayTypedDiscard(energies: EnergyType[], attack: Attack): boolean {
-  const typedDiscard = attack.effects?.find(
-    (effect) => effect.type === 'discardTypedEnergy' && effect.energyType
-  );
 
-  if (!typedDiscard || !typedDiscard.energyType) {
-    return true;
+export function canPayTypedDiscard(
+  energies: EnergyType[],
+  attack: Attack
+): boolean {
+  const remainingEnergies = [...energies];
+
+  for (const effect of attack.effects ?? []) {
+    if (
+      effect.type !== 'discardTypedEnergy' ||
+      !effect.energyType
+    ) {
+      continue;
+    }
+
+    for (let i = 0; i < effect.amount; i++) {
+      const index = remainingEnergies.indexOf(
+        effect.energyType
+      );
+
+      if (index === -1) {
+        return false;
+      }
+
+      remainingEnergies.splice(index, 1);
+    }
   }
 
-  const available = energies.filter(
-    (energy) => energy === typedDiscard.energyType
-  ).length;
-
-  return available >= typedDiscard.amount;
+  return true;
 }
+
 
 export function canPayAttackCost(energies: EnergyType[], attack: Attack) {
   const requirements = attack.requiredEnergies ?? {};
@@ -173,6 +203,23 @@ export function applyAttackEffects(
   }
 
   for (const effect of attack.effects) {
+    
+if (
+  effect.type ===
+    'preventDamageFromStageOrVariantNextOpponentTurn' &&
+  (effect.blockedStage || effect.blockedVariant)
+) {
+  updatedPokemon = {
+    ...updatedPokemon,
+    temporaryAttackDamageProtection: {
+      stage: effect.blockedStage,
+      variant: effect.blockedVariant,
+      expiresAfterPlayerTurn:
+        pokemon.owner === 1 ? 2 : 1,
+    },
+  };
+}
+
     if (effect.type === 'heal') {
       updatedPokemon = {
         ...updatedPokemon,

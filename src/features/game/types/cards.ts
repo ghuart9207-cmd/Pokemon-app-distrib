@@ -10,8 +10,10 @@ export type PokemonTalent = {
     | 'blockBaseAttacks'
     | 'preventDamageFromType'
     | 'damageOpponentOnPlay'
+    | 'paralyzeOpponentOnPlay'
     | 'surviveKOOnCoin'
-    | 'preventAllEffectsFromExGx';
+    | 'preventAllEffectsFromExGx'
+    | 'reduceDamageFromFireWater';
 
   blockedType?: EnergyType;
 
@@ -41,12 +43,21 @@ export type AttackEffect = {
     | 'healSelfByDamageDealt'
     | 'forceOpponentActiveSwitch'
     | 'preventAllAttackDamageAndEffectsNextOpponentTurn'
-    | 'attachEnergyToBench';
+    | 'attachEnergyToBench'
+    | 'moveOwnEnergyToBench'
+    | 'damageEveryoneIgnoringEffects'
+    | 'preventDamageFromStageOrVariantNextOpponentTurn';
+
     
 
   amount: number;
 
   energyType?: EnergyType;
+
+  
+blockedStage?: Stage;
+blockedVariant?: CardVariant;
+
 };
 
 export type Attack = {
@@ -82,7 +93,13 @@ export type Attack = {
 
   ownBenchDamage?: number;
 
+  recoil?: number;
+
   blocksNextOwnTurn?: boolean;
+
+  
+blocksAllAttacksNextOwnTurn?: boolean;
+
 
   fixedDamage?: number;
 
@@ -95,6 +112,8 @@ export type Attack = {
   bonusDamageIfSwitchedRecently?: number;
 
   bonusDamageIfTargetEvolved?: number;
+
+  bonusDamageIfTargetNotEvolved?: number;
 };
 
 export type PokemonCard = {
@@ -103,6 +122,7 @@ export type PokemonCard = {
   stage: Stage;
   variant: CardVariant;
   type: EnergyType;
+  dragonEnergyTypes?: [EnergyType, EnergyType];
   maxHp: number;
   retreatCost: number;
   attacks: Attack[];

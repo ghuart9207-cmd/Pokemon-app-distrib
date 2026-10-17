@@ -41,6 +41,80 @@ export function handleGeneratedBenchEnergy(
 
   const amount = pendingGeneratedBenchEnergy.amount;
 
+  const moveFromAttacker =
+  pendingGeneratedBenchEnergy.moveFromAttacker;
+
+const attackerCell =
+  pendingGeneratedBenchEnergy.attackerCell;
+
+
+if (moveFromAttacker) {
+  const attacker = board[attackerCell];
+
+  if (
+    !attacker ||
+    attacker.energies.filter(
+      (energy) => energy === energyType
+    ).length < amount
+  ) {
+    setMessage(
+      "Le Pokémon attaquant n'a pas assez d'Énergies à transférer."
+    );
+    setPendingGeneratedBenchEnergy(null);
+    return true;
+  }
+
+  setBoard((previousBoard) => {
+    const source = previousBoard[attackerCell];
+    const destination = previousBoard[cellName];
+
+    if (
+      !source ||
+      !destination ||
+      source.owner !== destination.owner
+    ) {
+      return previousBoard;
+    }
+
+    const remainingEnergies = [...source.energies];
+
+    for (let i = 0; i < amount; i++) {
+      const index = remainingEnergies.indexOf(energyType);
+
+      if (index === -1) {
+        return previousBoard;
+      }
+
+      remainingEnergies.splice(index, 1);
+    }
+
+    return {
+      ...previousBoard,
+
+      [attackerCell]: {
+        ...source,
+        energies: remainingEnergies,
+      },
+
+      [cellName]: {
+        ...destination,
+        energies: [
+          ...destination.energies,
+          ...Array(amount).fill(energyType),
+        ],
+      },
+    };
+  });
+
+  setMessage(
+    `${attacker.card.name} transfère ${amount} Énergie ${energyType} à ${pokemon.card.name}.`
+  );
+
+  setPendingGeneratedBenchEnergy(null);
+  return true;
+}
+
+
   setBoard((previousBoard) => {
     const currentPokemon = previousBoard[cellName];
 

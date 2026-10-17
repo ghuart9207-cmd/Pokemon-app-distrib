@@ -3,6 +3,7 @@ import {
   getKnockoutConsequences,
   resolvePlayerEndOfTurnStatus,
   resolvePokemonEndOfTurn,
+  getPassiveEnergyLimit,
 } from '@/features/game/rules';
 import type {
   AttackPath,
@@ -15,6 +16,7 @@ import type {
   PokemonInPlay,
   SetState,
   TrainerCard,
+  PendingDragonEnergyChoice,
 } from '@/features/game/types';
 
 type UseGameTurnOptions = {
@@ -41,6 +43,9 @@ type UseGameTurnOptions = {
   setPlayer2DiscardEnergies: SetState<EnergyType[]>;
   setPlayer1Status: SetState<PlayerStatusState>;
   setPlayer2Status: SetState<PlayerStatusState>;
+  pendingDragonEnergyChoices: PendingDragonEnergyChoice[];
+  setPendingDragonEnergyChoices:
+  SetState<PendingDragonEnergyChoice[]>;
   setRemainingAttackPaths: SetState<AttackPath[]>;
   setRound: SetState<number>;
   setSelectedAttackIndex: SetState<number | null>;
@@ -58,8 +63,20 @@ export function useGameTurn(options: UseGameTurnOptions) {
       return;
     }
 
+    
+if (options.pendingDragonEnergyChoices.length > 0) {
+  options.setMessage(
+    "Termine d'abord les choix d'Énergie de tes Pokémon Dragon."
+  );
+  return;
+}
+
+
     const playerReceivingEnergy: Player = options.currentPlayer === 1 ? 2 : 1;
     const newBoard: BoardState = { ...(boardOverride ?? options.board) };
+    
+    const dragonEnergyChoices: PendingDragonEnergyChoice[] = [];
+
     const koPlayer1: PokemonInPlay[] = [];
     const koPlayer2: PokemonInPlay[] = [];
 
@@ -87,7 +104,24 @@ export function useGameTurn(options: UseGameTurnOptions) {
       }
 
       newBoard[cellName] = pokemon;
+      
+if (
+  pokemon.owner === playerReceivingEnergy &&
+  pokemon.card.type === 'dragon' &&
+  pokemon.card.dragonEnergyTypes?.length === 2 &&
+  pokemon.energies.length < getPassiveEnergyLimit(pokemon.card)
+) {
+  dragonEnergyChoices.push({
+    cellName,
+    player: pokemon.owner,
+    remaining: 1,
+  });
+}
+
     });
+    
+options.setPendingDragonEnergyChoices(dragonEnergyChoices);
+
 
     options.setBoard(newBoard);
 

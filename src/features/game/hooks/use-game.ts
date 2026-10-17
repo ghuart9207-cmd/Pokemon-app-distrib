@@ -14,6 +14,9 @@ import { useGameSetup } from './use-game-setup';
 import { useGameTargeting } from './use-game-targeting';
 import { useGameTrainerActions } from './use-game-trainer-actions';
 import { useGameTurn } from './use-game-turn';
+import { getPassiveEnergyLimit } from '@/features/game/rules';
+import type { EnergyType } from '@/features/game/types';
+
 
 /**
  * Assemble tous les hooks de la partie.
@@ -23,6 +26,77 @@ import { useGameTurn } from './use-game-turn';
  */
 export function useGame() {
   const state = useGameState();
+
+function chooseDragonEnergy(energyType: EnergyType) {
+  const pending = state.pendingDragonEnergyChoices[0];
+
+  if (!pending) return;
+
+  const pokemon = state.board[pending.cellName];
+
+  // Si le Pokémon a disparu, abandonner ce choix.
+  if (!pokemon || pokemon.owner !== pending.player) {
+    state.setPendingDragonEnergyChoices(
+      (previous) => previous.slice(1)
+    );
+    return;
+  }
+
+  const allowedTypes = pokemon.card.dragonEnergyTypes;
+
+  // Vérifier que l'énergie choisie fait partie
+  // des deux types autorisés pour ce Dragon.
+  if (!allowedTypes?.includes(energyType)) {
+    return;
+  }
+
+  const passiveEnergyLimit =
+    getPassiveEnergyLimit(pokemon.card);
+
+  if (pokemon.energies.length < passiveEnergyLimit) {
+    state.setBoard((previousBoard) => {
+      const currentPokemon = previousBoard[pending.cellName];
+
+      if (
+        !currentPokemon ||
+        currentPokemon.owner !== pending.player ||
+        currentPokemon.energies.length >=
+          getPassiveEnergyLimit(currentPokemon.card)
+      ) {
+        return previousBoard;
+      }
+
+      return {
+        ...previousBoard,
+        [pending.cellName]: {
+          ...currentPokemon,
+          energies: [
+            ...currentPokemon.energies,
+            energyType,
+          ],
+        },
+      };
+    });
+
+    state.setMessage(
+      `${pokemon.card.name} reçoit une Énergie ${energyType}.`
+    );
+  }
+
+  // Passer au choix suivant ou terminer.
+  state.setPendingDragonEnergyChoices((previous) => {
+    const [current, ...rest] = previous;
+
+    if (!current) return previous;
+
+    return current.remaining > 1
+      ? [
+          { ...current, remaining: current.remaining - 1 },
+          ...rest,
+        ]
+      : rest;
+  });
+}
 
   // Préparation de la partie
   const setup = useGameSetup(state);
@@ -81,6 +155,7 @@ export function useGame() {
     ...restart,
     ...cellPress,
     ...screenActions,
+    chooseDragonEnergy,
   };
 }
 

@@ -63,6 +63,18 @@ export function useGameAttackSelection({
       return;
     }
 
+    
+
+
+    
+if (pokemon.blockedAllAttacksTurnId === turnId) {
+  setMessage(
+    `${pokemon.card.name} ne peut pas attaquer pendant ce tour à cause de son attaque précédente.`
+  );
+  return;
+}
+
+
     const baseAttackBlocker = getBaseAttackBlocker(selectedPokemonCell);
     if (baseAttackBlocker) {
       setMessage(

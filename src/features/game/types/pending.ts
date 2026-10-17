@@ -8,14 +8,16 @@ export type PendingKOSurvival = {
   player: Player;
 };
 
+
 export type PendingGeneratedBenchEnergy = {
   player: Player;
-
   attackerCell: string;
-
   energyType: EnergyType;
-
   amount: number;
+
+  // Si true, on déplace les énergies
+  // de l'attaquant vers le Pokémon de banc.
+  moveFromAttacker?: boolean;
 };
 
 export type PendingOpponentTargetMode =
@@ -106,3 +108,11 @@ export type PendingPokemonSwitch = {
   player: Player;
   attackerCell: string;
 };
+
+
+export type PendingDragonEnergyChoice = {
+  cellName: string;
+  player: Player;
+  remaining: number;
+};
+

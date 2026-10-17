@@ -12,6 +12,7 @@ import type {
   PendingBothPlayersSwitch,
   PendingCoinFlip,
   PendingCoinReturnToHand,
+  PendingDragonEnergyChoice,
   PendingGeneratedBenchEnergy,
   PendingInvocationPlacement,
   PendingKOEnergyMove,
@@ -32,6 +33,8 @@ type UseGameRestartOptions = {
   setPlayer1Status: SetState<PlayerStatusState>;
   setPlayer2Status: SetState<PlayerStatusState>;
   setOpenedDiscardPlayer: SetState<Player | null>;
+  setPendingDragonEnergyChoices:
+  SetState<PendingDragonEnergyChoice[]>;
   setPendingInvocationPlacement: SetState<PendingInvocationPlacement | null>;
   setSelectedTrainerOwner: SetState<Player | null>;
   setPlayer1InvocationCards: SetState<PokemonCard[]>;
@@ -84,6 +87,7 @@ type UseGameRestartOptions = {
   setMessage: SetState<string>;
   player1SetupCards: GameCard[];
   player2SetupCards: GameCard[];
+
 };
 
 export function useGameRestart(options: UseGameRestartOptions) {
@@ -142,6 +146,7 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setPlayer2InvocationCards([]);
     options.setPlayer1Hand([]);
     options.setPlayer2Hand([]);
+    options.setPendingDragonEnergyChoices([]);
     options.setPlayer1SetupCards([]);
     options.setPlayer2SetupCards([]);
     options.setSetupPhase('player1');

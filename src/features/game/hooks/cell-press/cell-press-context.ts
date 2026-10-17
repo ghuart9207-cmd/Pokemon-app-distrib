@@ -16,6 +16,7 @@ import type {
   PokemonInPlay,
   SetState,
   TrainerCard,
+  PendingDragonEnergyChoice,
 } from '@/features/game/types';
 
 export type CellPressContext = {
@@ -64,6 +65,8 @@ export type CellPressContext = {
   setPlayer2DiscardEnergies: SetState<EnergyType[]>;
   setPlayer1Hand: SetState<GameCard[]>;
   setPlayer2Hand: SetState<GameCard[]>;
+  setPendingDragonEnergyChoices:
+  SetState<PendingDragonEnergyChoice[]>;
   setPokemonPlacementLocks: SetState<Record<string, number>>;
   setSelectedAttachedTool: SetState<{ card: TrainerCard; cellName: string } | null>;
   setSelectedAttackIndex: SetState<number | null>;

@@ -10,6 +10,7 @@ import type {
   PendingPokemonSwitch,
   PendingSleepResolution,
   Player,
+  PlayerStatusState,
   PokemonInPlay,
   SetState,
 } from '@/features/game/types';
@@ -17,6 +18,8 @@ import type {
 export type AttackResolutionContext = {
   board: BoardState;
   currentPlayer: Player;
+  player1Status: PlayerStatusState;
+  player2Status: PlayerStatusState;
   player1Discard: GameCard[];
 player2Discard: GameCard[];
   player1DiscardEnergies: EnergyType[];

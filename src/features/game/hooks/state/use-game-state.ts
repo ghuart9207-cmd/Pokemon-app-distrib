@@ -28,6 +28,7 @@ import type {
   PokemonCard,
   SelectedAttachedTool,
   TrainerCard,
+  PendingDragonEnergyChoice,
 } from '@/features/game/types';
 
 /**
@@ -104,6 +105,8 @@ export function useGameState() {
     useState<PendingBothPlayersSwitch | null>(null);
   const [pendingCoinReturnToHand, setPendingCoinReturnToHand] =
     useState<PendingCoinReturnToHand | null>(null);
+  const [pendingDragonEnergyChoices,setPendingDragonEnergyChoices,] = 
+    useState<PendingDragonEnergyChoice[]>([]);
   const [pendingGeneratedBenchEnergy, setPendingGeneratedBenchEnergy] =
     useState<PendingGeneratedBenchEnergy | null>(null);
   const [pendingInvocationPlacement, setPendingInvocationPlacement] =
@@ -217,6 +220,8 @@ export function useGameState() {
     setPendingPokemonSwitch,
     pendingSleepResolution,
     setPendingSleepResolution,
+    pendingDragonEnergyChoices,
+    setPendingDragonEnergyChoices,
   };
 }
 

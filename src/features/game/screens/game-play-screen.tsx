@@ -11,6 +11,7 @@ import { TrainerActions } from '@/features/game/components/panels/trainer-action
 import { DiscardPanel } from '@/features/game/components/player/discard-panel';
 import { PlayerHandArea } from '@/features/game/components/player/player-hand-area';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
+import { DragonEnergyPrompt } from '@/features/game/components/panels/dragon-energy-prompt';
 import type {
     BoardState,
     CoinAttackReference,
@@ -26,6 +27,7 @@ import type {
     PokemonInPlay,
     SelectedAttachedTool,
     TrainerCard,
+    PendingDragonEnergyChoice,
 } from '@/features/game/types';
 import { styles } from './game-play-screen.styles';
 
@@ -44,6 +46,8 @@ type GamePlayScreenProps = {
   player2DiscardEnergies: EnergyType[];
   player1Damage: number;
   player2Damage: number;
+  pendingDragonEnergyChoices: PendingDragonEnergyChoice[];
+  onChooseDragonEnergy: (energy: EnergyType) => void;
   player1Status: PlayerStatusState;
   player2Status: PlayerStatusState;
   selectedCard: PokemonCard | null;
@@ -86,11 +90,24 @@ type GamePlayScreenProps = {
 };
 
 export function GamePlayScreen(props: GamePlayScreenProps) {
+  
+const dragonChoice = props.pendingDragonEnergyChoices[0] ?? null;
+
+const dragonPokemon = dragonChoice
+  ? props.board[dragonChoice.cellName]
+  : null;
+
   return (
     <ScrollView
       style={sharedStyles.screen}
       contentContainerStyle={sharedStyles.container}
     >
+      
+<DragonEnergyPrompt
+  pokemon={dragonPokemon}
+  pending={dragonChoice}
+  onChoose={props.onChooseDragonEnergy}
+/>
       <Text style={sharedStyles.title}>Pokémon Plateau</Text>
       <Text style={styles.round}>Manche {props.round} / 8</Text>
       <View style={styles.turnBox}>
