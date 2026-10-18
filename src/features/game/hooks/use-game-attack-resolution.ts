@@ -19,6 +19,7 @@ import { formatAttackCost } from '@/features/game/utils/card-labels';
 import type { AttackResolutionContext } from './attack-resolution/attack-resolution-context';
 import { healAllAndReturnToHand } from './attack-resolution/heal-all-and-return-to-hand';
 import { hitOpponentPokemon } from './attack-resolution/hit-opponent-pokemon';
+import { hitEveryoneIgnoringEffects } from './attack-resolution/hit-everyone-ignoring-effects';
 import { resolveFailedAttack } from './attack-resolution/resolve-failed-attack';
 import { startBenchEnergyAttachment } from './attack-resolution/start-bench-energy-attachment';
 import { startFreeTargetAttack } from './attack-resolution/start-free-target-attack';
@@ -28,6 +29,10 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     advanceAttackOrder,
     applyAttackStatusToPlayer,
     board,
+    
+    player1Status,
+    player2Status,
+
     canAttackInCurrentOrder,
     currentPlayer,
     handleAttackerKO,
@@ -70,6 +75,15 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     const attacker = board[selectedPokemonCell];
 
     if (!attacker) return;
+
+
+if (attacker.blockedAllAttacksTurnId === turnId) {
+  setMessage(
+    `${attacker.card.name} ne peut pas attaquer pendant ce tour à cause de son attaque précédente.`
+  );
+  return;
+}
+
 
     if (attacker.asleep) {
       setMessage(`${attacker.card.name} est endormi et ne peut pas attaquer.`);
@@ -422,7 +436,102 @@ const discardCardBonus =
       blockedAttackTurnId: attack.blocksNextOwnTurn
         ? turnId + 2
         : attackerAfterConfusion.blockedAttackTurnId,
+
+      blockedAllAttacksTurnId: attack.blocksAllAttacksNextOwnTurn
+        ? turnId + 2
+        : attackerAfterConfusion.blockedAllAttacksTurnId,
     };
+
+
+    // =====================================
+    // DÉFAUSSE DES ÉNERGIES PAR TYPE
+    // =====================================
+
+    const typedDiscardEffects =
+      resolvedAttack.effects?.filter(
+        (effect) =>
+          effect.type === 'discardTypedEnergy' &&
+          effect.energyType
+      ) ?? [];
+
+    if (typedDiscardEffects.length > 0) {
+      const currentAttacker =
+        newBoard[selectedPokemonCell];
+
+      if (currentAttacker) {
+        const remainingEnergies = [
+          ...currentAttacker.energies,
+        ];
+
+        const discardedEnergies: EnergyType[] = [];
+
+        // Traiter chaque effet de défausse.
+        for (const effect of typedDiscardEffects) {
+          if (!effect.energyType) continue;
+
+          for (let i = 0; i < effect.amount; i++) {
+            const index = remainingEnergies.indexOf(
+              effect.energyType
+            );
+
+            if (index === -1) continue;
+
+            discardedEnergies.push(
+              remainingEnergies[index]
+            );
+
+            remainingEnergies.splice(index, 1);
+          }
+        }
+
+        // Retirer les énergies du Pokémon.
+        newBoard[selectedPokemonCell] = {
+          ...currentAttacker,
+          energies: remainingEnergies,
+        };
+
+        // Ajouter les énergies à la bonne défausse.
+        if (discardedEnergies.length > 0) {
+          if (attacker.owner === 1) {
+            setPlayer1DiscardEnergies(
+              (previous) => [
+                ...previous,
+                ...discardedEnergies,
+              ]
+            );
+          } else {
+            setPlayer2DiscardEnergies(
+              (previous) => [
+                ...previous,
+                ...discardedEnergies,
+              ]
+            );
+          }
+        }
+      }
+    }
+
+    // =====================================
+    // DÉGÂTS À TOUS, SANS PROTECTION
+    // =====================================
+
+    const globalDamageEffect = resolvedAttack.effects?.find(
+      (effect) =>
+        effect.type === 'damageEveryoneIgnoringEffects'
+    );
+
+    if (globalDamageEffect) {
+      hitEveryoneIgnoringEffects(
+        options,
+        newBoard,
+        globalDamageEffect.amount,
+        attacker.card.name,
+        attack.name
+      );
+
+      return;
+    }
+
 
     // --------------------------------
 // DÉGÂTS À NOS PROPRES POKÉMON
@@ -456,9 +565,26 @@ if (ownBenchDamage > 0) {
         return;
       }
 
+      
+      // Talent d'Azumarill : réduction des dégâts
+      // provenant des Pokémon Feu et Eau.
+      const fireWaterReduction =
+        benchPokemon.card.talent?.type === 'passive' &&
+        benchPokemon.card.talent.effect ===
+          'reduceDamageFromFireWater' &&
+        (attacker.card.type === 'feu' ||
+          attacker.card.type === 'eau')
+          ? (benchPokemon.card.talent.amount ?? 30)
+          : 0;
+
+      const actualOwnBenchDamage = Math.max(
+        0,
+        ownBenchDamage - fireWaterReduction
+      );
+
       const newBenchHp =
-        benchPokemon.currentHp -
-        ownBenchDamage;
+        benchPokemon.currentHp - actualOwnBenchDamage;
+
 
       // Le Pokémon survit
       if (newBenchHp > 0) {
@@ -544,6 +670,74 @@ if (ownBenchDamage > 0) {
   );
 }
 
+
+    // =====================================
+    // TRANSFÉRER UNE ÉNERGIE DE L'ATTAQUANT
+    // VERS UN POKÉMON DE BANC
+    // =====================================
+
+    const moveEnergyToBenchEffect = resolvedAttack.effects?.find(
+      (effect) =>
+        effect.type === 'moveOwnEnergyToBench' &&
+        effect.energyType
+    );
+
+    if (
+      moveEnergyToBenchEffect &&
+      moveEnergyToBenchEffect.energyType
+    ) {
+      const energyType = moveEnergyToBenchEffect.energyType;
+      const amount = moveEnergyToBenchEffect.amount;
+
+      const currentAttacker = newBoard[selectedPokemonCell];
+
+      const availableEnergyCount =
+        currentAttacker?.energies.filter(
+          (energy) => energy === energyType
+        ).length ?? 0;
+
+      const hasBenchPokemon = Object.entries(newBoard).some(
+        ([cellName, pokemon]) =>
+          pokemon !== null &&
+          pokemon.owner === attacker.owner &&
+          cellName !== selectedPokemonCell
+      );
+
+      if (hasBenchPokemon && availableEnergyCount >= amount) {
+        setBoard(newBoard);
+
+        options.setPendingGeneratedBenchEnergy({
+          player: attacker.owner,
+          attackerCell: selectedPokemonCell,
+          energyType,
+          amount,
+          moveFromAttacker: true,
+        });
+
+        setSelectedPokemonCell(null);
+        setSelectedAttackIndex(null);
+
+        setMessage(
+          `Choisis un Pokémon de banc pour recevoir ${amount} Énergie ${energyType} de ${attacker.card.name}.`
+        );
+
+        return;
+      }
+
+      setBoard(newBoard);
+      setSelectedPokemonCell(null);
+      setSelectedAttackIndex(null);
+
+      setMessage(
+        !hasBenchPokemon
+          ? `${attacker.card.name} utilise ${attack.name}, mais aucun Pokémon de banc n'est disponible.`
+          : `${attacker.card.name} utilise ${attack.name}, mais ne possède pas assez d'Énergies ${energyType} à transférer.`
+      );
+
+      return;
+    }
+
+
     // =====================================
     // ATTACHER UNE ÉNERGIE CRÉÉE
     // À UN POKÉMON DE BANC
@@ -621,10 +815,24 @@ if (ownBenchDamage > 0) {
 
     const opponent: Player = attacker.owner === 1 ? 2 : 1;
 
+    
+    const opponentStatus =
+      opponent === 1
+        ? player1Status
+        : player2Status;
+
+    const PlayerExtraDamage =
+      opponentStatus.extraDamageNextTurnReady &&
+      opponentStatus.extraDamageNextTurnSourcePlayer === attacker.owner
+        ? (opponentStatus.extraDamageNextTurn ?? 0)
+        : 0;
+
     const directDamage =
-      attack.fixedDamage !== undefined
+      (attack.fixedDamage !== undefined
         ? attack.fixedDamage
-        : totalDamage + directOpponentBenchBonus;
+        : totalDamage + directOpponentBenchBonus) +
+      PlayerExtraDamage;
+
 
     // --------------------------------
     // VOL DE VIE SUR LE JOUEUR ADVERSE

@@ -54,6 +54,10 @@ export function GameView({ game }: GameViewProps) {
     <GamePlayScreen
       // Partie
       board={game.board}
+      
+pendingDragonEnergyChoices={game.pendingDragonEnergyChoices}
+onChooseDragonEnergy={game.chooseDragonEnergy}
+
       currentPlayer={game.currentPlayer}
       gameOver={game.gameOver}
       round={game.round}

@@ -12,7 +12,11 @@ export function resolvePokemonEndOfTurn(
       0,
       ...updatedPokemon.card.attacks.map((attack) => attack.energyCost)
     );
-    const canReceivePassiveEnergy = updatedPokemon.energies.length < passiveEnergyLimit;
+    
+const canReceivePassiveEnergy =
+  updatedPokemon.card.type !== 'dragon' &&
+  updatedPokemon.energies.length < passiveEnergyLimit;
+
 
     updatedPokemon = {
       ...updatedPokemon,
@@ -114,6 +118,16 @@ export function resolvePokemonEndOfTurn(
 
     preventAllAttackDamageAndEffectsEndPlayer:
       null,
+  };
+}
+
+if (
+  updatedPokemon.temporaryAttackDamageProtection
+    ?.expiresAfterPlayerTurn === currentPlayer
+) {
+  updatedPokemon = {
+    ...updatedPokemon,
+    temporaryAttackDamageProtection: undefined,
   };
 }
 

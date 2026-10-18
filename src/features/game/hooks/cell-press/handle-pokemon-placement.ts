@@ -32,6 +32,7 @@ export function handlePokemonPlacement(
     setPlayer2DiscardEnergies,
     setPlayer2Hand,
     setSelectedCard,
+    setPendingDragonEnergyChoices,
   } = context;
 
   const pokemon = board[cellName];
@@ -70,9 +71,16 @@ export function handlePokemonPlacement(
 
   const startingEnergyCount = Math.min(2, passiveEnergyLimit);
 
-  const startingEnergies: EnergyType[] = Array(startingEnergyCount).fill(
-    selectedCard.type
-  );
+  
+const isDragonWithChoices =
+  selectedCard.type === 'dragon' &&
+  selectedCard.dragonEnergyTypes?.length === 2;
+
+const startingEnergies: EnergyType[] =
+  isDragonWithChoices
+    ? []
+    : Array(startingEnergyCount).fill(selectedCard.type);
+
 
   const pokemonToPlace = createPokemonInPlay({
     card: selectedCard,
@@ -112,13 +120,91 @@ export function handlePokemonPlacement(
 
       setPlayer2DiscardEnergies((discard) => [...discard, ...pokemonToPlace.energies]);
     }
+  
   } else {
-    setBoard((previousBoard) => ({
-      ...previousBoard,
+    // Talent : paralyse le Pokémon adverse en face
+    // lors de la pose sur le plateau.
+    const paralysisOnPlay =
+      selectedCard.talent?.type === 'passive' &&
+      selectedCard.talent.effect ===
+        'paralyzeOpponentOnPlay';
 
-      [cellName]: pokemonAfterPlacementDamage,
-    }));
+    
+
+
+
+const column = cellName.slice(1);
+
+const targetCells =
+  currentPlayer === 1
+    ? [`C${column}`, `D${column}`]
+    : [`B${column}`, `A${column}`];
+
+const oppositeCell = targetCells.find(
+  (cell) =>
+    board[cell] !== null &&
+    board[cell] !== undefined &&
+    board[cell]?.owner !== currentPlayer
+);
+
+const target = oppositeCell
+  ? board[oppositeCell]
+  : null;
+
+
+
+    
+const canParalyze =
+  paralysisOnPlay &&
+  target !== null &&
+  target !== undefined &&
+  target.owner !== currentPlayer;
+
+
+    setBoard((previousBoard) => {
+      const updatedBoard = {
+        ...previousBoard,
+        [cellName]: pokemonAfterPlacementDamage,
+      };
+
+      const target = oppositeCell
+  ? previousBoard[oppositeCell]
+  : null;
+
+      if (
+  canParalyze &&
+  oppositeCell &&
+  target &&
+  target.owner !== currentPlayer
+) {
+        updatedBoard[oppositeCell] = {
+          ...target,
+          paralyzed: true,
+          paralysisTurnsRemaining: 1,
+        };
+      }
+
+      return updatedBoard;
+    });
   }
+
+
+// Demande les deux choix d'énergie à la pose
+// uniquement si le Dragon a survécu.
+if (
+  !knockedOutOnPlacement &&
+  isDragonWithChoices &&
+  startingEnergyCount > 0
+) {
+  setPendingDragonEnergyChoices((previous) => [
+    ...previous,
+    {
+      cellName,
+      player: currentPlayer,
+      remaining: startingEnergyCount,
+    },
+  ]);
+}
 
   if (currentPlayer === 1) {
     setPlayer1Hand((hand) => hand.filter((card) => card.id !== selectedCard.id));
@@ -136,9 +222,28 @@ export function handlePokemonPlacement(
     setMessage(
       `${selectedCard.name} est posé en ${cellName} avec 2 Énergies et subit ${placementDamage} dégâts à cause d'un Talent adverse.`
     );
+  
   } else {
-    setMessage(`${selectedCard.name} est posé en ${cellName} avec 2 Énergies.`);
+    const oppositeCell =
+      `${currentPlayer === 1 ? 'C' : 'B'}${cellName.slice(1)}`;
+
+    const target = board[oppositeCell];
+
+    const paralysisTriggered =
+      selectedCard.talent?.type === 'passive' &&
+      selectedCard.talent.effect ===
+        'paralyzeOpponentOnPlay' &&
+      target !== null &&
+      target !== undefined &&
+      target.owner !== currentPlayer;
+
+    setMessage(
+      paralysisTriggered
+        ? `${selectedCard.name} est posé en ${cellName}. Son Talent paralyse ${target!.card.name} en ${oppositeCell} !`
+        : `${selectedCard.name} est posé en ${cellName} avec 2 Énergies.`
+    );
   }
+
 
   setSelectedCard(null);
   return true;

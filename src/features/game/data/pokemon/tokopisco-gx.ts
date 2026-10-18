@@ -14,6 +14,7 @@ export const tokopiscoGx: PokemonCard = {
       name: 'Anneau Hydro',
       damage: 20,
       energyCost: 1,
+    
       effects: [
         {
           type: 'switchWithBench',
@@ -28,7 +29,8 @@ export const tokopiscoGx: PokemonCard = {
       name: 'Hydro-Coup',
       damage: 120,
       energyCost: 3,
-
+requiredEnergies: { eau: 2,
+      },
       effects: [
         {
           type: 'discardTypedEnergy',

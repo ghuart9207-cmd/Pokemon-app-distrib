@@ -1,6 +1,7 @@
 import type { PokemonCard, TrainerCard } from './cards';
 import type { CoinHistory } from './coins';
-import type { EnergyType, Player } from './core';
+import type {CardVariant,EnergyType,Player,Stage,} from './core';
+
 
 export type PlayerStatusState = {
   poisoned: boolean;
@@ -55,6 +56,9 @@ export type PokemonInPlay = {
 
   blockedAttackName?: string | null;
   blockedAttackTurnId?: number | null;
+  
+  blockedAllAttacksTurnId?: number | null;
+
 
   attackDamageReduction?: number;
 
@@ -62,6 +66,14 @@ export type PokemonInPlay = {
 
   preventAllAttackDamageAndEffects?: boolean;
 preventAllAttackDamageAndEffectsEndPlayer?: Player | null;
+
+
+temporaryAttackDamageProtection?: {
+  stage?: Stage;
+  variant?: CardVariant;
+  expiresAfterPlayerTurn: Player;
+};
+
 };
 
 export type BoardState = Record<string, PokemonInPlay | null>;

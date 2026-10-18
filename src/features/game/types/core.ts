@@ -16,4 +16,5 @@ export type EnergyType =
   | 'normal'
   | 'obscurite'
   | 'metal'
-  | 'fee';
+  | 'fee'
+  | 'dragon';

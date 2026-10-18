@@ -45,6 +45,7 @@ export function startFreeTargetAttack(
       blockedAttackTurnId?: number | null | undefined;
       attackDamageReduction?: number | undefined;
       attackDamageReductionEndPlayer?: Player | null | undefined;
+      blockedAllAttacksTurnId?: number | null | undefined;
     };
     newBoard: { [x: string]: PokemonInPlay | null };
     resolvedAttack: Attack;
@@ -69,8 +70,10 @@ export function startFreeTargetAttack(
     selectedPokemonCell,
     totalDamage,
   } = locals;
-  let specialAttacker = {
-    ...attackerAfterConfusion,
+  
+let specialAttacker = {
+  ...(newBoard[selectedPokemonCell] ?? attackerAfterConfusion),
+
 
     hasAttacked: true,
 
@@ -78,45 +81,18 @@ export function startFreeTargetAttack(
       ? attack.name
       : attackerAfterConfusion.blockedAttackName,
 
+    blockedAllAttacksTurnId: attack.blocksAllAttacksNextOwnTurn
+      ? turnId + 2
+      : attackerAfterConfusion.blockedAllAttacksTurnId,
+
     blockedAttackTurnId: attack.blocksNextOwnTurn
       ? turnId + 2
       : attackerAfterConfusion.blockedAttackTurnId,
+
+    
   };
 
-  const typedDiscardEffect = resolvedAttack.effects?.find(
-    (effect) => effect.type === 'discardTypedEnergy' && effect.energyType
-  );
-
-  if (typedDiscardEffect && typedDiscardEffect.energyType) {
-    const remainingEnergies = [...specialAttacker.energies];
-
-    const discardedEnergies: EnergyType[] = [];
-
-    for (let i = 0; i < typedDiscardEffect.amount; i++) {
-      const energyIndex = remainingEnergies.findIndex(
-        (energy) => energy === typedDiscardEffect.energyType
-      );
-
-      if (energyIndex === -1) {
-        break;
-      }
-
-      discardedEnergies.push(remainingEnergies[energyIndex]);
-
-      remainingEnergies.splice(energyIndex, 1);
-    }
-
-    specialAttacker = {
-      ...specialAttacker,
-      energies: remainingEnergies,
-    };
-
-    if (attacker.owner === 1) {
-      setPlayer1DiscardEnergies((previous) => [...previous, ...discardedEnergies]);
-    } else {
-      setPlayer2DiscardEnergies((previous) => [...previous, ...discardedEnergies]);
-    }
-  }
+  
 
   newBoard[selectedPokemonCell] = specialAttacker;
 

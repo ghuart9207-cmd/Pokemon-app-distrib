@@ -21,6 +21,8 @@ export function getTypeIcon(type: EnergyType) {
     case 'metal':
       return '⚙️';
     case 'fee':
+      return '🧚';
+    case 'dragon':
       return '🐉';
     default:
       return '●';

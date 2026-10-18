@@ -44,6 +44,43 @@ export function getTypeCardColors(type: EnergyType) {
         border: '#7C56B1',
         attackBg: '#E5D7F7',
       };
+      
+    // TYPE MÉTAL
+    case 'metal':
+      return {
+        card: '#CDD6DC',
+        header: '#A5B4BF',
+        border: '#657987',
+        attackBg: '#E1E7EB',
+      };
+
+    // TYPE OBSCURITÉ
+    case 'obscurite':
+      return {
+        card: '#D4CCDF',
+        header: '#A99ABB',
+        border: '#695779',
+        attackBg: '#E5DFED',
+      };
+
+    // TYPE DRAGON
+    case 'dragon':
+      return {
+        card: '#E8D49A',
+        header: '#D6B45D',
+        border: '#9F7929',
+        attackBg: '#F3E4BA',
+      };
+
+    // TYPE FÉE
+    case 'fee':
+      return {
+        card: '#F7C8E1',
+        header: '#EE94C4',
+        border: '#CD609E',
+        attackBg: '#FADDED',
+      };
+
     default:
       return {
         card: '#E8E8E8',

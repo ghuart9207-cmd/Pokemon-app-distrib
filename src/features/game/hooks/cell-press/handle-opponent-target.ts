@@ -1,6 +1,9 @@
 import { getKOPenalty, getPokemonMaxHp } from '@/features/game/rules';
 import type { BoardState } from '@/features/game/types';
 import type { CellPressContext } from './cell-press-context';
+import { doesTemporaryProtectionPreventDamage } from
+  '@/features/game/rules/temporary-attack-protection';
+
 
 /** Choix d'un Pokémon adverse ciblé par une attaque. */
 export function handleOpponentTarget(
@@ -62,7 +65,15 @@ export function handleOpponentTarget(
     return true;
   }
 
-  const pendingAttacker = board[pendingOpponentTarget.attackerCell];
+
+
+
+
+
+  
+const pendingAttacker =
+  board[pendingOpponentTarget.attackerCell];
+
 
   if (pendingAttacker && doesTalentPreventAllAttackEffects(target, pendingAttacker)) {
     setMessage(
@@ -82,7 +93,30 @@ export function handleOpponentTarget(
       ? (target.extraDamageNextTurn ?? 0)
       : 0;
 
-  const pendingDamage = pendingOpponentTarget.damage + pendingExtraDamage;
+  
+const protectedFromDamage =
+  pendingAttacker != null &&
+  doesTemporaryProtectionPreventDamage(
+    target,
+    pendingAttacker
+  );
+
+// Talent d'Azumarill :
+  // réduit de 30 les dégâts des attaques
+  // provenant d'un Pokémon Feu ou Eau.
+  const fireWaterReduction =
+    target.card.talent?.type === 'passive' &&
+    target.card.talent.effect === 'reduceDamageFromFireWater' &&
+    pendingAttacker !== null &&
+    (pendingAttacker.card.type === 'feu' ||
+      pendingAttacker.card.type === 'eau')
+      ? (target.card.talent.amount ?? 30)
+      : 0;
+
+const pendingDamage = protectedFromDamage
+  ? 0
+  : pendingOpponentTarget.damage + pendingExtraDamage - fireWaterReduction;
+
 
   const remainingHp = target.currentHp - pendingDamage;
 
