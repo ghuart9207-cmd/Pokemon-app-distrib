@@ -6,6 +6,7 @@ import { handleBothPlayersSwitch } from './cell-press/handle-both-players-switch
 import { handleCoinReturnToHand } from './cell-press/handle-coin-return-to-hand';
 import { handleEmptyCell } from './cell-press/handle-empty-cell';
 import { handleGeneratedBenchEnergy } from './cell-press/handle-generated-bench-energy';
+import { handleTalentEnergyAttachment } from './cell-press/handle-talent-energy-attachment';
 import { handleInvocationPlacement } from './cell-press/handle-invocation-placement';
 import { handleKOEnergyMove } from './cell-press/handle-ko-energy-move';
 import { handleOpponentActiveSwitch } from './cell-press/handle-opponent-active-switch';
@@ -13,13 +14,18 @@ import { handleOpponentTarget } from './cell-press/handle-opponent-target';
 import { handlePokemonPlacement } from './cell-press/handle-pokemon-placement';
 import { handlePokemonSwitch } from './cell-press/handle-pokemon-switch';
 import { handleTrainerCardTarget } from './cell-press/handle-trainer-card-target';
+import { handleEnergyTransferToBench } from './cell-press/handle-energy-transfer-to-bench';
+import { handleDiscardTalentPlacement } from './cell-press/handle-discard-talent-placement';
+
 
 /**
  * Handlers essayés dans l'ordre : le premier qui traite le clic (renvoie `true`) arrête la chaîne.
  * L'ordre reproduit la priorité des actions en attente sur une case du plateau.
  */
 const CELL_PRESS_HANDLERS = [
+  handleDiscardTalentPlacement,
   handleInvocationPlacement,
+  handleTalentEnergyAttachment,
   handleGeneratedBenchEnergy,
   handleOpponentActiveSwitch,
   handleCoinReturnToHand,
@@ -30,6 +36,7 @@ const CELL_PRESS_HANDLERS = [
   handlePokemonSwitch,
   handleBenchEnergyAttachment,
   handleTrainerCardTarget,
+  handleEnergyTransferToBench,
   handleBoardPokemonSelection,
   handlePokemonPlacement,
   handleEmptyCell,

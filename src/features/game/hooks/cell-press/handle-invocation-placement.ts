@@ -56,13 +56,31 @@ export function handleInvocationPlacement(
 
   const card = cards[selectedIndex];
 
-  const invocation = createPokemonInPlay({
+  
+const invocation: PokemonInPlay = {
+  ...createPokemonInPlay({
     // IMPORTANT : aucune Énergie à l'invocation.
     card,
     owner: player,
     energies: [],
     isInvocation: true,
-  });
+  }),
+
+  // Protection temporaire accordée à la pose.
+  preventAllAttackDamageAndEffects:
+    card.talent?.type === 'passive' &&
+    card.talent.effect ===
+      'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd',
+
+  // La protection expire à la fin du prochain tour adverse.
+  preventAllAttackDamageAndEffectsEndPlayer:
+    card.talent?.type === 'passive' &&
+    card.talent.effect ===
+      'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd'
+      ? (player === 1 ? 2 : 1)
+      : null,
+};
+
 
   const placementDamage = getOpponentPlacementDamage(board, player);
 

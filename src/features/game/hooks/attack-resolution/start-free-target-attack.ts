@@ -105,6 +105,12 @@ let specialAttacker = {
 
     damage: totalDamage,
 
+    
+effects: resolvedAttack.effects,
+
+
+
+
     mode:
       attack.targetMode === 'damagedOpponentOrPlayer'
         ? 'damagedOpponentOrPlayer'

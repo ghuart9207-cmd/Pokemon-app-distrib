@@ -44,6 +44,13 @@ export function useGameTargeting({
       return;
     }
 
+    if (targetPlayer === pendingOpponentTarget.excludedPlayer) {
+  setMessage(
+    "Ce joueur a déjà reçu les dégâts principaux. Choisis une autre cible adverse."
+  );
+  return;
+}
+
     const currentDamage = targetPlayer === 1 ? player1Damage : player2Damage;
     if (pendingOpponentTarget.mode === 'damagedOpponentOrPlayer' && currentDamage <= 0) {
       setMessage(`Le joueur ${targetPlayer} n'a aucun marqueur de dégâts.`);
@@ -75,6 +82,10 @@ export function useGameTargeting({
       return false;
     }
 
+    if (player === pendingOpponentTarget.excludedPlayer) {
+  return false;
+}
+
     if (pendingOpponentTarget.mode === 'damagedOpponentOrPlayer') {
       return (player === 1 ? player1Damage : player2Damage) > 0;
     }
@@ -94,12 +105,18 @@ export function useGameTargeting({
     }
 
     setPendingOpponentTarget({
-      player: attacker.owner,
-      attackerCell,
-      damage: secondaryDamage,
-      mode: 'benchOrPlayer',
-      excludedCell: mainTargetCell,
-    });
+  player: attacker.owner,
+  attackerCell,
+  damage: secondaryDamage,
+  mode: 'benchOrPlayer',
+  excludedCell: mainTargetCell,
+  excludedPlayer:
+    mainTargetCell === null
+      ? attacker.owner === 1
+        ? 2
+        : 1
+      : null,
+});
 
     return true;
   }

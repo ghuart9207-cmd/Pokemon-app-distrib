@@ -14,9 +14,9 @@ export const psytigri: PokemonCard = {
       name: 'Regard Déroutant',
       damage: 0,
       energyCost: 1,
-      
-      
-    },
+      effects: [ {type: 'takeExtraDamageNextTurn',     amount: 20,energyType: 'psy',  },  ],
+      effectText:    'Pendant votre prochain tour, le Pokémon Défenseur subit 60 dégâts supplémentaires venant des attaques de type psy.', } ,
+    
    
   ],
 };

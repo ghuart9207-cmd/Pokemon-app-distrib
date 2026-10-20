@@ -82,11 +82,29 @@ const startingEnergies: EnergyType[] =
     : Array(startingEnergyCount).fill(selectedCard.type);
 
 
-  const pokemonToPlace = createPokemonInPlay({
+  
+const pokemonToPlace: PokemonInPlay = {
+  ...createPokemonInPlay({
     card: selectedCard,
     owner: currentPlayer,
     energies: startingEnergies,
-  });
+  }),
+
+  // Protection temporaire accordée à la pose.
+  preventAllAttackDamageAndEffects:
+    selectedCard.talent?.type === 'passive' &&
+    selectedCard.talent.effect ===
+      'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd',
+
+  // La protection expire à la fin du prochain tour adverse.
+  preventAllAttackDamageAndEffectsEndPlayer:
+    selectedCard.talent?.type === 'passive' &&
+    selectedCard.talent.effect ===
+      'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd'
+      ? (currentPlayer === 1 ? 2 : 1)
+      : null,
+};
+
 
   const placementDamage = getOpponentPlacementDamage(board, currentPlayer);
 

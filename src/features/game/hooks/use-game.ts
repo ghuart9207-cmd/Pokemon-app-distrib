@@ -14,7 +14,7 @@ import { useGameSetup } from './use-game-setup';
 import { useGameTargeting } from './use-game-targeting';
 import { useGameTrainerActions } from './use-game-trainer-actions';
 import { useGameTurn } from './use-game-turn';
-import { getPassiveEnergyLimit } from '@/features/game/rules';
+import {getPassiveEnergyLimit,canAttachEnergyFromSource,} from '@/features/game/rules';
 import type { EnergyType } from '@/features/game/types';
 
 
@@ -42,6 +42,21 @@ function chooseDragonEnergy(energyType: EnergyType) {
     return;
   }
 
+  // Vérifie si le Pokémon Dragon peut recevoir
+  // une énergie considérée comme venant de la main.
+  if (!canAttachEnergyFromSource(pokemon, 'hand')) {
+    state.setMessage(
+      `${pokemon.card.name} ne peut pas recevoir d'Énergie à cause de l'attaque adverse.`
+    );
+
+    // Supprime ce choix devenu interdit.
+    state.setPendingDragonEnergyChoices(
+      (previous) => previous.slice(1)
+    );
+
+    return;
+  }
+
   const allowedTypes = pokemon.card.dragonEnergyTypes;
 
   // Vérifier que l'énergie choisie fait partie
@@ -57,14 +72,17 @@ function chooseDragonEnergy(energyType: EnergyType) {
     state.setBoard((previousBoard) => {
       const currentPokemon = previousBoard[pending.cellName];
 
-      if (
-        !currentPokemon ||
-        currentPokemon.owner !== pending.player ||
-        currentPokemon.energies.length >=
-          getPassiveEnergyLimit(currentPokemon.card)
-      ) {
-        return previousBoard;
-      }
+      
+if (
+  !currentPokemon ||
+  currentPokemon.owner !== pending.player ||
+  !canAttachEnergyFromSource(currentPokemon, 'hand') ||
+  currentPokemon.energies.length >=
+    getPassiveEnergyLimit(currentPokemon.card)
+) {
+  return previousBoard;
+}
+
 
       return {
         ...previousBoard,
@@ -150,6 +168,7 @@ function chooseDragonEnergy(energyType: EnergyType) {
     ...trainerActions,
     ...invocation,
     ...attackSelection,
+    ...attackResolution,
     ...retreat,
     ...turn,
     ...restart,

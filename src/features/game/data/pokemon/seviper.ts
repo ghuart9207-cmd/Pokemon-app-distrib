@@ -10,6 +10,14 @@ export const seviper: PokemonCard = {
   maxHp: 100,
   retreatCost: 2,
   artwork: require('../../../../../assets/images/seviper-card.png'),
+  talent: {
+  name: 'Poison Sans Fin',
+  type: 'passive',
+  effect: 'increaseOpponentPoisonDamage',
+  amount: 10,
+  description:
+    'Les Pokémon adverses empoisonnés subissent 10 dégâts supplémentaires du poison.',
+},
   attacks: [
     
     {

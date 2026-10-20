@@ -1,4 +1,4 @@
-import { getKOPenalty, getPokemonMaxHp } from '@/features/game/rules';
+import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, } from '@/features/game/rules';
 import type {
   Attack,
   AttackEffect,
@@ -12,6 +12,11 @@ import type {
 import type { AttackResolutionContext } from './attack-resolution-context';
 import { doesTemporaryProtectionPreventDamage } from
   '@/features/game/rules/temporary-attack-protection';
+import { applyTargetRetreatBlock } from
+  '@/features/game/rules/retreat-block-rules';
+import { applyHandEnergyBlockFromAttack } from
+  '@/features/game/rules';
+
 
 
 /** Attaque qui touche le Pokémon adverse en face : dégâts, protections de la cible, K.O. et effets. */
@@ -53,6 +58,7 @@ export function hitOpponentPokemon(
     };
     newBoard: { [x: string]: PokemonInPlay | null };
     opponentBenchBonus: number;
+    opponentPlayerPoisoned?: boolean;
     resolvedAttack: Attack;
     selectedPokemonCell: string;
     targetCell: string;
@@ -87,12 +93,13 @@ export function hitOpponentPokemon(
     attackerAfterConfusion,
     newBoard,
     opponentBenchBonus,
+    opponentPlayerPoisoned,
     resolvedAttack,
     selectedPokemonCell,
     targetCell,
     totalDamage,
   } = locals;
-  const target = board[targetCell];
+  const target = newBoard[targetCell] ?? board[targetCell];
 
   if (!target) return;
 
@@ -106,6 +113,95 @@ const attackEffectsPrevented =
     target,
     attacker
   );
+
+
+  // ==========================================
+  // DÉFAUSSER TOUTES LES ÉNERGIES ET OUTILS
+  // DES DEUX POKÉMON ACTIFS
+  // ==========================================
+
+  const discardBothActiveAttachmentsEffect =
+    resolvedAttack.effects?.some(
+      (effect) =>
+        effect.type ===
+        'discardAllEnergyAndToolsFromBothActives'
+    ) ?? false;
+
+  const discardAllAttachmentsAtCell = (
+    cellName: string
+  ) => {
+    const pokemonAtCell = newBoard[cellName];
+
+    if (!pokemonAtCell) return;
+
+    const energiesToDiscard = [
+      ...pokemonAtCell.energies,
+    ];
+
+    const toolToDiscard =
+      pokemonAtCell.attachedTool;
+
+    if (
+      energiesToDiscard.length === 0 &&
+      !toolToDiscard
+    ) {
+      return;
+    }
+
+    // Retirer les cartes attachées au Pokémon.
+    newBoard[cellName] = {
+      ...pokemonAtCell,
+      energies: [],
+      attachedTool: null,
+    };
+
+    // Défausser les Énergies et l'Outil
+    // chez le propriétaire du Pokémon.
+    if (pokemonAtCell.owner === 1) {
+      if (energiesToDiscard.length > 0) {
+        setPlayer1DiscardEnergies((previous) => [
+          ...previous,
+          ...energiesToDiscard,
+        ]);
+      }
+
+      if (toolToDiscard) {
+        setPlayer1Discard((previous) => [
+          ...previous,
+          toolToDiscard,
+        ]);
+      }
+    } else {
+      if (energiesToDiscard.length > 0) {
+        setPlayer2DiscardEnergies((previous) => [
+          ...previous,
+          ...energiesToDiscard,
+        ]);
+      }
+
+      if (toolToDiscard) {
+        setPlayer2Discard((previous) => [
+          ...previous,
+          toolToDiscard,
+        ]);
+      }
+    }
+  };
+
+  const applyDiscardBothActiveAttachmentsEffect = () => {
+    if (!discardBothActiveAttachmentsEffect) return;
+
+    // Le Pokémon qui attaque perd ses attaches.
+    discardAllAttachmentsAtCell(selectedPokemonCell);
+
+    // Le Pokémon défenseur perd les siennes,
+    // sauf si un effet le protège des effets d'attaque.
+    if (!attackEffectsPrevented) {
+      discardAllAttachmentsAtCell(targetCell);
+    }
+  };
+
+
   // Dégâts de l'attaque avant
   // les protections de la cible
   const fixedDamage = attack.fixedDamage;
@@ -116,14 +212,43 @@ const attackEffectsPrevented =
   // Bonus de dégâts subi au prochain tour
   // après une attaque comme Grincement de Persian.
   const ExtraDamage =
-    target.extraDamageNextTurnReady &&
-    target.extraDamageNextTurnSourcePlayer === attacker.owner
-      ? (target.extraDamageNextTurn ?? 0)
-      : 0;
+  target.extraDamageNextTurnReady &&
+  target.extraDamageNextTurnSourcePlayer === attacker.owner &&
+  (
+    target.extraDamageNextTurnEnergyType == null ||
+    target.extraDamageNextTurnEnergyType === attacker.card.type
+  )
+    ? (target.extraDamageNextTurn ?? 0)
+    : 0;
 
   let attackDamage: number =
-    (fixedDamage ?? totalDamage + opponentBenchBonus) +
-    ExtraDamage;
+  (fixedDamage !== undefined
+    ? fixedDamage +
+      getToolAttachedAttackBonus(attacker, attack)
+    : totalDamage + opponentBenchBonus) +
+  ExtraDamage;
+  attackDamage += getOpponentActiveSpecialConditionBonus(
+  attacker,
+  attack,
+  board,
+  selectedPokemonCell
+);
+
+  // BONUS DE 80 DÉGÂTS SI LA CIBLE EST EMPOISONNÉE
+  const poisonedBonusEffect = resolvedAttack.effects?.find(
+    (effect) => effect.type === 'bonusDamageIfTargetPoisoned'
+  );
+
+  if (
+    !isFixedDamageAttack &&
+    poisonedBonusEffect &&
+    (
+  target.poisoned === true ||
+  opponentPlayerPoisoned === true
+)
+  ) {
+    attackDamage += poisonedBonusEffect.amount;
+  }
 
 
   // Bonus contre Pokémon évolué
@@ -143,9 +268,20 @@ const attackEffectsPrevented =
     attackDamage += attack.bonusDamageIfTargetNotEvolved;
   }
 
+// BONUS DE DÉGÂTS SELON LE COÛT DE RETRAITE DE LA CIBLE
+  const retreatCostBonusEffect = resolvedAttack.effects?.find(
+    (effect) => effect.type === 'bonusDamagePerTargetRetreatCost'
+  );
+
+  if (!isFixedDamageAttack && retreatCostBonusEffect) {
+    attackDamage +=
+      target.card.retreatCost * retreatCostBonusEffect.amount;
+  }
+
   // Talent qui empêche les dégâts
  
 const damagePrevented =
+  
   temporaryAttackProtection ||
   doesTemporaryProtectionPreventDamage(
     target,
@@ -156,23 +292,30 @@ const damagePrevented =
 
 
   // Réduction de dégâts
-  const activeDamageReduction = isFixedDamageAttack
+  // L'attaque peut ignorer les réductions de dégâts de la cible.
+const ignoresTargetDamageReduction =
+  resolvedAttack.effects?.some(
+    (effect: AttackEffect) =>
+      effect.type === 'ignoreTargetDamageReduction'
+  ) ?? false;
+
+// Réduction de dégâts, notamment celle de Frison.
+const activeDamageReduction =
+  isFixedDamageAttack || ignoresTargetDamageReduction
     ? 0
     : target.attackDamageReductionEndPlayer === attacker.owner
       ? (target.attackDamageReduction ?? 0)
       : 0;
 
-
- 
   // réduit les attaques des Pokémon Feu et Eau de 30 dégâts.
   const fireWaterTalentReduction =
-    target.card.talent?.type === 'passive' &&
-    target.card.talent.effect === 'reduceDamageFromFireWater' &&
-    (attacker.card.type === 'feu' ||
-      attacker.card.type === 'eau')
-      ? (target.card.talent.amount ?? 30)
-      : 0;
-
+  !ignoresTargetDamageReduction &&
+  target.card.talent?.type === 'passive' &&
+  target.card.talent.effect === 'reduceDamageFromFireWater' &&
+  (attacker.card.type === 'feu' ||
+    attacker.card.type === 'eau')
+    ? (target.card.talent.amount ?? 30)
+    : 0;
 
   // Dégâts finaux
   
@@ -300,7 +443,10 @@ const benchDamagePrevented =
         return;
       }
 
-      const newBenchHp = benchPokemon.currentHp - actualBenchDamage;
+      const benchHpBeforeAttack =
+  newBoard[benchCell]?.currentHp ?? benchPokemon.currentHp;
+
+const newBenchHp = benchHpBeforeAttack - actualBenchDamage;
 
       damagedBenchPokemonNames.push(`${benchPokemon.card.name} (-${actualBenchDamage})`);
 
@@ -365,6 +511,8 @@ const benchDamagePrevented =
         newBoard
       )
     ) {
+      applyDiscardBothActiveAttachmentsEffect();
+      setBoard(newBoard);
       setSelectedPokemonCell(null);
       setSelectedAttackIndex(null);
 
@@ -402,7 +550,7 @@ const benchDamagePrevented =
       attackerAfterDrain,
       selectedPokemonCell
     );
-
+applyDiscardBothActiveAttachmentsEffect();
     setBoard(newBoard);
     setSelectedPokemonCell(null);
     setSelectedAttackIndex(null);
@@ -464,6 +612,10 @@ const benchDamagePrevented =
       ? extraDamageNextTurnEffect.amount
       : target.extraDamageNextTurn,
 
+    extraDamageNextTurnEnergyType: extraDamageNextTurnEffect
+      ? extraDamageNextTurnEffect.energyType
+      : target.extraDamageNextTurnEnergyType,
+
     extraDamageNextTurnSourcePlayer: extraDamageNextTurnEffect
       ? attacker.owner
       : target.extraDamageNextTurnSourcePlayer,
@@ -493,6 +645,79 @@ const benchDamagePrevented =
     confusionTurnsRemaining: confusionEffect ? 2 : target.confusionTurnsRemaining,
   };
 
+
+// Interdiction de retraite sur le Pokémon touché.
+const updatedTarget = newBoard[targetCell];
+
+if (updatedTarget) {
+  newBoard[targetCell] = applyTargetRetreatBlock(
+    updatedTarget,
+    resolvedAttack.effects,
+    attackEffectsPrevented
+  );
+}
+
+
+// Bloquer les énergies de la main
+// pour le Pokémon défenseur.
+const currentTarget = newBoard[targetCell];
+
+if (currentTarget) {
+  newBoard[targetCell] = applyHandEnergyBlockFromAttack(
+    currentTarget,
+    resolvedAttack.effects,
+    attackEffectsPrevented
+  );
+}
+
+
+  // DÉFAUSSER DES ÉNERGIES DU POKÉMON ACTIF ADVERSE
+  const discardOpponentActiveEnergyEffect = attackEffectsPrevented
+    ? undefined
+    : resolvedAttack.effects?.find(
+        (effect) => effect.type === 'discardOpponentActiveEnergy'
+      );
+
+  const targetAfterAttack = newBoard[targetCell];
+
+  if (
+    discardOpponentActiveEnergyEffect &&
+    targetAfterAttack &&
+    targetAfterAttack.energies.length > 0
+  ) {
+    const numberToDiscard = Math.min(
+      discardOpponentActiveEnergyEffect.amount,
+      targetAfterAttack.energies.length
+    );
+
+    // Retire les dernières Énergies attachées.
+    const discardedEnergies = targetAfterAttack.energies.slice(
+      targetAfterAttack.energies.length - numberToDiscard
+    );
+
+    newBoard[targetCell] = {
+      ...targetAfterAttack,
+      energies: targetAfterAttack.energies.slice(
+        0,
+        targetAfterAttack.energies.length - numberToDiscard
+      ),
+    };
+
+    // Les Énergies vont dans la défausse de leur propriétaire.
+    if (targetAfterAttack.owner === 1) {
+      setPlayer1DiscardEnergies((discard) => [
+        ...discard,
+        ...discardedEnergies,
+      ]);
+    } else {
+      setPlayer2DiscardEnergies((discard) => [
+        ...discard,
+        ...discardedEnergies,
+      ]);
+    }
+  }
+
+
   const forceOpponentSwitchEffect = resolvedAttack.effects?.find(
     (effect) => effect.type === 'forceOpponentActiveSwitch'
   );
@@ -515,7 +740,7 @@ const benchDamagePrevented =
   }
 
   const attackerKO = handleAttackerKO(newBoard, attackerAfterDrain, selectedPokemonCell);
-
+  applyDiscardBothActiveAttachmentsEffect();
   setBoard(newBoard);
 
   setSelectedPokemonCell(null);
@@ -542,6 +767,29 @@ if (
       ` Joueur ${target.owner}, choisis maintenant ` +
       `l'un de tes Pokémon de banc pour remplacer ` +
       `${target.card.name}.`
+  );
+
+  return;
+}
+
+// -----------------------------------------
+// DÉGÂTS SUPPLÉMENTAIRES DE TIR TORNADE
+// SI LA CIBLE PRINCIPALE SURVIT
+// -----------------------------------------
+
+if (
+  startBenchOrPlayerDamageTarget(
+    attacker,
+    selectedPokemonCell,
+    attack,
+    targetCell
+  )
+) {
+  const secondaryDamage =
+    attack.secondaryBenchOrPlayerDamage ?? 0;
+
+  setMessage(
+    `${targetProtectionMessage} Choisis une autre cible adverse : le joueur adverse ou un autre Pokémon adverse, pour les ${secondaryDamage} dégâts supplémentaires.`
   );
 
   return;

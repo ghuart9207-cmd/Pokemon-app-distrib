@@ -1,5 +1,5 @@
 import type { PokemonCard, TrainerCard } from '@/features/game/types';
-import { anchwatt, araqua, azumarill, bacabouh, bombydou, bourrinos, brutapode, chrysacier, coatox, coxy, crabagarre, crabominable, elekable,  feuillajou, flamajou, flotajou, flotoutan, goupixdalola, hypotrempe, karaclee, kirlia, lamperoie, leviator, lougaroc, lougaroc2, lucario, marill, marshadowgx, miaouss, mystherbe, ohmassacre, porygon, psytigri, qulbutoke, rattatadalola, rhinocorne, rhinoferos, riolu, scobolide, seleroc, sepiatop, seviper, skelenox, sonistrelle, sovkipou, spododo, tarenbulle, tarsal, teraclope, tiboudet, togedemaru, trepassable, venipatte, zygarde } from './pokemon';
+import { anchwatt, araqua, azumarill, bacabouh, bombydou, bourrinos, brutapode, bruyvernegx, chrysacier, coatox, coxy, crabagarre, crabominable, darkraigx, diancie, dimoret, elekable,  farfuret,  feuillajou, flamajou, flotajou, flotoutan, gardevoirgx, goupixdalola, grotadmorvdalolagx, hypotrempe, karaclee, kirlia, lamperoie, lampignon, leviator, lougaroc, lougaroc2, lougarocgx, lucario, marill, marshadowgx, miaouss, mistigrix, mystherbe, nounourson, ohmassacre, porygon, psytigri, qulbutoke, rattatacdalola, rattatadalola, rhinocorne, rhinoferos, riolu, scobolide, seleroc, sepiatop, sepiatroce, seviper, skelenox, sonistrelle, sovkipou, spododo, tadmorvdalola, tarenbulle, tarsal, teraclope, tiboudet, togedemaru, tokotorogx, trepassable, venipatte, zygarde } from './pokemon';
 import { bouldeneu } from './pokemon/bouldeneu';
 import { boumata } from './pokemon/boumata';
 import { chenipan } from './pokemon/chenipan';
@@ -42,6 +42,7 @@ import { superRappel } from './trainers/super-rappel';
 import { elektek } from './pokemon/elektek';
 import { saquedeneu } from './pokemon/saquedeneu';
 import { quartermac } from './pokemon/quartermac';
+import { porygonz } from './pokemon/porygonz';
 
 
 // Pour ajouter une carte : crée son fichier dans `pokemon/` ou `trainers/`,
@@ -65,6 +66,7 @@ export const ALL_POKEMON_CARDS: PokemonCard[] = [
   tarenbulle,
   sovkipou,
   sarmurai,
+  tokotorogx,
   salameche,
   reptincel,
   dracaufeuGx,
@@ -104,6 +106,7 @@ export const ALL_POKEMON_CARDS: PokemonCard[] = [
   scobolide,
   brutapode,
   psytigri,
+  mistigrix,
   bacabouh,
   trepassable,
   necrozmaGx,
@@ -118,22 +121,36 @@ export const ALL_POKEMON_CARDS: PokemonCard[] = [
   crabominable,
   lougaroc2,
   lougaroc,
+  lougarocgx,
   tiboudet,
   bourrinos,
   quartermac,
   marshadowgx,
   rattatadalola,
+  rattatacdalola,
+  tadmorvdalola,
+  grotadmorvdalolagx,
+  farfuret,
+  dimoret,
+  darkraigx,
   sepiatop,
+  sepiatroce,
   tarsal,
   kirlia,
+  gardevoirgx,
+  diancie,
   bombydou,
   spododo,
+  lampignon,
+  bruyvernegx,
   zygarde,
   miaouss,
   persian,
   porygon,
+  porygonz,
   frison,
   sonistrelle,
+  nounourson,
 ];
 
 export const ALL_TRAINER_CARDS: TrainerCard[] = [

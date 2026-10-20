@@ -1,5 +1,7 @@
 import type { BoardState } from '@/features/game/types';
 import type { TrainerEffectContext } from './trainer-effect-context';
+import { canAttachEnergyFromSource } from
+  '@/features/game/rules';
 
 /** Supporter : attache 2 Énergies Feu à un de ses Pokémon de type Feu, puis termine le tour. */
 export function attachTwoFireEnergiesAndEndTurn(context: TrainerEffectContext): void {
@@ -33,6 +35,16 @@ export function attachTwoFireEnergiesAndEndTurn(context: TrainerEffectContext): 
 
     return;
   }
+
+// Vérifier si le Pokémon peut recevoir
+// les énergies données par Kiawe.
+if (!canAttachEnergyFromSource(target, 'hand')) {
+  setMessage(
+    `${target.card.name} ne peut pas recevoir d'Énergies depuis la main à cause d'une attaque adverse.`
+  );
+
+  return;
+}
 
   const updatedBoard: BoardState = {
     ...board,

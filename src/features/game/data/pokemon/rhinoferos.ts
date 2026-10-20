@@ -13,7 +13,14 @@ export const rhinoferos: PokemonCard = {
   attacks: [
     { name: 'Allonger', damage: 80, energyCost: 3,
         requiredEnergies: { combat: 3 },
-        
+        effects: [
+  {
+    type: 'ignoreTargetDamageReduction',
+    amount: 0,
+  },
+],
+effectText:
+  "Les dégâts de cette attaque ne sont pas affecté par la résistance.",
 
     },
     {

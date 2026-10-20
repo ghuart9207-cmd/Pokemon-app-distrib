@@ -11,7 +11,17 @@ export const rattatadalola: PokemonCard = {
   retreatCost: 1,
   artwork: require('../../../../../assets/images/rattatadalola-card.png'),
   attacks: [
-    { name: 'Puissace', damage: 0, energyCost: 1},
+    { name: 'Puissace', damage: 0, energyCost: 1,
+      effects: [
+  {
+    type: 'setNextTurnAttackBaseDamage',
+    amount: 60,
+    attackName: 'Morsure',
+  },
+],
+effectText:
+  "Pendant votre prochain tour, les dégâts de base de Morsure sont de 60.",
+    },
     {
       name: 'Morsure',
       damage: 10,

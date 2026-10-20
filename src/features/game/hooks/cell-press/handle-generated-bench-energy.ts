@@ -1,4 +1,6 @@
 import type { CellPressContext } from './cell-press-context';
+import { canAttachEnergyFromSource } from
+  '@/features/game/rules';
 
 /** Choix du Pokémon de banc qui reçoit l'Énergie générée par une attaque. */
 export function handleGeneratedBenchEnergy(
@@ -115,12 +117,40 @@ if (moveFromAttacker) {
 }
 
 
+  // Énergies créées : considérées comme venant de la main.
+  // On vérifie l'interdiction sur le Pokémon choisi.
+  if (!canAttachEnergyFromSource(pokemon, 'hand')) {
+    const hasAnotherValidTarget = Object.entries(board).some(
+      ([candidateCell, candidate]) =>
+        candidateCell !== attackerCell &&
+        candidate !== null &&
+        candidate.owner === pendingGeneratedBenchEnergy.player &&
+        canAttachEnergyFromSource(candidate, 'hand')
+    );
+
+    setMessage(
+      hasAnotherValidTarget
+        ? `${pokemon.card.name} ne peut pas recevoir cette Énergie. Choisis un autre Pokémon de banc.`
+        : "Aucun Pokémon de banc ne peut recevoir cette Énergie."
+    );
+
+    if (!hasAnotherValidTarget) {
+      setPendingGeneratedBenchEnergy(null);
+    }
+
+    return true;
+  }
+
   setBoard((previousBoard) => {
     const currentPokemon = previousBoard[cellName];
 
-    if (!currentPokemon) {
-      return previousBoard;
-    }
+    
+if (
+  !currentPokemon ||
+  !canAttachEnergyFromSource(currentPokemon, 'hand')
+) {
+  return previousBoard;
+}
 
     return {
       ...previousBoard,

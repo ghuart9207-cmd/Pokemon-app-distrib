@@ -88,6 +88,13 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       // Choix en attente
       pendingCoinFlip={game.pendingCoinFlip}
       coinDraft={game.coinDraft}
+      pendingDiscardAllEnergyChoice={game.pendingDiscardAllEnergyChoice}
+      onChooseDiscardAllEnergy={game.resolveDiscardAllEnergyChoice}
+      pendingOptionalBonusDamageChoice={game.pendingOptionalBonusDamageChoice}
+      pendingOptionalAttackEffect={game.pendingOptionalAttackEffect}
+      onChooseOptionalAttackEffect={game.resolveOptionalAttackEffectChoice}
+      onChooseOptionalBonusDamage={game.resolveOptionalBonusDamageChoice}
+      onChooseOwnBenchDamageTarget={game.resolveOptionalOwnBenchDamageTarget}
       pendingKOEnergyMove={game.pendingKOEnergyMove}
       pendingInvocationPlacement={game.pendingInvocationPlacement}
       readyCoinAttack={game.readyCoinAttack}
@@ -96,6 +103,7 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       openedDiscardCards={game.openedDiscardCards}
       onToggleDiscard={game.handleToggleDiscard}
       onCloseDiscardPreview={game.handleCloseDiscardPreview}
+      onDiscardCardPress={game.handleDiscardCardPress}
       // Actions sur le plateau et les cartes
       onTargetPress={game.handlePlayerTargetPress}
       canSelectPlayerTarget={game.canSelectPlayerTarget}
@@ -108,6 +116,7 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       // Actions du tour
       onAttack={game.tryAttackSelectedPokemon}
       onRetreat={game.retreatSelectedPokemon}
+      onActivateTalent={game.handleActivateTalent}
       onActivateTrainer={game.activateSelectedTrainerCard}
       onActivateInvocation={game.activateInvocationSupporter}
       onEndTurn={game.handleEndTurn}

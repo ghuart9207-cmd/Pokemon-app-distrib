@@ -6,6 +6,7 @@ import type {
   PendingBothPlayersSwitch,
   PendingCoinReturnToHand,
   PendingGeneratedBenchEnergy,
+  PendingTalentEnergyAttachment,
   PendingInvocationPlacement,
   PendingKOEnergyMove,
   PendingOpponentActiveSwitch,
@@ -17,6 +18,8 @@ import type {
   SetState,
   TrainerCard,
   PendingDragonEnergyChoice,
+  PendingEnergyTransferToBench,
+  PendingDiscardTalentPlacement,
 } from '@/features/game/types';
 
 export type CellPressContext = {
@@ -25,13 +28,24 @@ export type CellPressContext = {
   gameOver: boolean;
   selectedCard: PokemonCard | null;
   selectedTrainerCard: TrainerCard | null;
+  player1Discard: GameCard[];
+  player2Discard: GameCard[];
+  pendingDiscardTalentPlacement: PendingDiscardTalentPlacement | null;
+  usedDiscardTalentKeys: string[];
+  setPendingDiscardTalentPlacement:
+  SetState<PendingDiscardTalentPlacement | null>;
+  setUsedDiscardTalentKeys: SetState<string[]>;
+  setOpenedDiscardPlayer: SetState<Player | null>;
   selectedAttachedTool: { card: TrainerCard; cellName: string } | null;
   pendingBenchEnergyAttachment: PendingBenchEnergyAttachment | null;
   pendingBothPlayersSwitch: PendingBothPlayersSwitch | null;
   pendingCoinReturnToHand: PendingCoinReturnToHand | null;
   pendingGeneratedBenchEnergy: PendingGeneratedBenchEnergy | null;
+  pendingTalentEnergyAttachment: PendingTalentEnergyAttachment | null;
   pendingInvocationPlacement: PendingInvocationPlacement | null;
   pendingKOEnergyMove: PendingKOEnergyMove | null;
+  pendingEnergyTransferToBench: PendingEnergyTransferToBench | null;
+  setPendingEnergyTransferToBench: SetState<PendingEnergyTransferToBench | null>;
   pendingOpponentActiveSwitch: PendingOpponentActiveSwitch | null;
   pendingOpponentTarget: PendingOpponentTarget | null;
   pendingPokemonSwitch: PendingPokemonSwitch | null;
@@ -52,6 +66,7 @@ export type CellPressContext = {
   setPendingBothPlayersSwitch: SetState<PendingBothPlayersSwitch | null>;
   setPendingCoinReturnToHand: SetState<PendingCoinReturnToHand | null>;
   setPendingGeneratedBenchEnergy: SetState<PendingGeneratedBenchEnergy | null>;
+  setPendingTalentEnergyAttachment: SetState<PendingTalentEnergyAttachment | null>;
   setPendingInvocationPlacement: SetState<PendingInvocationPlacement | null>;
   setPendingKOEnergyMove: SetState<PendingKOEnergyMove | null>;
   setPendingOpponentActiveSwitch: SetState<PendingOpponentActiveSwitch | null>;

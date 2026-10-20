@@ -16,14 +16,29 @@ export const ohmassacre: PokemonCard = {
       damage: 50,
       energyCost: 2,
       requiredEnergies: { electrique: 1 }, 
-       
+        effects: [
+    {
+      type: 'preventTargetRetreatNextTurn',
+      amount: 0,
+    },
+  ],
+
+  effectText:
+    'Le Pokémon Défenseur ne peut pas battre en retraite pendant le prochain tour de votre adversaire.',
 },
 {
       name: 'Eclair Aspiré',
       damage: 80,
       energyCost: 3,
       requiredEnergies: { electrique: 2 }, 
-       
+       effects: [
+  {
+    type: 'optionalBonusDamageAndOwnBenchDamage',
+    amount: 80,
+  },
+],
+effectText:
+  'Vous pouvez infliger 80 dégâts supplémentaires. Si vous le faites, cette attaque inflige aussi 80 dégâts à l’un de vos Pokémon de Banc.',
 },
 ],
 };

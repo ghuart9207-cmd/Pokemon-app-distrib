@@ -33,7 +33,7 @@ export const feuiloutan: PokemonCard = {
         },
       ],
 
-      effectText: 'Attachez une Énergie Plante à l’un de vos Pokémon de banc.',
+      effectText: 'Attachez une Énergie Plante de votre main à l’un de vos Pokémon de banc.',
     },
   ],
 };

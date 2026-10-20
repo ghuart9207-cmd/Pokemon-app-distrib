@@ -1,4 +1,5 @@
 import { getPokemonMaxHp } from '@/features/game/rules';
+import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
 import type {
   BoardState,
   CoinAttackReference,
@@ -6,6 +7,7 @@ import type {
   Player,
   PokemonInPlay,
   SetState,
+  GameCard,
 } from '@/features/game/types';
 
 type UseGameAttackSelectionOptions = {
@@ -14,6 +16,8 @@ type UseGameAttackSelectionOptions = {
   selectedAttackIndex: number | null;
   readyCoinAttack: CoinAttackReference | null;
   turnId: number;
+  player1Discard: GameCard[];
+  player2Discard: GameCard[];
   player1Damage: number;
   player2Damage: number;
   canAttackInCurrentOrder: (cellName: string) => boolean;
@@ -33,6 +37,8 @@ export function useGameAttackSelection({
   turnId,
   player1Damage,
   player2Damage,
+  player1Discard,
+  player2Discard,
   canAttackInCurrentOrder,
   getBaseAttackBlocker,
   setMessage,
@@ -88,7 +94,13 @@ if (pokemon.blockedAllAttacksTurnId === turnId) {
       return;
     }
 
-    const attack = pokemon.card.attacks[selectedAttackIndex];
+    const discardForAttackList =
+  pokemon.owner === 1 ? player1Discard : player2Discard;
+
+const attack = getAvailablePokemonAttacks(
+  pokemon,
+  discardForAttackList
+)[selectedAttackIndex]?.attack;
     if (attack?.targetMode === 'damagedOpponentOrPlayer') {
       const opponent: Player = pokemon.owner === 1 ? 2 : 1;
       const hasDamagedOpponentPokemon = Object.values(board).some(

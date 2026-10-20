@@ -4,3 +4,4 @@ export * from './coin-rules';
 export * from './end-of-turn-rules';
 export * from './factories';
 export * from './knockout-rules';
+export * from './energy-attachment-rules';

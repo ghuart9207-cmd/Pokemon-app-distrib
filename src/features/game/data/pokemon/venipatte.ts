@@ -22,6 +22,15 @@ export const venipatte: PokemonCard = {
       damage: 20,
       energyCost: 2,
 
+effects: [
+  {
+    type: 'bonusDamageIfTargetPoisoned',
+    amount: 40,
+  },
+],
+effectText:
+  "Si le Pokémon actif de votre adversaire est empoisonné, cette attaque inflige 40 dégâts supplémentaires.",
+
       
     },
   ],

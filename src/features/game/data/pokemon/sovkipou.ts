@@ -10,6 +10,15 @@ export const sovkipou: PokemonCard = {
   maxHp: 70,
   retreatCost: 3,
   artwork: require('../../../../../assets/images/sovkipou-card.png'),
+  
+talent: {
+  name: 'Escampette',
+  type: 'passive',
+  effect: 'freeRetreatOnFirstTurn',
+  description:
+    "Pendant votre premier tour, ce Pokémon n'a pas de Coût de Retraite.",
+},
+
   attacks: [
     {
       name: 'Ronge',
