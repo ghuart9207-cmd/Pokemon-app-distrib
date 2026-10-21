@@ -1,6 +1,7 @@
 import type { PendingKOEnergyMove, Player, PokemonInPlay, GameCard, PendingDiscardTalentPlacement,  } from '@/features/game/types';
 import type { GameState } from './state/use-game-state';
 import { isPokemonCard } from '@/features/game/rules';
+import { applyKOEnergyMove } from './cell-press/apply-ko-energy-move';
 
 type GameScreenActionsOptions = Pick<
   GameState,
@@ -15,6 +16,10 @@ type GameScreenActionsOptions = Pick<
   | 'setSelectedPokemonCell'
   | 'setSelectedAttackIndex'
   | 'setPendingKOEnergyMove'
+  | 'pendingKOEnergyMove'
+  | 'setBoard'
+  | 'setPlayer1DiscardEnergies'
+  | 'setPlayer2DiscardEnergies'
   | 'setPendingInvocationPlacement'
   | 'setMessage'
   | 'currentPlayer'
@@ -48,6 +53,10 @@ export function useGameScreenActions({
   setSelectedPokemonCell,
   setSelectedAttackIndex,
   setPendingKOEnergyMove,
+  pendingKOEnergyMove,
+  setBoard,
+  setPlayer1DiscardEnergies,
+  setPlayer2DiscardEnergies,
   setPendingInvocationPlacement,
   setMessage,
   currentPlayer,
@@ -178,6 +187,25 @@ if (!hasFreeBoardSpace) {
   }
 
   function handleSelectKOEnergy(energy: PendingKOEnergyMove['selectedEnergy']) {
+    // Relais Optimiste : la cible est déjà choisie,
+    // la deuxième Énergie lui est attachée tout de suite.
+    if (pendingKOEnergyMove?.targetCell && energy) {
+      applyKOEnergyMove(
+        {
+          board,
+          setBoard,
+          setMessage,
+          setPendingKOEnergyMove,
+          setPlayer1DiscardEnergies,
+          setPlayer2DiscardEnergies,
+        },
+        pendingKOEnergyMove,
+        energy,
+        pendingKOEnergyMove.targetCell
+      );
+      return;
+    }
+
     setPendingKOEnergyMove((previous) =>
       previous ? { ...previous, selectedEnergy: energy } : null
     );

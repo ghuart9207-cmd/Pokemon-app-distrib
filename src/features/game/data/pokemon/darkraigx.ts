@@ -14,7 +14,7 @@ export const darkraigx: PokemonCard = {
   type: 'activated',
   effect: 'recoverFromDiscardOncePerGame',
   description:
-    "Une fois pendant la partie, pendant votre tour, si ce Pokémon est dans votre pile de défausse, vous pouvez le placer sur votre banc avec une Énergie Obscure de votre pile de défausse.",
+    "Une fois pendant la partie, pendant votre tour, si ce Pokémon est dans votre pile de défausse, vous pouvez l’invoquez sur votre banc avec une Énergie Obscure de votre pile de défausse.",
 },
   attacks: [
     

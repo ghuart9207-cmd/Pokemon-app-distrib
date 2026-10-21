@@ -18,6 +18,8 @@ export function handlePokemonPlacement(
     getPokemonLockKey,
     hasPlacedThisTurn,
     pokemonPlacementLocks,
+    freeReplacementTokens,
+    setFreeReplacementTokens,
     round,
     selectedCard,
     setBoard,
@@ -48,7 +50,12 @@ export function handlePokemonPlacement(
 
     return true;
   }
-  if (hasPlacedThisTurn) {
+
+  // Pokémon renvoyé en main par Margie ou Super Rappel :
+  // repose gratuite, en plus de la pose du tour, mais sans Énergie.
+  const isFreeReplacement = (freeReplacementTokens[placementLockKey] ?? 0) > 0;
+
+  if (hasPlacedThisTurn && !isFreeReplacement) {
     setMessage('Tu as déjà posé un Pokémon pendant ce tour.');
     return true;
   }
@@ -77,9 +84,13 @@ const isDragonWithChoices =
   selectedCard.dragonEnergyTypes?.length === 2;
 
 const startingEnergies: EnergyType[] =
-  isDragonWithChoices
+  isFreeReplacement || isDragonWithChoices
     ? []
     : Array(startingEnergyCount).fill(selectedCard.type);
+
+const energyLabel = isFreeReplacement
+  ? 'sans Énergie (repose gratuite)'
+  : `avec ${startingEnergies.length || startingEnergyCount} Énergies`;
 
 
   
@@ -211,6 +222,7 @@ const canParalyze =
 // uniquement si le Dragon a survécu.
 if (
   !knockedOutOnPlacement &&
+  !isFreeReplacement &&
   isDragonWithChoices &&
   startingEnergyCount > 0
 ) {
@@ -230,7 +242,24 @@ if (
     setPlayer2Hand((hand) => hand.filter((card) => card.id !== selectedCard.id));
   }
 
-  setHasPlacedThisTurn(true);
+  if (isFreeReplacement) {
+    // On consomme la repose gratuite,
+    // sans utiliser la pose normale du tour.
+    setFreeReplacementTokens((previous) => {
+      const remaining = (previous[placementLockKey] ?? 0) - 1;
+      const next = { ...previous };
+
+      if (remaining > 0) {
+        next[placementLockKey] = remaining;
+      } else {
+        delete next[placementLockKey];
+      }
+
+      return next;
+    });
+  } else {
+    setHasPlacedThisTurn(true);
+  }
 
   if (knockedOutOnPlacement) {
     setMessage(
@@ -238,7 +267,7 @@ if (
     );
   } else if (placementDamage > 0) {
     setMessage(
-      `${selectedCard.name} est posé en ${cellName} avec 2 Énergies et subit ${placementDamage} dégâts à cause d'un Talent adverse.`
+      `${selectedCard.name} est posé en ${cellName} ${energyLabel} et subit ${placementDamage} dégâts à cause d'un Talent adverse.`
     );
   
   } else {
@@ -258,7 +287,7 @@ if (
     setMessage(
       paralysisTriggered
         ? `${selectedCard.name} est posé en ${cellName}. Son Talent paralyse ${target!.card.name} en ${oppositeCell} !`
-        : `${selectedCard.name} est posé en ${cellName} avec 2 Énergies.`
+        : `${selectedCard.name} est posé en ${cellName} ${energyLabel}.`
     );
   }
 

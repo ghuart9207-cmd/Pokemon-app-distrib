@@ -23,7 +23,7 @@ export const tokopiscoGx: PokemonCard = {
       ],
 
       effectText:
-        'Échangez ce Pokémon avec l’un de vos Pokémon de banc situé sur la même ligne.',
+        'Échangez ce Pokémon avec l’un de vos Pokémon de banc situé sur la même ligne.(L’échange se fait horizontalement)',
     },
     {
       name: 'Hydro-Coup',

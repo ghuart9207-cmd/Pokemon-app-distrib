@@ -52,6 +52,7 @@ player2Discard: GameCard[];
   setPlayer2DiscardEnergies: SetState<EnergyType[]>;
   setPlayer2Hand: SetState<GameCard[]>;
   setPokemonPlacementLocks: SetState<Record<string, number>>;
+  setFreeReplacementTokens: SetState<Record<string, number>>;
   setSelectedAttackIndex: SetState<number | null>;
   setSelectedPokemonCell: SetState<string | null>;
   advanceAttackOrder: (cellName: string, player: Player) => void;

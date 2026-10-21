@@ -58,6 +58,14 @@ export function useGameState() {
     Record<string, number>
   >({});
 
+  // Pokémon renvoyés en main par Margie ou Super Rappel :
+  // clé `${joueur}-${idCarte}` -> nombre de reposes gratuites disponibles.
+  // Une repose gratuite ne compte pas comme la pose du tour,
+  // mais le Pokémon arrive sans Énergie.
+  const [freeReplacementTokens, setFreeReplacementTokens] = useState<
+    Record<string, number>
+  >({});
+
   // --- sélection du joueur ----------------------------------
   const [selectedCard, setSelectedCard] = useState<PokemonCard | null>(null);
   const [selectedTrainerCard, setSelectedTrainerCard] = useState<TrainerCard | null>(
@@ -166,6 +174,8 @@ export function useGameState() {
     setRemainingAttackPaths,
     pokemonPlacementLocks,
     setPokemonPlacementLocks,
+    freeReplacementTokens,
+    setFreeReplacementTokens,
     selectedCard,
     setSelectedCard,
     selectedTrainerCard,

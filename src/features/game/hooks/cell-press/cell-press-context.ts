@@ -53,6 +53,7 @@ export type CellPressContext = {
   pendingOpponentTarget: PendingOpponentTarget | null;
   pendingPokemonSwitch: PendingPokemonSwitch | null;
   pokemonPlacementLocks: Record<string, number>;
+  freeReplacementTokens: Record<string, number>;
   hasAttackedThisTurn: boolean;
   hasPlacedThisTurn: boolean;
   hasUsedSupporterThisTurn: boolean;
@@ -86,6 +87,7 @@ export type CellPressContext = {
   setPendingDragonEnergyChoices:
   SetState<PendingDragonEnergyChoice[]>;
   setPokemonPlacementLocks: SetState<Record<string, number>>;
+  setFreeReplacementTokens: SetState<Record<string, number>>;
   setSelectedAttachedTool: SetState<{ card: TrainerCard; cellName: string } | null>;
   setSelectedAttackIndex: SetState<number | null>;
   setSelectedCard: SetState<PokemonCard | null>;

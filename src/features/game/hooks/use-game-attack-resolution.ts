@@ -485,7 +485,11 @@ const attackForDamage: Attack =
     );
 
     if (healAllAndReturnEffect) {
-      healAllAndReturnToHand(options, { attacker, selectedPokemonCell });
+      healAllAndReturnToHand(options, {
+        attacker,
+        selectedPokemonCell,
+        returnToHandReplacement: healAllAndReturnEffect.returnToHandReplacement,
+      });
 
       return;
     }

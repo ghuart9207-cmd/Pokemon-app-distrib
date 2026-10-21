@@ -57,6 +57,7 @@ type UseGameRestartOptions = {
   setTrainerEffectActivated: SetState<boolean>;
   setPendingBothPlayersSwitch: SetState<PendingBothPlayersSwitch | null>;
   setPokemonPlacementLocks: SetState<Record<string, number>>;
+  setFreeReplacementTokens: SetState<Record<string, number>>;
   setSelectedAttachedTool: SetState<{ card: TrainerCard; cellName: string } | null>;
   setPendingOpponentTarget: SetState<PendingOpponentTarget | null>;
   setPendingCoinFlip: SetState<PendingCoinFlip | null>;
@@ -118,6 +119,7 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setTrainerEffectActivated(false);
     options.setPendingBothPlayersSwitch(null);
     options.setPokemonPlacementLocks({});
+    options.setFreeReplacementTokens({});
     options.setSelectedAttachedTool(null);
     options.setPendingOpponentTarget(null);
     options.setPendingCoinFlip(null);

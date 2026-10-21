@@ -28,6 +28,9 @@ type UseGameCombatSupportOptions = {
   startPokemonCoinFlip: (cellName: string, coinCount: number) => void;
 };
 
+// Nombre d'Énergies déplacées par Relais Optimiste quand son Pokémon est K.O.
+const KO_ENERGY_MOVE_AMOUNT = 2;
+
 export function useGameCombatSupport({
   setMessage,
   setBoard,
@@ -62,11 +65,21 @@ export function useGameCombatSupport({
       return false;
     }
 
+    // Relais Optimiste : jusqu'à 2 Énergies déplacées
+    // (moins si le Pokémon K.O. en avait moins).
+    const energiesToMove = Math.min(
+      KO_ENERGY_MOVE_AMOUNT,
+      pokemon.energies.length
+    );
+
     setPendingKOEnergyMove({
       player: pokemon.owner,
       sourcePokemonName: pokemon.card.name,
       availableEnergies: [...pokemon.energies],
       selectedEnergy: null,
+      remaining: energiesToMove,
+      total: energiesToMove,
+      targetCell: null,
     });
     return true;
   }

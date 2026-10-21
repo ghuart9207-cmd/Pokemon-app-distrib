@@ -362,6 +362,7 @@ export function useGameCoinFlow({
       if (result === 'face') {
         setPendingCoinReturnToHand({
           player: pendingCoinFlip.player,
+          returnToHandReplacement: superRappel.returnToHandReplacement,
         });
 
         setMessage('🪙 FACE ! Choisis l’un de tes Pokémon à remettre dans ta main.');
