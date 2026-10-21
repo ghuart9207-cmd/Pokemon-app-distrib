@@ -135,8 +135,23 @@ export type PendingEnergyTransferToBench = {
   attackerCell: string;
 };
 
+/** Invocation créée par une attaque (ex : Division de Tadmorv d'Alola). */
+export type PendingAttackSummonPlacement = {
+  player: Player;
+
+  // Carte à invoquer.
+  card: PokemonCard;
+
+  // Nombre d'Invocations restant à poser.
+  remaining: number;
+
+  // Pour les messages.
+  attackerName: string;
+  attackName: string;
+};
+
 export type PendingDiscardTalentPlacement = {
   player: Player;
   card: PokemonCard;
   discardIndex: number;
-};
+};

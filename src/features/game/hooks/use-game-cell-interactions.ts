@@ -16,6 +16,7 @@ import { handlePokemonSwitch } from './cell-press/handle-pokemon-switch';
 import { handleTrainerCardTarget } from './cell-press/handle-trainer-card-target';
 import { handleEnergyTransferToBench } from './cell-press/handle-energy-transfer-to-bench';
 import { handleDiscardTalentPlacement } from './cell-press/handle-discard-talent-placement';
+import { handleAttackSummonPlacement } from './cell-press/handle-attack-summon-placement';
 
 
 /**
@@ -37,6 +38,8 @@ const CELL_PRESS_HANDLERS = [
   handleBenchEnergyAttachment,
   handleTrainerCardTarget,
   handleEnergyTransferToBench,
+  // Après les autres actions en attente : elles se résolvent d'abord.
+  handleAttackSummonPlacement,
   handleBoardPokemonSelection,
   handlePokemonPlacement,
   handleEmptyCell,

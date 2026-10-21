@@ -17,8 +17,19 @@ type UseGameSetupOptions = {
   setRound: SetState<number>;
 };
 
+// Nombre maximum de Pokémon GX ou EX dans les 8 Pokémon choisis.
+export const MAX_GX_EX_IN_SETUP = 2;
+
+function isGxOrExCard(card: GameCard): boolean {
+  return (
+    isPokemonCard(card) &&
+    (card.variant === 'gx' || card.variant === 'ex' || card.stage === 'mega_ex')
+  );
+}
+
 function getSetupCounts(cards: GameCard[]) {
   const pokemonCount = cards.filter(isPokemonCard).length;
+  const gxExCount = cards.filter(isGxOrExCard).length;
   const objectCount = cards.filter(
     (card) => !isPokemonCard(card) && card.category === 'objet'
   ).length;
@@ -26,7 +37,7 @@ function getSetupCounts(cards: GameCard[]) {
     (card) => !isPokemonCard(card) && card.category === 'supporter'
   ).length;
 
-  return { pokemonCount, objectCount, supporterCount };
+  return { pokemonCount, gxExCount, objectCount, supporterCount };
 }
 
 export function useGameSetup({
@@ -57,10 +68,18 @@ export function useGameSetup({
       return;
     }
 
-    const { pokemonCount, objectCount, supporterCount } = getSetupCounts(currentCards);
+    const { pokemonCount, gxExCount, objectCount, supporterCount } =
+      getSetupCounts(currentCards);
 
     if (isPokemonCard(card) && pokemonCount >= 8) {
       setMessage('Tu as déjà choisi tes 8 Pokémon.');
+      return;
+    }
+
+    if (isGxOrExCard(card) && gxExCount >= MAX_GX_EX_IN_SETUP) {
+      setMessage(
+        `Tu ne peux pas prendre plus de ${MAX_GX_EX_IN_SETUP} Pokémon GX ou EX. Retire-en un pour choisir ${card.name}.`
+      );
       return;
     }
 
@@ -83,7 +102,15 @@ export function useGameSetup({
     }
 
     const cards = setupPhase === 'player1' ? player1SetupCards : player2SetupCards;
-    const { pokemonCount, objectCount, supporterCount } = getSetupCounts(cards);
+    const { pokemonCount, gxExCount, objectCount, supporterCount } =
+      getSetupCounts(cards);
+
+    if (gxExCount > MAX_GX_EX_IN_SETUP) {
+      setMessage(
+        `Tu as ${gxExCount} Pokémon GX ou EX : le maximum est ${MAX_GX_EX_IN_SETUP}.`
+      );
+      return;
+    }
 
     if (pokemonCount !== 8 || objectCount !== 3 || supporterCount !== 2) {
       setMessage(

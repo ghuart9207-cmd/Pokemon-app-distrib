@@ -20,6 +20,7 @@ import type {
   PendingDragonEnergyChoice,
   PendingEnergyTransferToBench,
   PendingDiscardTalentPlacement,
+  PendingAttackSummonPlacement,
 } from '@/features/game/types';
 
 export type CellPressContext = {
@@ -45,6 +46,8 @@ export type CellPressContext = {
   pendingInvocationPlacement: PendingInvocationPlacement | null;
   pendingKOEnergyMove: PendingKOEnergyMove | null;
   pendingEnergyTransferToBench: PendingEnergyTransferToBench | null;
+  pendingAttackSummonPlacement: PendingAttackSummonPlacement | null;
+  setPendingAttackSummonPlacement: SetState<PendingAttackSummonPlacement | null>;
   setPendingEnergyTransferToBench: SetState<PendingEnergyTransferToBench | null>;
   pendingOpponentActiveSwitch: PendingOpponentActiveSwitch | null;
   pendingOpponentTarget: PendingOpponentTarget | null;

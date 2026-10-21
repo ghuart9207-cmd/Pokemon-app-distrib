@@ -31,6 +31,7 @@ import { getDamagePerAttachedEnergy } from  '@/features/game/rules/attack-rules'
 import { useState } from 'react';
 import { hitPokemonWithTalent } from './attack-resolution/hit-pokemon-with-talent';
 import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
+import { ALL_POKEMON_CARDS } from '@/features/game/data';
 
 export function useGameAttackResolution(options: AttackResolutionContext) {
     const [pendingDiscardAllEnergyChoice, setPendingDiscardAllEnergyChoice] =
@@ -86,6 +87,7 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     setMessage,
     setPendingBenchEnergyAttachment,
     setPendingEnergyTransferToBench,
+    setPendingAttackSummonPlacement,
     setPendingPokemonSwitch,
     setPlayer1Damage,
     setPlayer1DiscardEnergies,
@@ -1243,7 +1245,58 @@ const requestEnergyTransferToBench = () => {
   );
 };
 
-  
+
+// -----------------------------------------
+// INVOQUER UN POKÉMON SUR LA RANGÉE DE JEU
+// (ex : Division de Tadmorv d'Alola)
+// -----------------------------------------
+
+const summonEffect = resolvedAttack.effects?.find(
+  (effect) => effect.type === 'summonPokemon'
+);
+
+const requestAttackSummon = () => {
+  if (!summonEffect) {
+    return;
+  }
+
+  // Carte à invoquer : celle indiquée par l'effet,
+  // sinon une copie du Pokémon attaquant.
+  const summonCard = summonEffect.summonCardId
+    ? ALL_POKEMON_CARDS.find((card) => card.id === summonEffect.summonCardId)
+    : attacker.card;
+
+  if (!summonCard) {
+    setMessage(`${attack.name} : la carte à invoquer est introuvable.`);
+    return;
+  }
+
+  const summonRow = attacker.owner === 1 ? 'B' : 'C';
+
+  const hasFreeCell = [1, 2, 3, 4].some(
+    (column) => newBoard[`${summonRow}${column}`] === null
+  );
+
+  if (!hasFreeCell) {
+    setMessage(
+      `${attacker.card.name} utilise ${attack.name}, mais aucune case n'est libre de ${summonRow}1 à ${summonRow}4 : aucune Invocation.`
+    );
+    return;
+  }
+
+  setPendingAttackSummonPlacement({
+    player: attacker.owner,
+    card: summonCard,
+    remaining: Math.max(1, summonEffect.amount),
+    attackerName: attacker.card.name,
+    attackName: attack.name,
+  });
+
+  setMessage(
+    `${attacker.card.name} utilise ${attack.name}. Choisis une case libre de ${summonRow}1 à ${summonRow}4 pour invoquer ${summonCard.name}.`
+  );
+};
+
     // UN POKÉMON EST TOUCHÉ
     if (targetCell) {
       hitOpponentPokemon(options, {
@@ -1261,6 +1314,7 @@ const requestEnergyTransferToBench = () => {
       });
 
 requestEnergyTransferToBench();
+requestAttackSummon();
 
       return;
     }
@@ -1394,6 +1448,7 @@ const directSpecialConditionBonus =
       `${attacker.card.name} attaque directement le joueur ${opponent} avec ${attack.name} : +${directDamage} dégâts !`
     );
     requestEnergyTransferToBench();
+    requestAttackSummon();
   }
 
 function resolveOptionalAttackEffectChoice(accepted: boolean) {

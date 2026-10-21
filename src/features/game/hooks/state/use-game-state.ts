@@ -32,6 +32,7 @@ import type {
   TrainerCard,
   PendingDragonEnergyChoice,
   PendingDiscardTalentPlacement,
+  PendingAttackSummonPlacement,
 } from '@/features/game/types';
 
 /**
@@ -120,6 +121,8 @@ export function useGameState() {
     useState<PendingGeneratedBenchEnergy | null>(null);
   const [pendingEnergyTransferToBench,setPendingEnergyTransferToBench,] = 
     useState<PendingEnergyTransferToBench | null>(null);
+  const [pendingAttackSummonPlacement, setPendingAttackSummonPlacement] =
+    useState<PendingAttackSummonPlacement | null>(null);
   const [pendingTalentEnergyAttachment, setPendingTalentEnergyAttachment] =
     useState<PendingTalentEnergyAttachment | null>(null);
   const [pendingInvocationPlacement, setPendingInvocationPlacement] =
@@ -221,6 +224,8 @@ export function useGameState() {
     setPendingGeneratedBenchEnergy,
     pendingEnergyTransferToBench,
     setPendingEnergyTransferToBench,
+    pendingAttackSummonPlacement,
+    setPendingAttackSummonPlacement,
     pendingTalentEnergyAttachment,
     setPendingTalentEnergyAttachment,
     pendingInvocationPlacement,

@@ -79,7 +79,8 @@ export type AttackEffect = {
     | 'bonusDamageIfTargetPoisoned'
     | 'damagePerAttachedEnergy'
     | 'failsIfOpponentActiveMaxHpAtLeast'
-    | 'preventDamageFromStageOrVariantNextOpponentTurn';
+    | 'preventDamageFromStageOrVariantNextOpponentTurn'
+    | 'summonPokemon';
 
     
 
@@ -96,6 +97,10 @@ export type AttackEffect = {
 
   blockedStage?: Stage;
   blockedVariant?: CardVariant;
+
+  // Effet 'summonPokemon' : id de la carte à invoquer.
+  // Si absent, on invoque une copie du Pokémon attaquant.
+  summonCardId?: string;
 
 };
 
