@@ -100,3 +100,4 @@ export * from './nounourson';
 export * from './tokotorogx';
 export * from './lougarocgx';
 export * from './mistigrix';
+export * from './hoothoot';
