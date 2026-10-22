@@ -9,14 +9,26 @@ export const rattatacdalola: PokemonCard = {
                                 // normal, obscurite, metal, fee
   maxHp: 120,
   retreatCost: 3,
-  artwork: require('../../../../../assets/images/rattatadalola-card.png'),
+  artwork: require('../../../../../assets/images/rattatacdalola-card.png'),
   attacks: [
-    { name: 'Puissace', damage: 0, energyCost: 1},
+    { name: 'Croc Amélioré', damage: 10, energyCost: 1,
+      effects: [
+  {
+    type: 'bonusDamageIfToolAttached',
+    amount: 50,
+  },
+],
+effectText:
+  "Si une carte Outil est attachée à ce Pokémon, cette attaque inflige 50 dégâts supplémentaires.",
+    },
     {
-      name: 'Morsure',
-      damage: 10,
+      name: 'Croc de Mort',
+      damage: 60,
       energyCost: 1,
       requiredEnergies: { obscurite: 1 }, // optionnel : énergies de types précis
+      coinCount: 1,
+ failsOn: 'pile',
+effectText: 'Lancez une pièce. Si c’est Pile, cette attaque ne fait rien.' 
     },
   ],
 };

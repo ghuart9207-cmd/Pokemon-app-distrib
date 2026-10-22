@@ -11,7 +11,17 @@ export const tarenbulle: PokemonCard = {
   retreatCost: 1,
   artwork: require('../../../../../assets/images/tarenbulle-card.png'),
   attacks: [
-    { name: 'Filet de Bulles', damage: 30, energyCost: 2},
+    { name: 'Filet de Bulles', damage: 30, energyCost: 2,
+       effects: [
+    {
+      type: 'blockEnergyAttachmentFromHand',
+      amount: 0,
+    },
+  ],
+
+  effectText:
+    "Pendant le prochain tour de votre adversaire, aucune Énergie ne peut être attachée depuis sa main au Pokémon Défenseurs.",
+    },
     {
       name: 'Croc Aiguisé',
       damage: 80,

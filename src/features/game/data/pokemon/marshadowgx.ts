@@ -10,6 +10,13 @@ export const marshadowgx: PokemonCard = {
   maxHp: 150,
   retreatCost: 1,
   artwork: require('../../../../../assets/images/marshadowgx-card.png'),
+  talent: {
+  name: 'Chasse dans l’Ombre',
+  type: 'passive',
+  effect: 'useBasicPokemonDiscardAttacks',
+  description:
+    "Ce Pokémon peut utiliser les attaques des Pokémon de Base de votre pile de défausse. (Vous devez avoir le nombre d'Énergies nécessaire, mais pas les types requis.)",
+},
   attacks: [
     
     {

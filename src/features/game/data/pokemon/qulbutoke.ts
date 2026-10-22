@@ -3,7 +3,7 @@ import type { PokemonCard } from '@/features/game/types';
 export const qulbutoke: PokemonCard = {
   id: 'qulbutoke-001',
   name: 'Qulbutoké',
-  stage: 'niveau1',
+  stage: 'base',
   variant: 'normal',
   type: 'psy',
   maxHp: 120,
@@ -17,6 +17,14 @@ export const qulbutoke: PokemonCard = {
       requiredEnergies: {
         psy: 3,
       },
+      effects: [
+  {
+    type: 'bonusDamagePerTargetRetreatCost',
+    amount: 50,
+  },
+],
+effectText:
+  'Cette attaque inflige 50 dégâts supplémentaires pour chaque Énergie dans le coût de retraite du Pokémon actif de votre adversaire.',
     },
     
   ],

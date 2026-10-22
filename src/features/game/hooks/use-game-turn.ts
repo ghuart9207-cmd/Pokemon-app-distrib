@@ -4,6 +4,7 @@ import {
   resolvePlayerEndOfTurnStatus,
   resolvePokemonEndOfTurn,
   getPassiveEnergyLimit,
+  canAttachEnergyFromSource,
 } from '@/features/game/rules';
 import type {
   AttackPath,
@@ -74,7 +75,19 @@ if (options.pendingDragonEnergyChoices.length > 0) {
 
     const playerReceivingEnergy: Player = options.currentPlayer === 1 ? 2 : 1;
     const newBoard: BoardState = { ...(boardOverride ?? options.board) };
-    
+
+    const poisonDamageTalent = Object.values(newBoard).find(
+  (pokemon) =>
+    pokemon !== null &&
+    pokemon.owner === options.currentPlayer &&
+    pokemon.card.talent?.type === 'passive' &&
+    pokemon.card.talent.effect === 'increaseOpponentPoisonDamage'
+);
+
+const poisonDamageBonus = poisonDamageTalent
+  ? poisonDamageTalent.card.talent?.amount ?? 10
+  : 0;
+
     const dragonEnergyChoices: PendingDragonEnergyChoice[] = [];
 
     const koPlayer1: PokemonInPlay[] = [];
@@ -87,10 +100,11 @@ if (options.pendingDragonEnergyChoices.length > 0) {
       }
 
       const pokemon = resolvePokemonEndOfTurn(
-        currentPokemon,
-        options.currentPlayer,
-        playerReceivingEnergy
-      );
+  currentPokemon,
+  options.currentPlayer,
+  playerReceivingEnergy,
+  poisonDamageBonus
+);
 
       if (pokemon.currentHp <= 0) {
         newBoard[cellName] = null;
@@ -105,11 +119,13 @@ if (options.pendingDragonEnergyChoices.length > 0) {
 
       newBoard[cellName] = pokemon;
       
+
 if (
   pokemon.owner === playerReceivingEnergy &&
   pokemon.card.type === 'dragon' &&
   pokemon.card.dragonEnergyTypes?.length === 2 &&
-  pokemon.energies.length < getPassiveEnergyLimit(pokemon.card)
+  pokemon.energies.length < getPassiveEnergyLimit(pokemon.card) &&
+  canAttachEnergyFromSource(pokemon, 'hand')
 ) {
   dragonEnergyChoices.push({
     cellName,
@@ -117,6 +133,7 @@ if (
     remaining: 1,
   });
 }
+
 
     });
     
@@ -126,18 +143,20 @@ options.setPendingDragonEnergyChoices(dragonEnergyChoices);
     options.setBoard(newBoard);
 
     const player1TurnStatus = resolvePlayerEndOfTurnStatus(
-      options.player1Status,
-      options.currentPlayer
-    );
+  options.player1Status,
+  options.currentPlayer,
+  options.currentPlayer === 1 ? 0 : poisonDamageBonus
+);
     options.setPlayer1Status(player1TurnStatus.status);
     if (player1TurnStatus.damage > 0) {
       options.setPlayer1Damage((damage) => damage + player1TurnStatus.damage);
     }
 
     const player2TurnStatus = resolvePlayerEndOfTurnStatus(
-      options.player2Status,
-      options.currentPlayer
-    );
+  options.player2Status,
+  options.currentPlayer,
+  options.currentPlayer === 2 ? 0 : poisonDamageBonus
+);
     options.setPlayer2Status(player2TurnStatus.status);
     if (player2TurnStatus.damage > 0) {
       options.setPlayer2Damage((damage) => damage + player2TurnStatus.damage);
@@ -169,12 +188,26 @@ options.setPendingDragonEnergyChoices(dragonEnergyChoices);
       ]);
     }
 
-    options.setPlayer1Status((status) =>
-      advancePlayerExtraDamage(status, options.currentPlayer)
-    );
-    options.setPlayer2Status((status) =>
-      advancePlayerExtraDamage(status, options.currentPlayer)
-    );
+    options.setPlayer1Status((status) => {
+  const advancedStatus = advancePlayerExtraDamage(
+    status,
+    options.currentPlayer
+  );
+
+  return options.currentPlayer === 1
+    ? { ...advancedStatus, itemsBlockedThisTurn: false }
+    : advancedStatus;
+});
+    options.setPlayer2Status((status) => {
+  const advancedStatus = advancePlayerExtraDamage(
+    status,
+    options.currentPlayer
+  );
+
+  return options.currentPlayer === 2
+    ? { ...advancedStatus, itemsBlockedThisTurn: false }
+    : advancedStatus;
+});
 
     options.setSelectedCard(null);
     options.setSelectedPokemonCell(null);

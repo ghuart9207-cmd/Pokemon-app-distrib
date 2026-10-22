@@ -21,6 +21,7 @@ export const teraclope: PokemonCard = {
     {
       type: 'damageEveryoneIgnoringEffects',
       amount: 10,
+      
     },
   ],
 

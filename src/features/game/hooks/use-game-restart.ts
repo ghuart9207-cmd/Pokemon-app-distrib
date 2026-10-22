@@ -27,6 +27,7 @@ import type {
   SetState,
   SetupPhase,
   TrainerCard,
+  PendingDiscardTalentPlacement,
 } from '@/features/game/types';
 
 type UseGameRestartOptions = {
@@ -35,6 +36,9 @@ type UseGameRestartOptions = {
   setOpenedDiscardPlayer: SetState<Player | null>;
   setPendingDragonEnergyChoices:
   SetState<PendingDragonEnergyChoice[]>;
+  setPendingDiscardTalentPlacement:
+  SetState<PendingDiscardTalentPlacement | null>;
+  setUsedDiscardTalentKeys: SetState<string[]>;
   setPendingInvocationPlacement: SetState<PendingInvocationPlacement | null>;
   setSelectedTrainerOwner: SetState<Player | null>;
   setPlayer1InvocationCards: SetState<PokemonCard[]>;
@@ -95,6 +99,8 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setPlayer1Status(createNormalPlayerStatus());
     options.setPlayer2Status(createNormalPlayerStatus());
     options.setOpenedDiscardPlayer(null);
+    options.setPendingDiscardTalentPlacement(null);
+    options.setUsedDiscardTalentKeys([]);
     options.setPendingInvocationPlacement(null);
     options.setSelectedTrainerOwner(null);
     options.setInvocationSetupPlayer(null);

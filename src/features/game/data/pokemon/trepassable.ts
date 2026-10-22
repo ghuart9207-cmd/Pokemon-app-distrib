@@ -17,13 +17,22 @@ export const trepassable: PokemonCard = {
       damage: 80,
       energyCost: 3,
       requiredEnergies: { psy: 1 }, // optionnel : énergies de types précis
-        
+        effects: [ {      type: 'preventTargetRetreatNextTurn',      amount: 0,    },  ],
+effectText:    'Le Pokémon Défenseur ne peut pas battre en retraite pendant le prochain tour de votre adversaire.',
+
     },
     {
       name: 'Tempete de Poussière',
       damage: 100,
       energyCost: 4,
-      
+      effects: [
+  {
+    type: 'discardAllEnergyAndToolsFromBothActives',
+    amount: 0,
+  },
+],
+effectText:
+  "Défaussez toutes les Énergies et cartes Outil attachées au 2 Pokémons Actifs.",
     },
   ],
 };

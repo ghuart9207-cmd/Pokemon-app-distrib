@@ -5,6 +5,7 @@ import type {
   PendingBothPlayersSwitch,
   Player,
   SetState,
+   PlayerStatusState,
   TrainerCard,
 } from '@/features/game/types';
 
@@ -15,6 +16,8 @@ type UseGameTrainerActionsOptions = {
   setHasUsedSupporterThisTurn: SetState<boolean>;
   board: BoardState;
   currentPlayer: Player;
+  player1Status: PlayerStatusState;
+  player2Status: PlayerStatusState;
   player1Hand: GameCard[];
   player2Hand: GameCard[];
   setPlayer1Hand: SetState<GameCard[]>;
@@ -42,6 +45,8 @@ export function useGameTrainerActions({
   setHasUsedSupporterThisTurn,
   board,
   currentPlayer,
+  player1Status,
+  player2Status,
   player1Hand,
   player2Hand,
   setPlayer1Hand,
@@ -63,6 +68,23 @@ export function useGameTrainerActions({
     if (!card) {
       return;
     }
+
+    // -----------------------------------------
+// INTERDICTION TEMPORAIRE DES CARTES OBJET
+// -----------------------------------------
+
+const currentPlayerStatus =
+  currentPlayer === 1 ? player1Status : player2Status;
+
+if (
+  card.category === 'objet' &&
+  currentPlayerStatus.itemsBlockedThisTurn
+) {
+  setMessage(
+    `Joueur ${currentPlayer} : tu ne peux pas jouer de carte Objet pendant ce tour à cause de l'attaque adverse.`
+  );
+  return;
+}
 
     if (hasAttackedThisTurn) {
       setMessage('Tu ne peux plus jouer de carte Dresseur après avoir attaqué.');

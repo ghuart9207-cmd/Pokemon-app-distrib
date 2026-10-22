@@ -13,9 +13,19 @@ export type PokemonTalent = {
     | 'paralyzeOpponentOnPlay'
     | 'surviveKOOnCoin'
     | 'preventAllEffectsFromExGx'
-    | 'reduceDamageFromFireWater';
+    | 'reduceDamageFromFireWater'
+    | 'freeRetreatOnFirstTurn'
+    | 'attachEnergyOncePerTurn'
+    | 'increaseOpponentPoisonDamage'
+    | 'useBasicPokemonDiscardAttacks'
+    | 'recoverFromDiscardOncePerGame'
+    | 'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd';
 
   blockedType?: EnergyType;
+ 
+energyType?: EnergyType;
+
+targetPokemonType?: EnergyType;
 
   amount?: number;
 
@@ -25,38 +35,67 @@ export type PokemonTalent = {
 export type AttackEffect = {
   type:
     | 'heal'
+    | 'healPokemonByType'
+    | 'healSelfPerOpponentActiveEnergy'
     | 'discardEnergy'
+    | 'discardOpponentActiveEnergy'
+    | 'discardAllEnergyAndToolsFromBothActives'
     | 'recoverEnergy'
     | 'recoverEnergyToBench'
     | 'switchWithBench'
     | 'discardTypedEnergy'
     | 'recoil'
+    | 'selfDamageEqualToDamageTaken'
     | 'poison'
     | 'burn'
     | 'paralyze'
     | 'confuse'
     | 'sleep'
     | 'discardAllTypedEnergyForBonus'
+    | 'optionalBonusDamageAndOwnBenchDamage'
+    | 'bonusDamagePerTargetRetreatCost'
+    | 'discardAllEnergyForBonus'
     | 'reduceDamageNextOpponentTurn'
+    | 'ignoreTargetDamageReduction'
     | 'takeExtraDamageNextTurn'
+    | 'setNextTurnAttackBaseDamage'
     | 'healAllOwnAndReturnSelf'
     | 'healSelfByDamageDealt'
     | 'forceOpponentActiveSwitch'
     | 'preventAllAttackDamageAndEffectsNextOpponentTurn'
+    | 'preventOpponentPlayingItemsNextTurn'
     | 'attachEnergyToBench'
     | 'moveOwnEnergyToBench'
     | 'damageEveryoneIgnoringEffects'
+    | 'bonusDamageIfToolAttached'
+    | 'bonusDamagePerOpponentActiveSpecialCondition'
+    | 'damageAllPokemonWithTalent'
+    | 'transferAllEnergiesToBench'
+    | 'preventTargetRetreatNextTurn'
+    | 'blockEnergyAttachmentFromHand'
+    | 'bonusDamageIfAttachedEnergy'
+    | 'bonusDamageIfDefenderHasEnergy'
+    | 'bonusDamageIfOpponentActiveHasEnergy'
+    | 'bonusDamageIfTargetPoisoned'
+    | 'damagePerAttachedEnergy'
+    | 'failsIfOpponentActiveMaxHpAtLeast'
     | 'preventDamageFromStageOrVariantNextOpponentTurn';
 
     
 
   amount: number;
 
+  optional?: boolean;
+
   energyType?: EnergyType;
 
-  
-blockedStage?: Stage;
-blockedVariant?: CardVariant;
+  pokemonType?: EnergyType;
+  targetAllPokemon?: boolean;
+
+  attackName?: string;
+
+  blockedStage?: Stage;
+  blockedVariant?: CardVariant;
 
 };
 

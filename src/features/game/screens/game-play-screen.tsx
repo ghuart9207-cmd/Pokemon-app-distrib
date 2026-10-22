@@ -12,6 +12,9 @@ import { DiscardPanel } from '@/features/game/components/player/discard-panel';
 import { PlayerHandArea } from '@/features/game/components/player/player-hand-area';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 import { DragonEnergyPrompt } from '@/features/game/components/panels/dragon-energy-prompt';
+import { DiscardAllEnergyPrompt } from '@/features/game/components/panels/discard-all-energy-prompt';
+import { OptionalBonusDamagePrompt } from '@/features/game/components/panels/optional-bonus-damage-prompt';
+import { OptionalAttackEffectPrompt } from '@/features/game/components/panels/optional-attack-effect-prompt';
 import type {
     BoardState,
     CoinAttackReference,
@@ -46,6 +49,7 @@ type GamePlayScreenProps = {
   player2DiscardEnergies: EnergyType[];
   player1Damage: number;
   player2Damage: number;
+  onDiscardCardPress: (card: GameCard, index: number, player: Player) => void;
   pendingDragonEnergyChoices: PendingDragonEnergyChoice[];
   onChooseDragonEnergy: (energy: EnergyType) => void;
   player1Status: PlayerStatusState;
@@ -62,6 +66,12 @@ type GamePlayScreenProps = {
   trainerEffectActivated: boolean;
   pendingCoinFlip: PendingCoinFlip | null;
   coinDraft: (CoinSide | null)[];
+    pendingDiscardAllEnergyChoice: {
+    pokemonName: string;
+    bonusDamage: number;
+    coinResult?: CoinSide[];
+  } | null;
+  onChooseDiscardAllEnergy: (discard: boolean) => void;
   pendingKOEnergyMove: PendingKOEnergyMove | null;
   pendingInvocationPlacement: PendingInvocationPlacement | null;
   readyCoinAttack: CoinAttackReference | null;
@@ -79,6 +89,7 @@ type GamePlayScreenProps = {
   onSelectAttack: (index: number, message: string) => void;
   onAttack: () => void;
   onRetreat: () => void;
+  onActivateTalent: () => void;
   onActivateTrainer: () => void;
   onActivateInvocation: () => void;
   onStartTrainerCoinFlip: (card: TrainerCard, player: Player, count: number) => void;
@@ -87,10 +98,49 @@ type GamePlayScreenProps = {
   onEndTurn: () => void;
   onRestartSameCards: () => void;
   onRestart: () => void;
+  pendingOptionalAttackEffect: {
+  pokemonName: string;
+  message: string;
+} | null;
+
+onChooseOptionalAttackEffect: (accepted: boolean) => void;
+  pendingOptionalBonusDamageChoice: {
+  pokemonName: string;
+  bonusDamage: number;
+  benchDamage: number;
+  owner: Player;
+  attackerCell: string;
+  stage: 'choice' | 'target';
+} | null;
+
+onChooseOptionalBonusDamage: (useBonus: boolean) => void;
+onChooseOwnBenchDamageTarget: (cellName: string) => void;
 };
 
 export function GamePlayScreen(props: GamePlayScreenProps) {
-  
+  const pendingOptionalDamage = props.pendingOptionalBonusDamageChoice;
+
+const optionalDamageBenchTargets: {
+  cellName: string;
+  pokemonName: string;
+}[] = pendingOptionalDamage
+  ? Object.entries(props.board).flatMap(([cellName, pokemon]) => {
+      if (
+        !pokemon ||
+        pokemon.owner !== pendingOptionalDamage.owner ||
+        cellName === pendingOptionalDamage.attackerCell
+      ) {
+        return [];
+      }
+
+      return [
+        {
+          cellName,
+          pokemonName: pokemon.card.name,
+        },
+      ];
+    })
+  : [];
 const dragonChoice = props.pendingDragonEnergyChoices[0] ?? null;
 
 const dragonPokemon = dragonChoice
@@ -161,6 +211,7 @@ const dragonPokemon = dragonChoice
                 player={props.openedDiscardPlayer}
                 cards={props.openedDiscardCards}
                 onClose={props.onCloseDiscardPreview}
+                onCardPress={props.onDiscardCardPress}
               />
             )}
             {props.selectedAttachedTool && (
@@ -182,6 +233,16 @@ const dragonPokemon = dragonChoice
               pokemon={props.selectedPokemon}
               cellName={props.selectedPokemonCell}
               board={props.board}
+                opponentPlayerPoisoned={
+    props.selectedPokemon?.owner === 1
+      ? props.player2Status.poisoned
+      : props.player1Status.poisoned
+  }
+  opponentPlayerBurned={
+    props.selectedPokemon?.owner === 1
+      ? props.player2Status.burned
+      : props.player1Status.burned
+  }
               ownDiscard={
   props.selectedPokemon?.owner === 1
     ? props.player1Discard
@@ -192,6 +253,8 @@ const dragonPokemon = dragonChoice
               selectedAttackIndex={props.selectedAttackIndex}
               readyCoinAttack={props.readyCoinAttack}
               turnId={props.turnId}
+              currentPlayer={props.currentPlayer}
+onActivateTalent={props.onActivateTalent}
               round={props.round}
                             player1Discard={props.player1Discard}
               player2Discard={props.player2Discard}
@@ -219,6 +282,34 @@ const dragonPokemon = dragonChoice
                 onValidate={props.onValidateCoinFlip}
               />
             )}
+
+            {props.pendingDiscardAllEnergyChoice && (
+  <DiscardAllEnergyPrompt
+    pokemonName={props.pendingDiscardAllEnergyChoice.pokemonName}
+    bonusDamage={props.pendingDiscardAllEnergyChoice.bonusDamage}
+    onChoose={props.onChooseDiscardAllEnergy}
+  />
+)}
+
+{props.pendingOptionalBonusDamageChoice && (
+  <OptionalBonusDamagePrompt
+    pokemonName={props.pendingOptionalBonusDamageChoice.pokemonName}
+    bonusDamage={props.pendingOptionalBonusDamageChoice.bonusDamage}
+    benchDamage={props.pendingOptionalBonusDamageChoice.benchDamage}
+    stage={props.pendingOptionalBonusDamageChoice.stage}
+    benchTargets={optionalDamageBenchTargets}
+    onChooseBonus={props.onChooseOptionalBonusDamage}
+    onChooseTarget={props.onChooseOwnBenchDamageTarget}
+  />
+)}
+
+{props.pendingOptionalAttackEffect && (
+  <OptionalAttackEffectPrompt
+    pokemonName={props.pendingOptionalAttackEffect.pokemonName}
+    message={props.pendingOptionalAttackEffect.message}
+    onChoose={props.onChooseOptionalAttackEffect}
+  />
+)}
           </View>
         </View>
       </ScrollView>

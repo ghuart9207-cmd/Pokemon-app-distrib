@@ -11,6 +11,8 @@ export type PlayerStatusState = {
   burnSourcePlayer: Player | null;
   burnTriggersRemaining: number;
 
+  itemsBlockedThisTurn?: boolean;
+
   extraDamageNextTurn?: number;
 
   extraDamageNextTurnSourcePlayer?: Player | null;
@@ -23,12 +25,18 @@ export type PokemonInPlay = {
   owner: Player;
   currentHp: number;
   energies: EnergyType[];
+  blockedHandEnergyUntilOwnTurnEnd?: boolean;
   attachedTool: TrainerCard | null;
   hasAttacked: boolean;
   hasRetreated: boolean;
   isInvocation?: boolean;
+  lastUsedTalentTurnId?: number;
 
   lastSwitchedTurnId?: number;
+
+  nextTurnAttackBaseDamage?: number;
+  nextTurnAttackBaseDamageAttackName?: string | null;
+  nextTurnAttackBaseDamageTurnId?: number | null;
 
   poisoned: boolean;
   poisonSourcePlayer: Player | null;
@@ -53,11 +61,16 @@ export type PokemonInPlay = {
   extraDamageNextTurnSourcePlayer?: Player | null;
 
   extraDamageNextTurnReady?: boolean;
+  extraDamageNextTurnEnergyType?: EnergyType;
 
   blockedAttackName?: string | null;
   blockedAttackTurnId?: number | null;
   
   blockedAllAttacksTurnId?: number | null;
+
+  
+ retreatBlockedUntilOwnTurnEnd?: boolean;
+
 
 
   attackDamageReduction?: number;

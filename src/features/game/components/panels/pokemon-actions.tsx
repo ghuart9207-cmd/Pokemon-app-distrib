@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
 import { getDisplayedAttackDamage } from '@/features/game/rules';
+import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 import type {
     BoardState,
@@ -24,12 +25,16 @@ type PokemonActionsProps = {
   selectedAttackIndex: number | null;
   readyCoinAttack: CoinAttackReference | null;
   turnId: number;
+  currentPlayer: 1 | 2;
+  onActivateTalent: () => void;
   round: number;
   player1Discard: GameCard[];
   player2Discard: GameCard[];
   onSelectAttack: (index: number, message: string) => void;
   onAttack: () => void;
   onRetreat: () => void;
+  opponentPlayerPoisoned: boolean;
+  opponentPlayerBurned: boolean;
 };
 
 export function PokemonActions({
@@ -40,7 +45,11 @@ export function PokemonActions({
   selectedAttackIndex,
   readyCoinAttack,
   turnId,
+  currentPlayer,
+  onActivateTalent,
   round,
+  opponentPlayerPoisoned,
+  opponentPlayerBurned,
   player1Discard,
   player2Discard,
   onSelectAttack,
@@ -50,6 +59,11 @@ export function PokemonActions({
   if (!pokemon || !cellName) {
     return null;
   }
+
+  const availableAttacks = getAvailablePokemonAttacks(
+  pokemon,
+  ownDiscard
+);
 
   return (
     <View style={sharedStyles.actionBox}>
@@ -73,6 +87,30 @@ export function PokemonActions({
         </View>
       )}
 
+{pokemon.card.talent?.type === 'activated' &&
+  pokemon.card.talent?.effect === 'attachEnergyOncePerTurn' && (
+    <View>
+      {pokemon.owner !== currentPlayer ? (
+        <Text style={sharedStyles.actionInfo}>
+          Tu ne peux utiliser que tes propres Talents.
+        </Text>
+      ) : pokemon.lastUsedTalentTurnId === turnId ? (
+        <Text style={sharedStyles.actionInfo}>
+          ✅ Talent déjà utilisé ce tour.
+        </Text>
+      ) : (
+        <Pressable
+          onPress={onActivateTalent}
+          style={sharedStyles.attackButton}
+        >
+          <Text style={sharedStyles.attackButtonText}>
+            ✨ UTILISER LE TALENT
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  )}
+
       <Text style={sharedStyles.attackTitle}>Attaques</Text>
       {pokemon.paralyzed && (
         <Text style={sharedStyles.actionInfo}>État : ⚡ Paralysé</Text>
@@ -80,57 +118,90 @@ export function PokemonActions({
       {pokemon.confused && <Text style={sharedStyles.actionInfo}>État : 🌀 Confus</Text>}
       {pokemon.asleep && <Text style={sharedStyles.actionInfo}>État : 😴 Endormi</Text>}
 
-      {pokemon.card.attacks.map((attack, index) => {
-        const coinResult: CoinSide[] | undefined =
-          readyCoinAttack?.cellName === cellName && readyCoinAttack.attackIndex === index
-            ? readyCoinAttack.coinResult
-            : undefined;
-        
-const damage = getDisplayedAttackDamage(
-  pokemon,
-  attack,
-  coinResult,
-  board,
-  cellName,
-  turnId,
-  round,
-  player1Discard,
-  player2Discard
-);
+      {availableAttacks.map(
+  ({ attack, copiedFromDiscard, sourcePokemonName }, index) => {
+    const coinResult: CoinSide[] | undefined =
+      readyCoinAttack?.cellName === cellName &&
+      readyCoinAttack.attackIndex === index
+        ? readyCoinAttack.coinResult
+        : undefined;
 
+    const damage = getDisplayedAttackDamage(
+      pokemon,
+      attack,
+      coinResult,
+      board,
+      cellName,
+      turnId,
+      round,
+      opponentPlayerPoisoned,
+      opponentPlayerBurned,
+      player1Discard,
+      player2Discard
+    );
 
-        return (
-          <Pressable
-            key={`${attack.name}-${index}`}
-            onPress={() =>
-              onSelectAttack(
-                index,
-                `${attack.name} sélectionnée : ${damage} dégâts, coût ${formatAttackCost(attack)}.`
-              )
-            }
-            style={[
-              styles.attackChoice,
-              selectedAttackIndex === index && styles.selectedAttackChoice,
-            ]}
-          >
-            <Text style={styles.attackChoiceName}>{attack.name}</Text>
-            <Text style={styles.attackChoiceInfo}>
-              {formatAttackCost(attack)} • Dégâts : {damage}
+    const displayedCost = copiedFromDiscard
+      ? `${attack.energyCost} Énergie(s) — tous types acceptés`
+      : formatAttackCost(attack);
+
+    return (
+      <View key={`${attack.name}-${index}-${sourcePokemonName ?? 'normal'}`}>
+        {copiedFromDiscard && (
+          <Text style={sharedStyles.actionInfo}>
+            📚 Attaque copiée de {sourcePokemonName}
+          </Text>
+        )}
+
+        <Pressable
+          onPress={() =>
+            onSelectAttack(
+              index,
+              `${attack.name} sélectionnée : ${damage} dégâts, coût ${displayedCost}.`
+            )
+          }
+          style={[
+            styles.attackChoice,
+            selectedAttackIndex === index &&
+              styles.selectedAttackChoice,
+          ]}
+        >
+          <Text style={styles.attackChoiceName}>
+            {attack.name}
+          </Text>
+
+          <Text style={styles.attackChoiceInfo}>
+            {copiedFromDiscard
+              ? `${attack.energyCost} Énergie(s) • tous types acceptés`
+              : formatAttackCost(attack)}{' '}
+            • Dégâts : {damage}
+          </Text>
+
+          {attack.effectText && (
+            <Text style={styles.attackEffectText}>
+              {attack.effectText}
             </Text>
-            {attack.effectText && (
-              <Text style={styles.attackEffectText}>{attack.effectText}</Text>
-            )}
-            {attack.effects?.map((effect, effectIndex) => (
-              <Text key={`${effect.type}-${effectIndex}`} style={styles.attackEffectText}>
-                {effect.type === 'heal' && `Soigne ${effect.amount} PV`}
-                {effect.type === 'discardEnergy' &&
-                  `Défausse ${effect.amount} Énergie(s)`}
-                {effect.type === 'recoil' && `Subit ${effect.amount} dégâts de recul`}
-              </Text>
-            ))}
-          </Pressable>
-        );
-      })}
+          )}
+
+          {attack.effects?.map((effect, effectIndex) => (
+            <Text
+              key={`${effect.type}-${effectIndex}`}
+              style={styles.attackEffectText}
+            >
+              {effect.type === 'heal' &&
+                `Soigne ${effect.amount} PV`}
+
+              {effect.type === 'discardEnergy' &&
+                `Défausse ${effect.amount} Énergie(s)`}
+
+              {effect.type === 'recoil' &&
+                `Subit ${effect.amount} dégâts de recul`}
+            </Text>
+          ))}
+        </Pressable>
+      </View>
+    );
+  }
+)}
 
       <Pressable onPress={onAttack} style={sharedStyles.attackButton}>
         <Text style={sharedStyles.attackButtonText}>⚔️ ATTAQUER</Text>

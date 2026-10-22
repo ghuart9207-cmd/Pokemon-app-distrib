@@ -16,7 +16,15 @@ export const saquedeneu: PokemonCard = {
       damage: 10,
       energyCost: 1,
       requiredEnergies: { plante: 1 }, 
-       
+        effects: [
+    {
+      type: 'preventTargetRetreatNextTurn',
+      amount: 0,
+    },
+  ],
+
+  effectText:
+    'Le Pokémon Défenseur ne peut pas battre en retraite pendant le prochain tour de votre adversaire.',
 },
 ],
 };

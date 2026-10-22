@@ -6,7 +6,7 @@ export const kiawe: TrainerCard = {
   category: 'supporter',
   artwork: require('../../../../../assets/images/kiawe-card.png'),
   description:
-    'Ajoutez 2 Énergies Feu à l’un de vos Pokémon de type Feu. Votre tour se termine.',
+    'Ajoutez 2 Énergies Feu de votre main à l’un de vos Pokémon de type Feu. Votre tour se termine.',
 
   effect: 'attach2FireEndTurn',
 };

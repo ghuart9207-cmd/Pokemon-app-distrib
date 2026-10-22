@@ -11,11 +11,13 @@ import type {
   CoinSide,
   EnergyType,
   GameCard,
+  PendingEnergyTransferToBench,
   PendingBenchEnergyAttachment,
   PendingBothPlayersSwitch,
   PendingCoinFlip,
   PendingCoinReturnToHand,
   PendingGeneratedBenchEnergy,
+  PendingTalentEnergyAttachment,
   PendingInvocationPlacement,
   PendingKOEnergyMove,
   PendingKOSurvival,
@@ -29,6 +31,7 @@ import type {
   SelectedAttachedTool,
   TrainerCard,
   PendingDragonEnergyChoice,
+  PendingDiscardTalentPlacement,
 } from '@/features/game/types';
 
 /**
@@ -65,6 +68,12 @@ export function useGameState() {
   const [selectedAttachedTool, setSelectedAttachedTool] =
     useState<SelectedAttachedTool | null>(null);
   const [openedDiscardPlayer, setOpenedDiscardPlayer] = useState<Player | null>(null);
+  // Talent de récupération depuis la défausse.
+  const [pendingDiscardTalentPlacement, setPendingDiscardTalentPlacement,] = 
+    useState<PendingDiscardTalentPlacement | null>(null);
+
+// Les identifiants des Talents déjà utilisés pendant cette partie.
+  const [usedDiscardTalentKeys, setUsedDiscardTalentKeys] = useState<string[]>([]);
 
   // --- mains, défausses, dégâts et statuts des joueurs ------
   const [player1Hand, setPlayer1Hand] = useState<GameCard[]>(STARTING_HANDS[1]);
@@ -109,6 +118,10 @@ export function useGameState() {
     useState<PendingDragonEnergyChoice[]>([]);
   const [pendingGeneratedBenchEnergy, setPendingGeneratedBenchEnergy] =
     useState<PendingGeneratedBenchEnergy | null>(null);
+  const [pendingEnergyTransferToBench,setPendingEnergyTransferToBench,] = 
+    useState<PendingEnergyTransferToBench | null>(null);
+  const [pendingTalentEnergyAttachment, setPendingTalentEnergyAttachment] =
+    useState<PendingTalentEnergyAttachment | null>(null);
   const [pendingInvocationPlacement, setPendingInvocationPlacement] =
     useState<PendingInvocationPlacement | null>(null);
   const [pendingKOEnergyMove, setPendingKOEnergyMove] =
@@ -206,6 +219,10 @@ export function useGameState() {
     setPendingCoinReturnToHand,
     pendingGeneratedBenchEnergy,
     setPendingGeneratedBenchEnergy,
+    pendingEnergyTransferToBench,
+    setPendingEnergyTransferToBench,
+    pendingTalentEnergyAttachment,
+    setPendingTalentEnergyAttachment,
     pendingInvocationPlacement,
     setPendingInvocationPlacement,
     pendingKOEnergyMove,
@@ -222,6 +239,10 @@ export function useGameState() {
     setPendingSleepResolution,
     pendingDragonEnergyChoices,
     setPendingDragonEnergyChoices,
+    pendingDiscardTalentPlacement,
+    setPendingDiscardTalentPlacement,
+    usedDiscardTalentKeys,
+    setUsedDiscardTalentKeys,
   };
 }
 

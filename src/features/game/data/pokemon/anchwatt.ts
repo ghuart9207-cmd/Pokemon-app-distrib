@@ -17,6 +17,17 @@ export const anchwatt: PokemonCard = {
       energyCost: 1,
       requiredEnergies: { electrique: 1 }, 
        
+    effects: [
+    {
+      type: 'bonusDamageIfDefenderHasEnergy',
+      energyType: 'eau',
+      amount: 30,
+    },
+  ],
+
+  effectText:
+    "Si de l’énergie Eau est attachée au Pokémon Actif de votre adversaire, cette attaque inflige 30 dégats supplémentaire.",
+       
 },
 ],
 };

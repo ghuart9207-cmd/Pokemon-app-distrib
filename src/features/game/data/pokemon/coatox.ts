@@ -31,6 +31,15 @@ export const coatox: PokemonCard = {
       energyCost: 3,
       requiredEnergies: { psy: 2 }, // optionnel : énergies de types précis
         
+effects: [
+  {
+    type: 'bonusDamageIfTargetPoisoned',
+    amount: 80,
+  },
+],
+effectText:
+  "Si le Pokémon actif de votre adversaire est empoisonné, cette attaque inflige 80 dégâts supplémentaires.",
+
     },
   ],
 }

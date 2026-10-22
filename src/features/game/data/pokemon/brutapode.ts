@@ -30,6 +30,14 @@ export const brutapode: PokemonCard = {
       damage: 140,
       energyCost: 4,
       requiredEnergies: { psy: 3 }, 
+      effects: [
+  {
+    type: 'ignoreTargetDamageReduction',
+    amount: 0,
+  },
+],
+effectText:
+  "Les dégâts de cette attaque ne sont pas affecté par la résistance.",
     },
   ],
 };

@@ -19,7 +19,14 @@ export const crabominable: PokemonCard = {
       requiredEnergies: {
         combat: 1,
       },
-
+effects: [
+  {
+    type: 'selfDamageEqualToDamageTaken',
+    amount: 0,
+  },
+],
+effectText:
+  "Ce Pokémon s'inflige autant de dégâts qu'il en a subi.",
       
     },
 

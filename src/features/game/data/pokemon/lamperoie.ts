@@ -12,11 +12,19 @@ export const lamperoie: PokemonCard = {
   artwork: require('../../../../../assets/images/lamperoie-card.png'),
   attacks: [
     {
-      name: 'Ronge',
+      name: 'Petit Appétit',
       damage: 50,
       energyCost: 2,
       requiredEnergies: { electrique: 1 }, 
-       
+       effects: [
+    {
+      type: 'failsIfOpponentActiveMaxHpAtLeast',
+      amount: 100,
+    },
+  ],
+
+  effectText:
+    'Si les PV maximums du Pokémon actif adverse sont de 100 ou plus, cette attaque ne fait rien.',
 },
 ],
 };

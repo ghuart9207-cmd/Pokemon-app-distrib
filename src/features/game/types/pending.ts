@@ -1,10 +1,10 @@
-import type { PokemonCard, TrainerCard } from './cards';
+import type { PokemonCard, TrainerCard,  AttackEffect, } from './cards';
 import type { CoinFlipResolution } from './coins';
 import type { EnergyType, Player } from './core';
 
 export type PendingKOSurvival = {
   cellName: string;
-
+  
   player: Player;
 };
 
@@ -18,6 +18,15 @@ export type PendingGeneratedBenchEnergy = {
   // Si true, on déplace les énergies
   // de l'attaquant vers le Pokémon de banc.
   moveFromAttacker?: boolean;
+};
+
+export type PendingTalentEnergyAttachment = {
+  player: Player;
+  sourceCell: string;
+  energyType: EnergyType;
+  amount: number;
+  targetPokemonType?: EnergyType;
+  turnId: number;
 };
 
 export type PendingOpponentTargetMode =
@@ -53,6 +62,11 @@ export type PendingOpponentTarget = {
   mode: PendingOpponentTargetMode;
 
   excludedCell?: string | null;
+  excludedPlayer?: Player | null;
+
+  
+effects?: AttackEffect[];
+
 };
 
 export type PendingBothPlayersSwitch = {
@@ -116,3 +130,13 @@ export type PendingDragonEnergyChoice = {
   remaining: number;
 };
 
+export type PendingEnergyTransferToBench = {
+  player: Player;
+  attackerCell: string;
+};
+
+export type PendingDiscardTalentPlacement = {
+  player: Player;
+  card: PokemonCard;
+  discardIndex: number;
+};

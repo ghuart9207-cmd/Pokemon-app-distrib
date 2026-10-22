@@ -10,6 +10,15 @@ export const lucario: PokemonCard = {
   maxHp: 120,
   retreatCost: 1,
   artwork: require('../../../../../assets/images/lucario-card.png'),
+  
+talent: {
+  name: 'Position',
+  type: 'passive',
+  effect: 'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd',
+  description:
+    "Lorsque vous posez ce Pokémon sur le plateau, évitez tous les effets des attaques, y compris les dégâts, infliger à ce pokémon jusqu'à la fin du prochain tour de votre adversaire.",
+},
+
   attacks: [
     
     {

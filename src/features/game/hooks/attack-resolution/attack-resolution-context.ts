@@ -13,6 +13,7 @@ import type {
   PlayerStatusState,
   PokemonInPlay,
   SetState,
+  PendingEnergyTransferToBench,
 } from '@/features/game/types';
 
 export type AttackResolutionContext = {
@@ -34,10 +35,13 @@ player2Discard: GameCard[];
   setPendingBenchEnergyAttachment: SetState<PendingBenchEnergyAttachment | null>;
   setPendingGeneratedBenchEnergy: SetState<PendingGeneratedBenchEnergy | null>;
   setPendingOpponentActiveSwitch: SetState<PendingOpponentActiveSwitch | null>;
+  setPendingEnergyTransferToBench: SetState<PendingEnergyTransferToBench | null>;
   setPendingOpponentTarget: SetState<PendingOpponentTarget | null>;
   setPendingPokemonSwitch: SetState<PendingPokemonSwitch | null>;
   setPendingSleepResolution: SetState<PendingSleepResolution | null>;
   setPlayer1Damage: SetState<number>;
+  setPlayer1Status: SetState<PlayerStatusState>;
+  setPlayer2Status: SetState<PlayerStatusState>;
   setPlayer1Discard: SetState<GameCard[]>;
   setPlayer1DiscardEnergies: SetState<EnergyType[]>;
   setPlayer1Hand: SetState<GameCard[]>;

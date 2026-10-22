@@ -3,6 +3,11 @@ import type { BoardState } from '@/features/game/types';
 import type { CellPressContext } from './cell-press-context';
 import { doesTemporaryProtectionPreventDamage } from
   '@/features/game/rules/temporary-attack-protection';
+  import { applyTargetRetreatBlock } from
+  '@/features/game/rules/retreat-block-rules';
+import { applyHandEnergyBlockFromAttack } from
+  '@/features/game/rules';
+
 
 
 /** Choix d'un Pokémon adverse ciblé par une attaque. */
@@ -59,17 +64,11 @@ export function handleOpponentTarget(
     pendingOpponentTarget.excludedCell === cellName
   ) {
     setMessage(
-      `${target.card.name} est le Pokémon qui a reçu l'attaque principale et n'est donc pas une cible de banc.`
-    );
+  `${target.card.name} a déjà reçu les dégâts principaux. Choisis une autre cible adverse.`
+);
 
     return true;
   }
-
-
-
-
-
-
   
 const pendingAttacker =
   board[pendingOpponentTarget.attackerCell];
@@ -88,10 +87,14 @@ const pendingAttacker =
   }
 
   const pendingExtraDamage =
-    target.extraDamageNextTurnReady &&
-    target.extraDamageNextTurnSourcePlayer === pendingOpponentTarget.player
-      ? (target.extraDamageNextTurn ?? 0)
-      : 0;
+  target.extraDamageNextTurnReady &&
+  target.extraDamageNextTurnSourcePlayer === pendingOpponentTarget.player &&
+  (
+    target.extraDamageNextTurnEnergyType == null ||
+    target.extraDamageNextTurnEnergyType === pendingAttacker?.card.type
+  )
+    ? (target.extraDamageNextTurn ?? 0)
+    : 0;
 
   
 const protectedFromDamage =
@@ -193,14 +196,41 @@ const pendingDamage = protectedFromDamage
   // LE POKÉMON SURVIT
   // -----------------------------
 
-  setBoard((previousBoard) => ({
-    ...previousBoard,
+  const extraDamageNextTurnEffect =
+  target.preventAllAttackDamageAndEffects === true
+    ? undefined
+    : pendingOpponentTarget.effects?.find(
+        (effect) => effect.type === 'takeExtraDamageNextTurn'
+      );
 
-    [cellName]: {
+setBoard((previousBoard) => ({
+  ...previousBoard,
+
+  [cellName]: applyTargetRetreatBlock(
+    {
       ...target,
       currentHp: remainingHp,
+      extraDamageNextTurn: extraDamageNextTurnEffect
+  ? extraDamageNextTurnEffect.amount
+  : target.extraDamageNextTurn,
+
+extraDamageNextTurnSourcePlayer: extraDamageNextTurnEffect
+  ? pendingOpponentTarget.player
+  : target.extraDamageNextTurnSourcePlayer,
+
+extraDamageNextTurnReady: extraDamageNextTurnEffect
+  ? false
+  : target.extraDamageNextTurnReady,
+
+extraDamageNextTurnEnergyType: extraDamageNextTurnEffect
+  ? extraDamageNextTurnEffect.energyType
+  : target.extraDamageNextTurnEnergyType,
     },
-  }));
+    pendingOpponentTarget.effects,
+    target.preventAllAttackDamageAndEffects === true
+  ),
+}));
+
 
   setMessage(`${target.card.name} subit ${pendingDamage} dégâts.`);
 
