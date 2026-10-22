@@ -6,7 +6,7 @@ export const guzma: TrainerCard = {
   category: 'supporter',
   artwork: require('../../../../../assets/images/guzma-card.png'),
   description:
-    'Échangez l’un des Pokémon de votre adversaire avec un autre de ses Pokémon. Ensuite, échangez l’un de vos Pokémon avec un autre de vos Pokémon.',
+    'Échangez l’un des Pokémon de votre adversaire avec un autre de ses Pokémon. Ensuite, échangez l’un de vos Pokémon avec un autre de vos Pokémon. (Les échanges se font horizontalement)',
 
   effect: 'forceOpponentThenSelfSwitch',
 };

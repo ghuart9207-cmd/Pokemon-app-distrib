@@ -20,6 +20,7 @@ import type {
   PendingDragonEnergyChoice,
   PendingEnergyTransferToBench,
   PendingDiscardTalentPlacement,
+  PendingAttackSummonPlacement,
 } from '@/features/game/types';
 
 export type CellPressContext = {
@@ -45,11 +46,14 @@ export type CellPressContext = {
   pendingInvocationPlacement: PendingInvocationPlacement | null;
   pendingKOEnergyMove: PendingKOEnergyMove | null;
   pendingEnergyTransferToBench: PendingEnergyTransferToBench | null;
+  pendingAttackSummonPlacement: PendingAttackSummonPlacement | null;
+  setPendingAttackSummonPlacement: SetState<PendingAttackSummonPlacement | null>;
   setPendingEnergyTransferToBench: SetState<PendingEnergyTransferToBench | null>;
   pendingOpponentActiveSwitch: PendingOpponentActiveSwitch | null;
   pendingOpponentTarget: PendingOpponentTarget | null;
   pendingPokemonSwitch: PendingPokemonSwitch | null;
   pokemonPlacementLocks: Record<string, number>;
+  freeReplacementTokens: Record<string, number>;
   hasAttackedThisTurn: boolean;
   hasPlacedThisTurn: boolean;
   hasUsedSupporterThisTurn: boolean;
@@ -83,6 +87,7 @@ export type CellPressContext = {
   setPendingDragonEnergyChoices:
   SetState<PendingDragonEnergyChoice[]>;
   setPokemonPlacementLocks: SetState<Record<string, number>>;
+  setFreeReplacementTokens: SetState<Record<string, number>>;
   setSelectedAttachedTool: SetState<{ card: TrainerCard; cellName: string } | null>;
   setSelectedAttackIndex: SetState<number | null>;
   setSelectedCard: SetState<PokemonCard | null>;

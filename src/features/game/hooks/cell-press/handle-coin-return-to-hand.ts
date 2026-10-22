@@ -1,4 +1,9 @@
+import {
+  addFreeReplacementToken,
+  getPokemonPlacementKey,
+} from '@/features/game/rules';
 import type { CellPressContext } from './cell-press-context';
+import { getFreeReplacementMessage } from './trainer-effects/free-replacement-message';
 
 /** Super Rappel (pile ou face) : choix du Pokémon à remettre dans la main. */
 export function handleCoinReturnToHand(
@@ -15,6 +20,7 @@ export function handleCoinReturnToHand(
     setPlayer1Hand,
     setPlayer2Hand,
     setPokemonPlacementLocks,
+    setFreeReplacementTokens,
     setSelectedAttackIndex,
     setSelectedPokemonCell,
   } = context;
@@ -43,12 +49,16 @@ export function handleCoinReturnToHand(
     return true;
   }
 
-  // Même blocage de repose que Margie
+  // Même blocage de repose que Margie.
+  // (Correctif : on utilise la même clé « joueur-carte »
+  // que celle vérifiée au moment de la pose.)
+  const placementLockKey = getPokemonPlacementKey(target.owner, target.card.id);
+
   if (target.card.stage === 'niveau1') {
     setPokemonPlacementLocks((previous) => ({
       ...previous,
 
-      [target.card.id]: round,
+      [placementLockKey]: round,
     }));
   }
 
@@ -56,8 +66,19 @@ export function handleCoinReturnToHand(
     setPokemonPlacementLocks((previous) => ({
       ...previous,
 
-      [target.card.id]: round + 1,
+      [placementLockKey]: round + 1,
     }));
+  }
+
+  // Mode de repose défini par la carte.
+  const replacementMode =
+    pendingCoinReturnToHand.returnToHandReplacement ?? 'normal';
+
+  // Repose gratuite (en plus de la pose du tour), sans Énergie.
+  if (replacementMode === 'free') {
+    setFreeReplacementTokens((previous) =>
+      addFreeReplacementToken(previous, target.owner, target.card.id)
+    );
   }
 
   // Pokémon + Outil -> main
@@ -97,7 +118,8 @@ export function handleCoinReturnToHand(
         : '') +
       (target.energies.length > 0
         ? ` Ses ${target.energies.length} Énergie(s) disparaissent.`
-        : '')
+        : '') +
+      getFreeReplacementMessage(target.card.name, target.card.stage, replacementMode)
   );
 
   setPendingCoinReturnToHand(null);

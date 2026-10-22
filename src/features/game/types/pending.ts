@@ -1,4 +1,4 @@
-import type { PokemonCard, TrainerCard,  AttackEffect, } from './cards';
+import type { PokemonCard, TrainerCard,  AttackEffect, ReturnToHandReplacement } from './cards';
 import type { CoinFlipResolution } from './coins';
 import type { EnergyType, Player } from './core';
 
@@ -34,6 +34,9 @@ export type PendingOpponentTargetMode =
 
 export type PendingCoinReturnToHand = {
   player: Player;
+
+  // Mode de repose défini par la carte (Super Rappel : 'free').
+  returnToHandReplacement?: ReturnToHandReplacement;
 };
 
 export type PendingOpponentActiveSwitch = {
@@ -50,6 +53,17 @@ export type PendingKOEnergyMove = {
   availableEnergies: EnergyType[];
 
   selectedEnergy: EnergyType | null;
+
+  // Nombre d'Énergies qu'il reste à déplacer
+  // (Relais Optimiste : 2 au départ).
+  remaining: number;
+
+  // Nombre total d'Énergies à déplacer, pour l'affichage.
+  total: number;
+
+  // Pokémon qui reçoit les Énergies : fixé après la 1ʳᵉ,
+  // car toutes les Énergies vont sur le même Pokémon.
+  targetCell?: string | null;
 };
 
 export type PendingOpponentTarget = {
@@ -135,8 +149,23 @@ export type PendingEnergyTransferToBench = {
   attackerCell: string;
 };
 
+/** Invocation créée par une attaque (ex : Division de Tadmorv d'Alola). */
+export type PendingAttackSummonPlacement = {
+  player: Player;
+
+  // Carte à invoquer.
+  card: PokemonCard;
+
+  // Nombre d'Invocations restant à poser.
+  remaining: number;
+
+  // Pour les messages.
+  attackerName: string;
+  attackName: string;
+};
+
 export type PendingDiscardTalentPlacement = {
   player: Player;
   card: PokemonCard;
   discardIndex: number;
-};
+};

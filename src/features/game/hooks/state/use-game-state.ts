@@ -32,6 +32,7 @@ import type {
   TrainerCard,
   PendingDragonEnergyChoice,
   PendingDiscardTalentPlacement,
+  PendingAttackSummonPlacement,
 } from '@/features/game/types';
 
 /**
@@ -54,6 +55,14 @@ export function useGameState() {
   const [trainerEffectActivated, setTrainerEffectActivated] = useState(false);
   const [remainingAttackPaths, setRemainingAttackPaths] = useState<AttackPath[]>([]);
   const [pokemonPlacementLocks, setPokemonPlacementLocks] = useState<
+    Record<string, number>
+  >({});
+
+  // Pokémon renvoyés en main par Margie ou Super Rappel :
+  // clé `${joueur}-${idCarte}` -> nombre de reposes gratuites disponibles.
+  // Une repose gratuite ne compte pas comme la pose du tour,
+  // mais le Pokémon arrive sans Énergie.
+  const [freeReplacementTokens, setFreeReplacementTokens] = useState<
     Record<string, number>
   >({});
 
@@ -120,6 +129,8 @@ export function useGameState() {
     useState<PendingGeneratedBenchEnergy | null>(null);
   const [pendingEnergyTransferToBench,setPendingEnergyTransferToBench,] = 
     useState<PendingEnergyTransferToBench | null>(null);
+  const [pendingAttackSummonPlacement, setPendingAttackSummonPlacement] =
+    useState<PendingAttackSummonPlacement | null>(null);
   const [pendingTalentEnergyAttachment, setPendingTalentEnergyAttachment] =
     useState<PendingTalentEnergyAttachment | null>(null);
   const [pendingInvocationPlacement, setPendingInvocationPlacement] =
@@ -163,6 +174,8 @@ export function useGameState() {
     setRemainingAttackPaths,
     pokemonPlacementLocks,
     setPokemonPlacementLocks,
+    freeReplacementTokens,
+    setFreeReplacementTokens,
     selectedCard,
     setSelectedCard,
     selectedTrainerCard,
@@ -221,6 +234,8 @@ export function useGameState() {
     setPendingGeneratedBenchEnergy,
     pendingEnergyTransferToBench,
     setPendingEnergyTransferToBench,
+    pendingAttackSummonPlacement,
+    setPendingAttackSummonPlacement,
     pendingTalentEnergyAttachment,
     setPendingTalentEnergyAttachment,
     pendingInvocationPlacement,

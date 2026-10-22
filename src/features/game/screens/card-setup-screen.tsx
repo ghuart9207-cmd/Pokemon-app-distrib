@@ -6,9 +6,11 @@ import { ALL_POKEMON_CARDS, ALL_TRAINER_CARDS } from '@/features/game/data';
 import type { GameCard, Player, SetupPhase } from '@/features/game/types';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 import { styles } from './card-setup-screen.styles';
+import { MAX_GX_EX_IN_SETUP } from '@/features/game/hooks/use-game-setup';
 
 type SetupCounts = {
   pokemonCount: number;
+  gxExCount: number;
   objectCount: number;
   supporterCount: number;
 };
@@ -38,7 +40,8 @@ export function CardSetupScreen({
 }: CardSetupScreenProps) {
   const setupPlayer: Player = setupPhase === 'player1' ? 1 : 2;
   const setupCards = setupPhase === 'player1' ? player1SetupCards : player2SetupCards;
-  const { pokemonCount, objectCount, supporterCount } = getSetupCounts(setupCards);
+  const { pokemonCount, gxExCount, objectCount, supporterCount } =
+    getSetupCounts(setupCards);
 
   return (
     <ScrollView
@@ -52,6 +55,9 @@ export function CardSetupScreen({
           Composition de la main du joueur {setupPlayer}
         </Text>
         <Text style={sharedStyles.actionInfo}>Pokémon : {pokemonCount}/8</Text>
+        <Text style={sharedStyles.actionInfo}>
+          dont GX / EX : {gxExCount}/{MAX_GX_EX_IN_SETUP} maximum
+        </Text>
         <Text style={sharedStyles.actionInfo}>Objets : {objectCount}/3</Text>
         <Text style={sharedStyles.actionInfo}>Supporters : {supporterCount}/2</Text>
       </View>

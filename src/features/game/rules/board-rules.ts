@@ -86,3 +86,22 @@ export function getOpponentPlacementDamage(
     return total;
   }, 0);
 }
+
+/** Clé d'un Pokémon pour les blocages de repose et les reposes gratuites. */
+export function getPokemonPlacementKey(player: Player, cardId: string): string {
+  return `${player}-${cardId}`;
+}
+
+/**
+ * Un Pokémon renvoyé en main (Margie, Super Rappel) gagne une repose gratuite :
+ * elle s'ajoute à la pose normale du tour, mais le Pokémon arrive sans Énergie.
+ */
+export function addFreeReplacementToken(
+  tokens: Record<string, number>,
+  player: Player,
+  cardId: string
+): Record<string, number> {
+  const key = getPokemonPlacementKey(player, cardId);
+
+  return { ...tokens, [key]: (tokens[key] ?? 0) + 1 };
+}

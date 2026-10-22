@@ -1,19 +1,26 @@
-import type { EnergyType } from '@/features/game/types';
+import { applyKOEnergyMove } from './apply-ko-energy-move';
 import type { CellPressContext } from './cell-press-context';
 
-/** Outil : déplacement d'une Énergie vers un autre Pokémon après un K.O. */
+/**
+ * Outil Relais Optimiste : après un K.O., déplace jusqu'à 2 Énergies
+ * vers UN SEUL des Pokémon du joueur.
+ */
 export function handleKOEnergyMove(context: CellPressContext, cellName: string): boolean {
-  const {
-    board,
-    pendingKOEnergyMove,
-    setBoard,
-    setMessage,
-    setPendingKOEnergyMove,
-    setPlayer1DiscardEnergies,
-    setPlayer2DiscardEnergies,
-  } = context;
+  const { board, pendingKOEnergyMove, setMessage } = context;
 
   if (!pendingKOEnergyMove) return false;
+
+  // La cible est déjà choisie : la deuxième Énergie s'attache
+  // automatiquement dès qu'on la choisit dans le panneau.
+  if (pendingKOEnergyMove.targetCell) {
+    const lockedTarget = board[pendingKOEnergyMove.targetCell];
+
+    setMessage(
+      `Choisis la deuxième Énergie dans le panneau Relais d’Énergie : elle ira sur ${lockedTarget?.card.name ?? 'le même Pokémon'}.`
+    );
+
+    return true;
+  }
 
   const target = board[cellName];
 
@@ -35,54 +42,12 @@ export function handleKOEnergyMove(context: CellPressContext, cellName: string):
     return true;
   }
 
-  const energyToMove = pendingKOEnergyMove.selectedEnergy;
-
-  // Ajoute l'Énergie au Pokémon choisi
-  setBoard((previousBoard) => {
-    const currentTarget = previousBoard[cellName];
-
-    if (!currentTarget) {
-      return previousBoard;
-    }
-
-    return {
-      ...previousBoard,
-
-      [cellName]: {
-        ...currentTarget,
-
-        energies: [...currentTarget.energies, energyToMove],
-      },
-    };
-  });
-
-  // Retire UNE occurrence
-  // de cette Énergie de la défausse
-  const removeEnergyFromDiscard = (discard: EnergyType[]) => {
-    const index = discard.findIndex((energy) => energy === energyToMove);
-
-    if (index === -1) {
-      return discard;
-    }
-
-    const newDiscard = [...discard];
-
-    newDiscard.splice(index, 1);
-
-    return newDiscard;
-  };
-
-  if (pendingKOEnergyMove.player === 1) {
-    setPlayer1DiscardEnergies(removeEnergyFromDiscard);
-  } else {
-    setPlayer2DiscardEnergies(removeEnergyFromDiscard);
-  }
-
-  setMessage(
-    `${energyToMove} de ${pendingKOEnergyMove.sourcePokemonName} est déplacée vers ${target.card.name}.`
+  applyKOEnergyMove(
+    context,
+    pendingKOEnergyMove,
+    pendingKOEnergyMove.selectedEnergy,
+    cellName
   );
-
-  setPendingKOEnergyMove(null);
 
   return true;
 }

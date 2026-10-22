@@ -15,6 +15,15 @@ export const tadmorvdalola: PokemonCard = {
       name: 'Division',
       damage: 0,
       energyCost: 1,
+      effects: [
+        {
+          type: 'summonPokemon',
+          amount: 1,
+          summonCardId: 'tadmorvedalola-001',
+        },
+      ],
+      effectText:
+        "Invoquez un Tadmorv d'Alola sur votre banc. Comme c'est une Invocation, il arrive sans Énergie et ne peut pas être ciblé par les cartes Dresseur.",
     },
     {
       name: 'Gadoue Glissante',
@@ -29,4 +38,4 @@ export const tadmorvdalola: PokemonCard = {
       effectText: 'Le pokémon actif de votre adversaire est maintenant confus.',
     },
   ],
-};
+};

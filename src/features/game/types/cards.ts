@@ -32,6 +32,17 @@ targetPokemonType?: EnergyType;
   description: string;
 };
 
+/**
+ * Comment un Pokémon renvoyé en main par une carte peut être reposé :
+ * - 'free'   : en plus de la pose normale du tour, mais sans Énergie
+ *              (ex : Margie, Super Rappel) ;
+ * - 'normal' : comme pose normale du tour, avec ses Énergies habituelles
+ *              (ex : Papilusion).
+ * Dans les deux cas, un Niveau 1 attend le prochain tour
+ * et un Niveau 2 attend un tour de plus.
+ */
+export type ReturnToHandReplacement = 'free' | 'normal';
+
 export type AttackEffect = {
   type:
     | 'heal'
@@ -79,7 +90,8 @@ export type AttackEffect = {
     | 'bonusDamageIfTargetPoisoned'
     | 'damagePerAttachedEnergy'
     | 'failsIfOpponentActiveMaxHpAtLeast'
-    | 'preventDamageFromStageOrVariantNextOpponentTurn';
+    | 'preventDamageFromStageOrVariantNextOpponentTurn'
+    | 'summonPokemon';
 
     
 
@@ -96,6 +108,14 @@ export type AttackEffect = {
 
   blockedStage?: Stage;
   blockedVariant?: CardVariant;
+
+  // Effet qui renvoie un Pokémon en main : mode de repose.
+  // Par défaut : 'normal'.
+  returnToHandReplacement?: ReturnToHandReplacement;
+
+  // Effet 'summonPokemon' : id de la carte à invoquer.
+  // Si absent, on invoque une copie du Pokémon attaquant.
+  summonCardId?: string;
 
 };
 
@@ -192,6 +212,10 @@ export type TrainerCard = {
     | 'summonTwoBase60';
 
   coinCount?: number;
+
+  // Cartes qui renvoient un Pokémon en main : mode de repose.
+  // Par défaut : 'normal'.
+  returnToHandReplacement?: ReturnToHandReplacement;
 
   artwork?: any;
 };

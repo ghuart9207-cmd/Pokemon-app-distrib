@@ -14,6 +14,7 @@ import type {
   PokemonInPlay,
   SetState,
   PendingEnergyTransferToBench,
+  PendingAttackSummonPlacement,
 } from '@/features/game/types';
 
 export type AttackResolutionContext = {
@@ -36,6 +37,7 @@ player2Discard: GameCard[];
   setPendingGeneratedBenchEnergy: SetState<PendingGeneratedBenchEnergy | null>;
   setPendingOpponentActiveSwitch: SetState<PendingOpponentActiveSwitch | null>;
   setPendingEnergyTransferToBench: SetState<PendingEnergyTransferToBench | null>;
+  setPendingAttackSummonPlacement: SetState<PendingAttackSummonPlacement | null>;
   setPendingOpponentTarget: SetState<PendingOpponentTarget | null>;
   setPendingPokemonSwitch: SetState<PendingPokemonSwitch | null>;
   setPendingSleepResolution: SetState<PendingSleepResolution | null>;
@@ -50,6 +52,7 @@ player2Discard: GameCard[];
   setPlayer2DiscardEnergies: SetState<EnergyType[]>;
   setPlayer2Hand: SetState<GameCard[]>;
   setPokemonPlacementLocks: SetState<Record<string, number>>;
+  setFreeReplacementTokens: SetState<Record<string, number>>;
   setSelectedAttackIndex: SetState<number | null>;
   setSelectedPokemonCell: SetState<string | null>;
   advanceAttackOrder: (cellName: string, player: Player) => void;
