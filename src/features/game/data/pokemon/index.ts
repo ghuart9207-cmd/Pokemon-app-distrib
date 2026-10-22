@@ -101,3 +101,4 @@ export * from './tokotorogx';
 export * from './lougarocgx';
 export * from './mistigrix';
 export * from './hoothoot';
+export * from './bulbizarre-tcg';
