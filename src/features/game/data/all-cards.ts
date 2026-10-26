@@ -1,5 +1,5 @@
 import type { PokemonCard, TrainerCard } from '@/features/game/types';
-import { anchwatt, araqua, azumarill, bacabouh, bombydou, bourrinos, brutapode, bruyvernegx, chrysacier, coatox, coxy, crabagarre, crabominable, darkraigx, diancie, dimoret, elekable, farfuret, feuillajou, flamajou, flotajou, flotoutan, gardevoirgx, goupixdalola, grotadmorvdalolagx, hoothoot, hypotrempe, karaclee, kirlia, lamperoie, lampignon, leviator, lougaroc, lougaroc2, lougarocgx, lucario, marill, marshadowgx, miaouss, mistigrix, mystherbe, nounourson, ohmassacre, porygon, psytigri, qulbutoke, rattatacdalola, rattatadalola, rhinocorne, rhinoferos, riolu, scobolide, seleroc, sepiatop, sepiatroce, seviper, skelenox, sonistrelle, sovkipou, spododo, tadmorvdalola, tarenbulle, tarsal, teraclope, tiboudet, togedemaru, tokotorogx, trepassable, venipatte, zygarde } from './pokemon';
+import { anchwatt, araqua, azumarill, bacabouh, bombydou, bourrinos, brutapode, bruyvernegx, chrysacier, coatox, coxy, crabagarre, crabominable, darkraigx, diancie, dimoret, elekable, farfuret, feuillajou, flamajou, flotajou, flotoutan, gardevoirgx, goupixdalola, grotadmorvdalolagx, hoothoot, hypocean, hypotrempe, karaclee, kirlia, lamperoie, lampignon, leviator, lougaroc, lougaroc2, lougarocgx, lucario, marill, marshadowgx, miaouss, mistigrix, mystherbe, nounourson, ohmassacre, porygon, psytigri, qulbutoke, rattatacdalola, rattatadalola, rhinocorne, rhinoferos, riolu, scobolide, seleroc, sepiatop, sepiatroce, seviper, skelenox, sonistrelle, sovkipou, spododo, tadmorvdalola, tarenbulle, tarsal, teraclope, tiboudet, togedemaru, tokotorogx, trepassable, venipatte, zygarde } from './pokemon';
 import { bouldeneu } from './pokemon/bouldeneu';
 import { boumata } from './pokemon/boumata';
 import { chenipan } from './pokemon/chenipan';
@@ -78,6 +78,7 @@ export const ALL_POKEMON_CARDS: PokemonCard[] = [
   goupixdalola,
   feunardalola,
   hypotrempe,
+  hypocean,
   hyporoi,
   magicarpe,
   leviator,
