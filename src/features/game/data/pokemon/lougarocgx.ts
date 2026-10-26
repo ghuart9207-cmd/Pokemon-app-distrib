@@ -4,7 +4,7 @@ export const lougarocgx: PokemonCard = {
   id: 'lougarocgx-001',          // unique dans tout le jeu
   name: 'Lougaroc GX',
   stage: 'niveau1',                // 'base' | 'niveau1' | 'niveau2' | 'mega_ex'
-  variant: 'normal',            // 'normal' | 'ex' | 'gx'
+  variant: 'gx',            // 'normal' | 'ex' | 'gx'
   type: 'combat',                  // electrique, feu, eau, plante, psy, combat,
                                 // normal, obscurite, metal, fee
   maxHp: 200,
