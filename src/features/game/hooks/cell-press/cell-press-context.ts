@@ -7,6 +7,10 @@ import type {
   PendingCoinReturnToHand,
   PendingGeneratedBenchEnergy,
   PendingTalentEnergyAttachment,
+  PendingDamageCounterMove,
+  PendingDiscardSummon,
+  PendingOwnBenchDamage,
+  PendingEnergyGather,
   PendingInvocationPlacement,
   PendingKOEnergyMove,
   PendingOpponentActiveSwitch,
@@ -15,6 +19,7 @@ import type {
   Player,
   PokemonCard,
   PokemonInPlay,
+  PlayerStatusState,
   SetState,
   TrainerCard,
   PendingDragonEnergyChoice,
@@ -43,6 +48,16 @@ export type CellPressContext = {
   pendingCoinReturnToHand: PendingCoinReturnToHand | null;
   pendingGeneratedBenchEnergy: PendingGeneratedBenchEnergy | null;
   pendingTalentEnergyAttachment: PendingTalentEnergyAttachment | null;
+  pendingDamageCounterMove: PendingDamageCounterMove | null;
+  pendingDiscardSummon: PendingDiscardSummon | null;
+  pendingOwnBenchDamage: PendingOwnBenchDamage | null;
+  pendingEnergyGather: PendingEnergyGather | null;
+  setInspectedPokemonCell: SetState<string | null>;
+  setInspectedHandCard: SetState<{ card: PokemonCard; owner: Player } | null>;
+  setPendingEnergyGather: SetState<PendingEnergyGather | null>;
+  setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
+  setPendingDiscardSummon: SetState<PendingDiscardSummon | null>;
+  setPendingDamageCounterMove: SetState<PendingDamageCounterMove | null>;
   pendingInvocationPlacement: PendingInvocationPlacement | null;
   pendingKOEnergyMove: PendingKOEnergyMove | null;
   pendingEnergyTransferToBench: PendingEnergyTransferToBench | null;
@@ -87,6 +102,8 @@ export type CellPressContext = {
   setPendingDragonEnergyChoices:
   SetState<PendingDragonEnergyChoice[]>;
   setPokemonPlacementLocks: SetState<Record<string, number>>;
+  setPlayer1Status: SetState<PlayerStatusState>;
+  setPlayer2Status: SetState<PlayerStatusState>;
   setFreeReplacementTokens: SetState<Record<string, number>>;
   setSelectedAttachedTool: SetState<{ card: TrainerCard; cellName: string } | null>;
   setSelectedAttackIndex: SetState<number | null>;

@@ -86,7 +86,14 @@ export default function LoginScreen() {
       }
 
       // connecté : on va là où le joueur voulait aller (jeu local, salon en ligne), sinon à l'accueil
-      router.replace(next === 'jeu' ? '/jeu' : next === 'en-ligne' ? '/en-ligne' : '/');
+      if (next === 'serie-local' || next === 'serie-en-ligne') {
+        router.replace({
+          pathname: '/serie',
+          params: { mode: next === 'serie-en-ligne' ? 'en-ligne' : 'local' },
+        });
+      } else {
+        router.replace(next === 'jeu' ? '/jeu' : next === 'en-ligne' ? '/en-ligne' : '/');
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Une erreur est survenue.');
     } finally {

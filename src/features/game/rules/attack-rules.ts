@@ -8,7 +8,8 @@ import type {
   AttackEffect,
   PokemonInPlay,
 } from '@/features/game/types';
-import { getPokemonMaxHp } from './board-rules';
+import { getPokemonMaxHp, isPokemonCard } from './board-rules';
+import { getTargetTypeBonusDamage } from './retaliation-rules';
 import { calculateCoinDamage } from './coin-rules';
 
 
@@ -223,7 +224,9 @@ export function getDisplayedAttackDamage(
   opponentPlayerPoisoned: boolean = false,
   opponentPlayerBurned: boolean = false,
   player1Discard: GameCard[] = [],
-  player2Discard: GameCard[] = []
+  player2Discard: GameCard[] = [],
+  player1Hand: GameCard[] = [],
+  player2Hand: GameCard[] = []
 
 ): number {
 const attack = getAttackWithBaseDamageOverride(
@@ -237,6 +240,15 @@ const attack = getAttackWithBaseDamageOverride(
       effect.type === 'damageEveryoneIgnoringEffects' ||
 effect.type === 'damageAllPokemonWithTalent'
   );
+
+  // Dégâts à chaque Pokémon adverse + joueur adverse : on affiche le montant.
+  const allOpponentsEffect = attack.effects?.find(
+    (effect) => effect.type === 'damageAllOpponentPokemonAndPlayer'
+  );
+
+  if (allOpponentsEffect) {
+    return allOpponentsEffect.amount;
+  }
 
   if (globalDamageEffect) {
   return (
@@ -307,6 +319,37 @@ if (attack.bonusDamagePerOwnDiscardCard) {
 
   damage += Math.floor(round / 2) * (attack.bonusDamageEveryTwoRounds ?? 0);
 
+  // Bonus si ce Pokémon a des marqueurs de dégâts.
+  const selfDamagedBonusEffect = attack.effects?.find(
+    (effect) => effect.type === 'bonusDamageIfSelfDamaged'
+  );
+
+  if (selfDamagedBonusEffect && pokemon.currentHp < getPokemonMaxHp(pokemon)) {
+    damage += selfDamagedBonusEffect.amount;
+  }
+
+  // Dégâts selon les cartes en main (total réel du moment).
+  const ownHand = pokemon.owner === 1 ? player1Hand : player2Hand;
+  const opponentHand = pokemon.owner === 1 ? player2Hand : player1Hand;
+
+  const perOpponentTrainerEffect = attack.effects?.find(
+    (effect) => effect.type === 'damagePerOpponentTrainerInHand'
+  );
+
+  if (perOpponentTrainerEffect) {
+    damage +=
+      opponentHand.filter((card) => !isPokemonCard(card)).length *
+      perOpponentTrainerEffect.amount;
+  }
+
+  const perOwnCardEffect = attack.effects?.find(
+    (effect) => effect.type === 'damagePerOwnCardInHand'
+  );
+
+  if (perOwnCardEffect) {
+    damage += ownHand.length * perOwnCardEffect.amount;
+  }
+
  
 
   const discardAllBonus = attack.effects?.find(
@@ -366,6 +409,12 @@ damage += getOpponentActiveEnergyBonusDamage(
     if (target && attack.bonusDamageIfTargetNotEvolved && target.card.stage === 'base' ) {
       damage += attack.bonusDamageIfTargetNotEvolved;
     }
+    if (target && attack.bonusDamageIfTargetGx && target.card.variant === 'gx') {
+      damage += attack.bonusDamageIfTargetGx;
+    }
+
+    // Bonus selon le type du Pokémon en face.
+    damage += getTargetTypeBonusDamage(attack.effects, target);
         const retreatCostBonusEffect = attack.effects?.find(
       (effect) => effect.type === 'bonusDamagePerTargetRetreatCost'
     );
@@ -373,6 +422,18 @@ damage += getOpponentActiveEnergyBonusDamage(
     if (target && retreatCostBonusEffect) {
       damage +=
         target.card.retreatCost * retreatCostBonusEffect.amount;
+    }
+
+    // Moins de dégâts selon le coût de retraite du Pokémon en face.
+    const retreatCostPenaltyEffect = attack.effects?.find(
+      (effect) => effect.type === 'reduceDamagePerTargetRetreatCost'
+    );
+
+    if (target && retreatCostPenaltyEffect) {
+      damage = Math.max(
+        0,
+        damage - target.card.retreatCost * retreatCostPenaltyEffect.amount
+      );
     }
   }
 // Bonus si le joueur adverse est affecté par un état spécial.
@@ -444,7 +505,9 @@ export function canPayTypedDiscard(
   for (const effect of attack.effects ?? []) {
     if (
       effect.type !== 'discardTypedEnergy' ||
-      !effect.energyType
+      !effect.energyType ||
+      // Une défausse facultative n'est pas obligatoire pour attaquer.
+      effect.optional === true
     ) {
       continue;
     }
@@ -518,7 +581,7 @@ if (
   };
 }
 
-    if (effect.type === 'heal') {
+    if (effect.type === 'heal' && !updatedPokemon.healBlockedEndPlayer) {
       updatedPokemon = {
         ...updatedPokemon,
         currentHp: Math.min(
@@ -553,6 +616,15 @@ if (effect.type === 'selfDamageEqualToDamageTaken') {
       updatedPokemon.currentHp - damageAlreadyTaken,
   };
 }
+    // Évite seulement les DÉGÂTS des attaques au prochain tour adverse.
+    if (effect.type === 'preventAllAttackDamageNextOpponentTurn') {
+      updatedPokemon = {
+        ...updatedPokemon,
+        preventAttackDamage: true,
+        preventAttackDamageEndPlayer: pokemon.owner === 1 ? 2 : 1,
+      };
+    }
+
     if (
   effect.type ===
   'preventAllAttackDamageAndEffectsNextOpponentTurn'

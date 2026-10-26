@@ -1,11 +1,12 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PokemonHandCard } from '@/features/game/components/cards/pokemon-hand-card';
-import { ALL_POKEMON_CARDS } from '@/features/game/data';
+import type { CardSeriesInfo } from '@/features/game/data';
 import type { Player, PokemonCard } from '@/features/game/types';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 
 type InvocationSetupScreenProps = {
+  cardSeries: CardSeriesInfo;
   player: Player;
   invocationCards: PokemonCard[];
   setupPokemonPerRow: number;
@@ -13,9 +14,16 @@ type InvocationSetupScreenProps = {
   onAddCard: (card: PokemonCard) => void;
   onRemoveCard: (index: number) => void;
   onConfirm: () => void;
+  // Règle de l'étape (par défaut : Fan Club, 2 Pokémon de Base ≤ 60 PV).
+  requiredCount?: number;
+  ruleText?: string;
+  isCandidate?: (card: PokemonCard) => boolean;
 };
 
+const isFanClubCandidate = (card: PokemonCard) => card.stage === 'base' && card.maxHp <= 60;
+
 export function InvocationSetupScreen({
+  cardSeries,
   player,
   invocationCards,
   setupPokemonPerRow,
@@ -23,10 +31,11 @@ export function InvocationSetupScreen({
   onAddCard,
   onRemoveCard,
   onConfirm,
+  requiredCount = 2,
+  ruleText = 'Pokémon de Base ayant 60 PV ou moins',
+  isCandidate = isFanClubCandidate,
 }: InvocationSetupScreenProps) {
-  const candidates = ALL_POKEMON_CARDS.filter(
-    (card) => card.stage === 'base' && card.maxHp <= 60
-  );
+  const candidates = cardSeries.pokemon.filter(isCandidate);
 
   return (
     <ScrollView
@@ -36,12 +45,20 @@ export function InvocationSetupScreen({
       <Text style={sharedStyles.title}>Choix des Invocations</Text>
       <Text style={sharedStyles.handTitle}>Joueur {player}</Text>
       <Text style={sharedStyles.actionInfo}>
-        Choisis 2 Pokémon de Base ayant 60 PV ou moins.
+        Choisis {requiredCount} {ruleText}.
       </Text>
-      <Text style={sharedStyles.actionInfo}>{invocationCards.length}/2 sélectionnés</Text>
       <Text style={sharedStyles.actionInfo}>
-        Tu peux choisir deux fois le même Pokémon.
+        {invocationCards.length}/{requiredCount} sélectionnés
       </Text>
+      {requiredCount > 1 ? (
+        <Text style={sharedStyles.actionInfo}>
+          Tu peux choisir plusieurs fois le même Pokémon.
+        </Text>
+      ) : (
+        <Text style={sharedStyles.actionInfo}>
+          À chaque utilisation de l&apos;attaque, ce Pokémon sera invoqué (sans limite).
+        </Text>
+      )}
 
       <View style={sharedStyles.setupPokemonRows}>
         {Array.from({
@@ -84,7 +101,15 @@ export function InvocationSetupScreen({
         })}
       </View>
 
-      <Text style={sharedStyles.handTitle}>Tes 2 Invocations</Text>
+      {candidates.length === 0 && (
+        <Text style={sharedStyles.actionInfo}>
+          Aucun Pokémon de cette série ne correspond à cette règle.
+        </Text>
+      )}
+
+      <Text style={sharedStyles.handTitle}>
+        {requiredCount > 1 ? `Tes ${requiredCount} Invocations` : 'Ton Invocation'}
+      </Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {invocationCards.map((card, index) => (
           <Pressable
@@ -98,7 +123,7 @@ export function InvocationSetupScreen({
       </View>
 
       <Pressable style={sharedStyles.attackButton} onPress={onConfirm}>
-        <Text style={sharedStyles.attackButtonText}>VALIDER LES 2 INVOCATIONS</Text>
+        <Text style={sharedStyles.attackButtonText}>{requiredCount > 1 ? `VALIDER LES ${requiredCount} INVOCATIONS` : "VALIDER L'INVOCATION"}</Text>
       </Pressable>
 
       <View style={sharedStyles.messageBox}>

@@ -14,7 +14,8 @@ import { useOnlineGame } from '../use-online-game';
  */
 export default function OnlineGameScreen() {
   const { room } = useOnline();
-  const rawGame = useGame();
+  // Même série de cartes pour les deux joueurs (celle du salon).
+  const rawGame = useGame(room?.series);
   const { game, notice, canAct } = useOnlineGame(rawGame, room ? room.you : 1);
 
   return (

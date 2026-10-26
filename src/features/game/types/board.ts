@@ -77,6 +77,23 @@ export type PokemonInPlay = {
 
   attackDamageReductionEndPlayer?: Player | null;
 
+  // Contre-coup : si ce Pokémon subit les dégâts d'une attaque pendant
+  // le tour de `retaliationEndPlayer`, l'attaquant reçoit `retaliationDamage`.
+  retaliationDamage?: number;
+  retaliationEndPlayer?: Player | null;
+
+  // Évite tous les DÉGÂTS des attaques pendant le tour de `preventAttackDamageEndPlayer`
+  // (les effets des attaques s'appliquent quand même).
+  preventAttackDamage?: boolean;
+  preventAttackDamageEndPlayer?: Player | null;
+
+  // Retraite gratuite pendant le tour `freeRetreatTurnId`
+  // (effet d'attaque « pendant votre prochain tour… »).
+  freeRetreatTurnId?: number | null;
+
+  // Ne peut pas être soigné jusqu'à la fin du tour de `healBlockedEndPlayer`.
+  healBlockedEndPlayer?: Player | null;
+
   preventAllAttackDamageAndEffects?: boolean;
 preventAllAttackDamageAndEffectsEndPlayer?: Player | null;
 

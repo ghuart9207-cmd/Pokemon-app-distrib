@@ -1,4 +1,4 @@
-import { ALL_POKEMON_CARDS, ALL_TRAINER_CARDS } from '@/features/game/data';
+import { ALL_SERIES_POKEMON_CARDS, ALL_SERIES_TRAINER_CARDS } from '@/features/game/data';
 import type { GameApi } from '@/features/game/hooks/use-game';
 import type {
   CoinSide,
@@ -12,7 +12,7 @@ import type { ActionName, OnlineAction, Seat } from './protocol';
 
 type SendAction = (name: ActionName, payload: unknown[]) => void;
 
-const CATALOG: GameCard[] = [...ALL_POKEMON_CARDS, ...ALL_TRAINER_CARDS];
+const CATALOG: GameCard[] = [...ALL_SERIES_POKEMON_CARDS, ...ALL_SERIES_TRAINER_CARDS];
 
 /**
  * Retrouve une carte à partir de son identifiant.
@@ -63,6 +63,21 @@ export function createOnlineGame(game: GameApi, send: SendAction): GameApi {
       send('trainerCoin', [card.id, player, count]),
     chooseCoinSide: (index: number, side: CoinSide) => send('coinSide', [index, side]),
     validatePendingCoinFlip: () => send('validateCoin', []),
+    activateVictoriousTalent: () => send('victorious', []),
+    handleActivateTalent: () => send('talent', []),
+    resolveOptionalDiscardChoice: (accept: boolean) => send('optionalDiscard', [accept]),
+    // Panneaux de choix des attaques (OUI / NON, cible sur son banc)
+    resolveDiscardAllEnergyChoice: (discard: boolean) =>
+      send('discardAllChoice', [discard]),
+    resolveOptionalBonusDamageChoice: (useBonus: boolean) =>
+      send('optionalBonusChoice', [useBonus]),
+    resolveOptionalOwnBenchDamageTarget: (cellName: string) =>
+      send('ownBenchTarget', [cellName]),
+    resolveOptionalAttackEffectChoice: (accepted: boolean) =>
+      send('optionalEffectChoice', [accepted]),
+    selectDiscardSummonCard: (fromPlayer: Player, discardIndex: number) =>
+      send('discardSummonSelect', [fromPlayer, discardIndex]),
+    finishEnergyGather: () => send('energyGatherDone', []),
 
     // Nouvelle partie
     restartGame: () => send('restart', []),
@@ -127,6 +142,24 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
       return game.chooseCoinSide(Number(first), second as CoinSide);
     case 'validateCoin':
       return game.validatePendingCoinFlip();
+    case 'victorious':
+      return game.activateVictoriousTalent();
+    case 'talent':
+      return game.handleActivateTalent();
+    case 'optionalDiscard':
+      return game.resolveOptionalDiscardChoice(first === true);
+    case 'discardAllChoice':
+      return game.resolveDiscardAllEnergyChoice(first === true);
+    case 'optionalBonusChoice':
+      return game.resolveOptionalBonusDamageChoice(first === true);
+    case 'ownBenchTarget':
+      return game.resolveOptionalOwnBenchDamageTarget(String(first));
+    case 'optionalEffectChoice':
+      return game.resolveOptionalAttackEffectChoice(first === true);
+    case 'discardSummonSelect':
+      return game.selectDiscardSummonCard(first as Player, Number(second));
+    case 'energyGatherDone':
+      return game.finishEnergyGather();
 
     case 'restart':
       return game.restartGame();

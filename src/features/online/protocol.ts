@@ -1,5 +1,7 @@
 /** Messages échangés avec le serveur temps réel (voir server/realtime.js). */
 
+import type { CardSeries } from '@/features/game/types';
+
 /** Place d'un joueur dans la partie : 1 = celui qui a créé le salon, 2 = celui qui l'a rejoint. */
 export type Seat = 1 | 2;
 
@@ -20,6 +22,15 @@ export type ActionName =
   | 'trainerCoin'
   | 'coinSide'
   | 'validateCoin'
+  | 'victorious'
+  | 'talent'
+  | 'optionalDiscard'
+  | 'discardAllChoice'
+  | 'optionalBonusChoice'
+  | 'ownBenchTarget'
+  | 'optionalEffectChoice'
+  | 'discardSummonSelect'
+  | 'energyGatherDone'
   | 'restart'
   | 'restartSame'
   | 'setupToggle'
@@ -45,6 +56,8 @@ export type RoomPlayer = {
 
 export type RoomState = {
   code: string;
+  /** Série de cartes de la partie (la même pour les deux joueurs). */
+  series: CardSeries;
   /** Ma place dans la partie. */
   you: Seat;
   /** Les deux places (null = personne). */
@@ -56,6 +69,7 @@ export type ServerMessage =
   | {
       type: 'room_joined';
       code: string;
+      series?: CardSeries;
       you: Seat;
       players: [RoomPlayer | null, RoomPlayer | null];
       log: OnlineAction[];

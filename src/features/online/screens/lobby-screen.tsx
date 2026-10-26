@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,6 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/auth-context';
+import { CARD_SERIES, CARD_SERIES_LIST, toCardSeries } from '@/features/game/data';
+import type { CardSeries } from '@/features/game/types';
 import { COLORS } from '@/features/ui/theme';
 
 import { useOnline } from '../online-context';
@@ -21,6 +23,10 @@ export default function LobbyScreen() {
   const router = useRouter();
   const { player } = useAuth();
   const { room, error, createRoom, joinRoom, leaveRoom, clearError } = useOnline();
+
+  // Série choisie avant d'arriver ici (écran « Choisis la série »).
+  const { serie } = useLocalSearchParams<{ serie?: string }>();
+  const [series, setSeries] = useState<CardSeries>(toCardSeries(serie));
 
   const [code, setCode] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -47,7 +53,7 @@ export default function LobbyScreen() {
     clearError();
     setIsBusy(true);
     try {
-      await createRoom();
+      await createRoom(series);
       setIsWaitingForOpponent(true);
     } catch (caught) {
       setLocalError(
@@ -68,7 +74,7 @@ export default function LobbyScreen() {
     clearError();
     setIsBusy(true);
     try {
-      await joinRoom(code);
+      await joinRoom(code, series);
       router.push('/partie');
     } catch (caught) {
       setLocalError(
@@ -97,6 +103,7 @@ export default function LobbyScreen() {
 
           {room ? (
             <>
+              <Text style={styles.text}>Série : {CARD_SERIES[room.series].label}</Text>
               <Text style={styles.text}>Code de la partie</Text>
               <Text style={styles.code} selectable>
                 {room.code}
@@ -130,6 +137,28 @@ export default function LobbyScreen() {
             </>
           ) : (
             <>
+              <Text style={styles.label}>Série de cartes</Text>
+              {CARD_SERIES_LIST.map((option) => (
+                <Pressable
+                  key={option.id}
+                  style={[
+                    styles.secondaryButton,
+                    series === option.id && styles.seriesSelected,
+                  ]}
+                  onPress={() => setSeries(option.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: series === option.id }}
+                >
+                  <Text style={styles.secondaryText}>
+                    {series === option.id ? '✅ ' : ''}
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+              <Text style={styles.text}>
+                Pour rejoindre une partie, choisis la même série que ton adversaire.
+              </Text>
+
               <Pressable
                 style={[styles.primaryButton, isBusy && styles.disabled]}
                 onPress={handleCreate}

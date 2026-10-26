@@ -5,3 +5,8 @@ export * from './end-of-turn-rules';
 export * from './factories';
 export * from './knockout-rules';
 export * from './energy-attachment-rules';
+export * from './talent-damage-reduction';
+export * from './invocation-pool-rules';
+export * from './on-play-conditions';
+export * from './retaliation-rules';
+export * from './discard-summon-rules';

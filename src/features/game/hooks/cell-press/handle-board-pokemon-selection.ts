@@ -16,6 +16,8 @@ export function handleBoardPokemonSelection(
     setSelectedPokemonCell,
     setSelectedTrainerCard,
     setTrainerEffectActivated,
+    setInspectedPokemonCell,
+    setInspectedHandCard,
   } = context;
 
   const pokemon = board[cellName];
@@ -27,14 +29,24 @@ export function handleBoardPokemonSelection(
     setSelectedCard(null);
   }
 
-  // On garde la règle actuelle :
-  // on ne peut sélectionner pour agir
-  // que sur son propre Pokémon
+  setInspectedHandCard(null);
+
+  // Pokémon de l'adversaire : on peut le CONSULTER (attaques, Talent,
+  // Invocation choisie…) mais pas l'utiliser.
   if (pokemon.owner !== currentPlayer) {
-    setMessage(`Ce Pokémon appartient au joueur ${pokemon.owner}.`);
+    setSelectedPokemonCell(null);
+    setSelectedAttackIndex(null);
+    setSelectedTrainerCard(null);
+    setTrainerEffectActivated(false);
+    setInspectedPokemonCell(cellName);
+    setMessage(
+      `${pokemon.card.name} appartient au joueur ${pokemon.owner} : consultation seulement.`
+    );
 
     return true;
   }
+
+  setInspectedPokemonCell(null);
 
   setSelectedTrainerCard(null);
   setTrainerEffectActivated(false);

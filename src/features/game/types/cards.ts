@@ -1,5 +1,5 @@
 import type { CoinConditionalDamage, CoinConditionalEffect, CoinSide } from './coins';
-import type { CardVariant, EnergyType, Stage } from './core';
+import type { CardVariant, EnergyType, SpecialCondition, Stage } from './core';
 
 export type PokemonTalent = {
   name: string;
@@ -11,11 +11,17 @@ export type PokemonTalent = {
     | 'preventDamageFromType'
     | 'damageOpponentOnPlay'
     | 'paralyzeOpponentOnPlay'
+    | 'applyConditionsToOpponentOnPlay'
     | 'surviveKOOnCoin'
     | 'preventAllEffectsFromExGx'
     | 'reduceDamageFromFireWater'
+    | 'reduceAllAttackDamage'
+    | 'invertImposedAttackCoinFlipOncePerTurn'
     | 'freeRetreatOnFirstTurn'
     | 'attachEnergyOncePerTurn'
+    | 'moveDamageCounterOncePerTurn'
+    | 'swapWithCardFromHand'
+    | 'gatherEnergyOnPlayThenSwitch'
     | 'increaseOpponentPoisonDamage'
     | 'useBasicPokemonDiscardAttacks'
     | 'recoverFromDiscardOncePerGame'
@@ -28,6 +34,18 @@ energyType?: EnergyType;
 targetPokemonType?: EnergyType;
 
   amount?: number;
+
+  // Talent 'swapWithCardFromHand' : id de la carte de la main
+  // avec laquelle ce Pokémon peut être échangé (ex : 'froussardinegx-001').
+  swapCardId?: string;
+
+  // Talent 'applyConditionsToOpponentOnPlay' : états spéciaux infligés
+  // au Pokémon adverse en face à la pose (ex : ['poison', 'burn']).
+  conditions?: SpecialCondition[];
+
+  // Talent « déplacer un marqueur de dégâts » : si vrai, le marqueur
+  // doit venir de l'un de VOS Pokémon (texte français de Lugulabre).
+  fromOwnPokemonOnly?: boolean;
 
   description: string;
 };
@@ -71,6 +89,15 @@ export type AttackEffect = {
     | 'takeExtraDamageNextTurn'
     | 'setNextTurnAttackBaseDamage'
     | 'healAllOwnAndReturnSelf'
+    | 'healAllOwnPokemon'
+    | 'returnSelfToHand'
+    | 'bonusDamageIfSelfDamaged'
+    | 'bonusDamageIfTargetType'
+    | 'summonFromAnyDiscard'
+    | 'discardOpponentActiveTool'
+    | 'freeRetreatNextOwnTurn'
+    | 'reduceDamagePerTargetRetreatCost'
+    | 'damageOneOwnBenchPokemon'
     | 'healSelfByDamageDealt'
     | 'forceOpponentActiveSwitch'
     | 'preventAllAttackDamageAndEffectsNextOpponentTurn'
@@ -91,7 +118,14 @@ export type AttackEffect = {
     | 'damagePerAttachedEnergy'
     | 'failsIfOpponentActiveMaxHpAtLeast'
     | 'preventDamageFromStageOrVariantNextOpponentTurn'
-    | 'summonPokemon';
+    | 'summonPokemon'
+    | 'damageAllOpponentPokemonAndPlayer'
+    | 'damagePerOpponentTrainerInHand'
+    | 'damagePerOwnCardInHand'
+    | 'summonFromInvocationPool'
+    | 'retaliateDamageNextOpponentTurn'
+    | 'preventAllAttackDamageNextOpponentTurn'
+    | 'preventTargetHealingNextOpponentTurn';
 
     
 
@@ -113,6 +147,11 @@ export type AttackEffect = {
   // Par défaut : 'normal'.
   returnToHandReplacement?: ReturnToHandReplacement;
 
+  // Effet 'summonFromInvocationPool' : taille de la réserve choisie
+  // à la préparation (4 par défaut) et PV maximum des Invocations (60).
+  poolSize?: number;
+  maxHp?: number;
+
   // Effet 'summonPokemon' : id de la carte à invoquer.
   // Si absent, on invoque une copie du Pokémon attaquant.
   summonCardId?: string;
@@ -133,6 +172,10 @@ export type Attack = {
   bonusDamageEveryTwoRounds?: number;
 
   coinCount?: number;
+
+  // Nombre de pièces = nombre d'Énergies de ce type attachées
+  // à l'attaquant (remplace `coinCount`). Ex : 'electrique'.
+  coinCountPerAttachedEnergy?: EnergyType;
 
   coinEffects?: CoinConditionalEffect[];
 
@@ -171,6 +214,8 @@ blocksAllAttacksNextOwnTurn?: boolean;
   bonusDamageIfSwitchedRecently?: number;
 
   bonusDamageIfTargetEvolved?: number;
+
+  bonusDamageIfTargetGx?: number;
 
   bonusDamageIfTargetNotEvolved?: number;
 };

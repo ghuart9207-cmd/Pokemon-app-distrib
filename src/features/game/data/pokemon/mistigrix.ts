@@ -18,6 +18,8 @@ export const mistigrix: PokemonCard = {
       energyCost: 2,
       
       
+       effects: [{ type: 'damagePerOwnCardInHand', amount: 10 }],
+  effectText: 'Cette attaque inflige 10 dégâts pour chaque carte dans votre main.',
     },
   ],
 };

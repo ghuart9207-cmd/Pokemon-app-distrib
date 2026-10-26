@@ -10,6 +10,9 @@ import {
 import { useAuth } from '@/features/auth/auth-context';
 import { WS_URL } from '@/features/auth/config';
 
+import { toCardSeries } from '@/features/game/data';
+import type { CardSeries } from '@/features/game/types';
+
 import type { ActionName, OnlineAction, RoomState, ServerMessage } from './protocol';
 
 type ConnectionStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
@@ -24,8 +27,10 @@ type OnlineContextValue = {
   error: string | null;
   /** Vrai entre l'envoi d'une action et le moment où le serveur la renvoie. */
   isAwaitingEcho: boolean;
-  createRoom: () => Promise<void>;
-  joinRoom: (code: string) => Promise<void>;
+  /** Crée un salon pour la série choisie. */
+  createRoom: (series: CardSeries) => Promise<void>;
+  /** Rejoint un salon : la série doit être la même que celle de l'hôte. */
+  joinRoom: (code: string, series: CardSeries) => Promise<void>;
   leaveRoom: () => void;
   /** Envoie une action de jeu. Renvoie false si elle n'a pas pu partir. */
   sendAction: (name: ActionName, payload: unknown[]) => boolean;
@@ -103,6 +108,8 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
       case 'room_joined': {
         const joined: RoomState = {
           code: message.code,
+          // ancien serveur sans série : Soleil et Lune par défaut
+          series: toCardSeries(message.series),
           you: message.you,
           players: message.players,
         };
@@ -266,16 +273,16 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  async function createRoom() {
+  async function createRoom(series: CardSeries) {
     setError(null);
     await openSocket();
-    await request({ type: 'create_room' });
+    await request({ type: 'create_room', series });
   }
 
-  async function joinRoom(code: string) {
+  async function joinRoom(code: string, series: CardSeries) {
     setError(null);
     await openSocket();
-    await request({ type: 'join_room', code: code.trim().toUpperCase() });
+    await request({ type: 'join_room', code: code.trim().toUpperCase(), series });
   }
 
   function leaveRoom() {

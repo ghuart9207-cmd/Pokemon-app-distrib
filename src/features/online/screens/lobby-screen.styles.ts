@@ -93,6 +93,10 @@ export const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.yellow,
   },
+  seriesSelected: {
+    backgroundColor: 'rgba(255, 203, 5, 0.18)',
+    borderWidth: 3,
+  },
   secondaryText: {
     fontFamily: FONTS.button,
     fontSize: 17,

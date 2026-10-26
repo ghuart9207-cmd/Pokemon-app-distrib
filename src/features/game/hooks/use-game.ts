@@ -15,7 +15,8 @@ import { useGameTargeting } from './use-game-targeting';
 import { useGameTrainerActions } from './use-game-trainer-actions';
 import { useGameTurn } from './use-game-turn';
 import {getPassiveEnergyLimit,canAttachEnergyFromSource,} from '@/features/game/rules';
-import type { EnergyType } from '@/features/game/types';
+import type { CardSeries, EnergyType } from '@/features/game/types';
+import { CARD_SERIES, DEFAULT_CARD_SERIES } from '@/features/game/data';
 
 
 /**
@@ -24,8 +25,12 @@ import type { EnergyType } from '@/features/game/types';
  * Chaque hook reçoit l'état partagé (`state`) plus les fonctions produites par les hooks
  * précédents ; l'ordre des appels suit donc les dépendances entre eux.
  */
-export function useGame() {
+export function useGame(series: CardSeries = DEFAULT_CARD_SERIES) {
   const state = useGameState();
+
+  // Série de cartes de la partie : les deux joueurs choisissent
+  // uniquement parmi les cartes de cette série.
+  const cardSeries = CARD_SERIES[series];
 
 function chooseDragonEnergy(energyType: EnergyType) {
   const pending = state.pendingDragonEnergyChoices[0];
@@ -117,7 +122,7 @@ if (
 }
 
   // Préparation de la partie
-  const setup = useGameSetup(state);
+  const setup = useGameSetup({ ...state, cardSeries });
 
   // Règles de déplacement, de ciblage et de sélection
   const movement = useGameMovement(state);
@@ -175,6 +180,7 @@ if (
     ...cellPress,
     ...screenActions,
     chooseDragonEnergy,
+    cardSeries,
   };
 }
 

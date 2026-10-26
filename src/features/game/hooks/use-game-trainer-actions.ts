@@ -102,6 +102,7 @@ if (
           pokemon !== null &&
           pokemon.owner === currentPlayer &&
           pokemon.energies.includes('eau') &&
+          !pokemon.healBlockedEndPlayer &&
           pokemon.currentHp < getPokemonMaxHp(pokemon)
       );
 
@@ -177,9 +178,14 @@ if (
       }
 
       const opponent: Player = currentPlayer === 1 ? 2 : 1;
-      if (!playerCanSwitchHorizontally(board, opponent)) {
+      const opponentCanSwitch = playerCanSwitchHorizontally(board, opponent);
+      const currentPlayerCanSwitch = playerCanSwitchHorizontally(board, currentPlayer);
+
+      // Utilisable dès qu'au moins un des deux joueurs peut échanger
+      // (les Invocations ne comptent pas : une carte Dresseur ne peut pas les cibler).
+      if (!opponentCanSwitch && !currentPlayerCanSwitch) {
         setMessage(
-          `Le joueur ${opponent} n'a pas deux Pokémon pouvant être échangés sur une même ligne.`
+          'Aucun des deux joueurs ne possède deux Pokémon pouvant être échangés sur une même ligne (les Invocations ne comptent pas).'
         );
         return;
       }
@@ -187,13 +193,16 @@ if (
       setPendingBothPlayersSwitch({
         card,
         playedBy: currentPlayer,
-        choosingPlayer: opponent,
+        // L'adversaire d'abord si possible, sinon directement le joueur.
+        choosingPlayer: opponentCanSwitch ? opponent : currentPlayer,
         controlledBy: currentPlayer,
         firstCell: null,
       });
       setTrainerEffectActivated(true);
       setMessage(
-        `Joueur ${currentPlayer} : choisis le premier Pokémon du joueur ${opponent} que tu veux échanger.`
+        opponentCanSwitch
+          ? `Joueur ${currentPlayer} : choisis le premier Pokémon du joueur ${opponent} que tu veux échanger.`
+          : `Le joueur ${opponent} ne peut pas échanger. Joueur ${currentPlayer}, choisis ton premier Pokémon à échanger.`
       );
       return;
     }

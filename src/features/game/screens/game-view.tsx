@@ -1,5 +1,10 @@
 import type { GameApi } from '@/features/game/hooks/use-game';
 import { useSetupLayout } from '@/features/game/hooks/use-setup-layout';
+import {
+  describeAttackInvocationRule,
+  getSummonChoiceEffect,
+  isValidAttackInvocation,
+} from '@/features/game/rules';
 import { CardSetupScreen } from './card-setup-screen';
 import { GamePlayScreen } from './game-play-screen';
 import { InvocationSetupScreen } from './invocation-setup-screen';
@@ -17,13 +22,34 @@ export function GameView({ game }: GameViewProps) {
   const { isTablet, setupPokemonPerRow } = useSetupLayout();
 
   if (game.invocationSetupPlayer) {
+    const setupPlayer = game.invocationSetupPlayer;
+
+    // Invocation d'un Pokémon qui invoque (ex : Plumeline) : 1 Pokémon à choisir.
+    const summoner =
+      game.invocationSetupKind === 'summonChoice' ? game.invocationSetupSummoner : null;
+    const attackRule = summoner ? getSummonChoiceEffect(summoner) : null;
+
     return (
       <InvocationSetupScreen
-        player={game.invocationSetupPlayer}
+        cardSeries={game.cardSeries}
+        player={setupPlayer}
         invocationCards={
-          game.invocationSetupPlayer === 1
-            ? game.player1InvocationCards
-            : game.player2InvocationCards
+          attackRule
+            ? game.summonChoiceDraft
+            : setupPlayer === 1
+              ? game.player1InvocationCards
+              : game.player2InvocationCards
+        }
+        requiredCount={attackRule ? 1 : 2}
+        ruleText={
+          attackRule && summoner
+            ? `${describeAttackInvocationRule(attackRule)} que ${summoner.name} invoquera`
+            : 'Pokémon de Base ayant 60 PV ou moins'
+        }
+        isCandidate={
+          attackRule
+            ? (card) => isValidAttackInvocation(card, attackRule)
+            : undefined
         }
         setupPokemonPerRow={setupPokemonPerRow}
         message={game.message}
@@ -37,6 +63,7 @@ export function GameView({ game }: GameViewProps) {
   if (game.setupPhase !== 'battle') {
     return (
       <CardSetupScreen
+        cardSeries={game.cardSeries}
         setupPhase={game.setupPhase}
         player1SetupCards={game.player1SetupCards}
         player2SetupCards={game.player2SetupCards}
@@ -82,6 +109,11 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       selectedTrainerOwner={game.selectedTrainerOwner}
       selectedPokemonCell={game.selectedPokemonCell}
       selectedPokemon={game.selectedPokemon}
+      inspectedPokemon={game.inspectedPokemon}
+      inspectedPokemonCell={game.inspectedPokemonCell}
+      inspectedHandCard={game.inspectedHandCard}
+      player1SummonChoices={game.player1SummonChoices}
+      player2SummonChoices={game.player2SummonChoices}
       selectedAttackIndex={game.selectedAttackIndex}
       selectedAttachedTool={game.selectedAttachedTool}
       trainerEffectActivated={game.trainerEffectActivated}
@@ -90,6 +122,8 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       coinDraft={game.coinDraft}
       pendingDiscardAllEnergyChoice={game.pendingDiscardAllEnergyChoice}
       onChooseDiscardAllEnergy={game.resolveDiscardAllEnergyChoice}
+      pendingOptionalDiscardChoice={game.pendingOptionalDiscardChoice}
+      onChooseOptionalDiscard={game.resolveOptionalDiscardChoice}
       pendingOptionalBonusDamageChoice={game.pendingOptionalBonusDamageChoice}
       pendingOptionalAttackEffect={game.pendingOptionalAttackEffect}
       onChooseOptionalAttackEffect={game.resolveOptionalAttackEffectChoice}
@@ -112,6 +146,11 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       onToolPress={game.handleToolPress}
       onSelectKOEnergy={game.handleSelectKOEnergy}
       onSelectInvocation={game.handleSelectInvocation}
+      pendingDiscardSummon={game.pendingDiscardSummon}
+      discardSummonCandidates={game.discardSummonCandidates}
+      onSelectDiscardSummon={game.selectDiscardSummonCard}
+      pendingEnergyGather={game.pendingEnergyGather}
+      onFinishEnergyGather={game.finishEnergyGather}
       onSelectAttack={game.handleSelectAttack}
       // Actions du tour
       onAttack={game.tryAttackSelectedPokemon}
@@ -124,6 +163,9 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       onStartTrainerCoinFlip={game.startTrainerCoinFlip}
       onChooseCoinSide={game.chooseCoinSide}
       onValidateCoinFlip={game.validatePendingCoinFlip}
+      canUseVictoriousTalent={game.canUseVictoriousTalent}
+      victoriousTalentName={game.victoriousTalentName}
+      onActivateVictoriousTalent={game.activateVictoriousTalent}
       // Nouvelle partie
       onRestartSameCards={game.restartSameCards}
       onRestart={game.restartGame}

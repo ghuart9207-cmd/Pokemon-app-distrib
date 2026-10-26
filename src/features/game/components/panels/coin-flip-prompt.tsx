@@ -8,6 +8,10 @@ type CoinFlipPromptProps = {
   draft: (CoinSide | null)[];
   onChooseSide: (index: number, side: CoinSide) => void;
   onValidate: () => void;
+  // Talent Victorieux : bouton affiché seulement quand il peut être utilisé.
+  canUseVictoriousTalent?: boolean;
+  victoriousTalentName?: string;
+  onActivateVictoriousTalent?: () => void;
 };
 
 export function CoinFlipPrompt({
@@ -15,6 +19,9 @@ export function CoinFlipPrompt({
   draft,
   onChooseSide,
   onValidate,
+  canUseVictoriousTalent = false,
+  victoriousTalentName = 'Victorieux',
+  onActivateVictoriousTalent,
 }: CoinFlipPromptProps) {
   return (
     <View style={sharedStyles.actionBox}>
@@ -44,7 +51,23 @@ export function CoinFlipPrompt({
         </View>
       ))}
 
+      {pending.victoriousUsed && (
+        <Text style={sharedStyles.actionInfo}>
+          ✨ Pièces relancées grâce au Talent {victoriousTalentName}.
+        </Text>
+      )}
+
       <Button title="Valider le lancer" onPress={onValidate} />
+
+      {canUseVictoriousTalent && onActivateVictoriousTalent && (
+        <View style={{ marginTop: 8 }}>
+          <Button
+            title={`✨ Activer talent ${victoriousTalentName}`}
+            color="#d71920"
+            onPress={onActivateVictoriousTalent}
+          />
+        </View>
+      )}
     </View>
   );
 }

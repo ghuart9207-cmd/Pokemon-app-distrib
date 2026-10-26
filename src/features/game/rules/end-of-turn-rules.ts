@@ -108,6 +108,15 @@ const canReceivePassiveEnergy =
       : { ...updatedPokemon, extraDamageNextTurnReady: true };
   }
 
+  // Le contre-coup expire à la fin du tour adverse.
+  if (updatedPokemon.retaliationEndPlayer === currentPlayer) {
+    updatedPokemon = {
+      ...updatedPokemon,
+      retaliationDamage: 0,
+      retaliationEndPlayer: null,
+    };
+  }
+
   if (updatedPokemon.attackDamageReductionEndPlayer === currentPlayer) {
     updatedPokemon = {
       ...updatedPokemon,
@@ -131,6 +140,20 @@ const canReceivePassiveEnergy =
 
     preventAllAttackDamageAndEffectsEndPlayer:
       null,
+  };
+}
+
+// Fin de l'interdiction de soin.
+if (updatedPokemon.healBlockedEndPlayer === currentPlayer) {
+  updatedPokemon = { ...updatedPokemon, healBlockedEndPlayer: null };
+}
+
+// Fin de la protection contre les dégâts des attaques.
+if (updatedPokemon.preventAttackDamage && updatedPokemon.preventAttackDamageEndPlayer === currentPlayer) {
+  updatedPokemon = {
+    ...updatedPokemon,
+    preventAttackDamage: false,
+    preventAttackDamageEndPlayer: null,
   };
 }
 

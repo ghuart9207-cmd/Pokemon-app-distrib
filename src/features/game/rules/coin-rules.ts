@@ -7,6 +7,7 @@ import type {
   CoinFlipResolution,
   CoinHistory,
   CoinSide,
+  PokemonInPlay,
 } from '@/features/game/types';
 
 function oppositeCoinSide(side: CoinSide): CoinSide {
@@ -232,4 +233,19 @@ export function isAllCoinSide(
   side: CoinSide
 ): boolean {
   return !!result && result.length > 0 && result.every((coin) => coin === side);
+}
+
+/**
+ * Nombre de pièces à lancer pour une attaque :
+ * `coinCountPerAttachedEnergy` (une pièce par Énergie de ce type attachée)
+ * ou `coinCount` (nombre fixe).
+ */
+export function getAttackCoinCount(attack: Attack, pokemon: PokemonInPlay): number {
+  if (attack.coinCountPerAttachedEnergy) {
+    return pokemon.energies.filter(
+      (energy) => energy === attack.coinCountPerAttachedEnergy
+    ).length;
+  }
+
+  return attack.coinCount ?? 0;
 }

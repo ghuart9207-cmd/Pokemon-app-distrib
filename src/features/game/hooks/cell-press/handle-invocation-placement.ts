@@ -133,6 +133,37 @@ const invocation: PokemonInPlay = {
   // même id.
   const remainingCards = cards.filter((_, index) => index !== selectedIndex);
 
+  // -----------------------------------------
+  // INVOCATION PAR UNE ATTAQUE (réserve)
+  // -----------------------------------------
+  if (pendingInvocationPlacement.source === 'attack') {
+    const remainingToPlace = (pendingInvocationPlacement.remainingToPlace ?? 1) - 1;
+    const freeCellsLeft = [1, 2, 3, 4]
+      .map((column) => `${allowedRow}${column}`)
+      .filter((cell) => board[cell] === null && (cell !== cellName || knockedOutOnPlacement));
+
+    const placedText = knockedOutOnPlacement
+      ? `${card.name} est invoqué en ${cellName}, subit ${placementDamage} dégâts et est K.O. !`
+      : placementDamage > 0
+        ? `${card.name} est invoqué en ${cellName} avec 0 Énergie et subit ${placementDamage} dégâts.`
+        : `${card.name} est invoqué en ${cellName} avec 0 Énergie.`;
+
+    if (remainingToPlace > 0 && remainingCards.length > 0 && freeCellsLeft.length > 0) {
+      setPendingInvocationPlacement({
+        ...pendingInvocationPlacement,
+        cards: remainingCards,
+        selectedIndex: null,
+        remainingToPlace,
+      });
+      setMessage(`${placedText} Choisis maintenant la deuxième Invocation.`);
+      return true;
+    }
+
+    setPendingInvocationPlacement(null);
+    setMessage(placedText);
+    return true;
+  }
+
   if (remainingCards.length === 0) {
     setPendingInvocationPlacement(null);
 

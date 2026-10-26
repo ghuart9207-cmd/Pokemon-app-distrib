@@ -9,8 +9,14 @@ import type {
  */
 export function getEffectiveRetreatCost(
   pokemon: PokemonInPlay,
-  round: number
+  round: number,
+  turnId?: number
 ): number {
+  // Effet d'attaque : pas de coût de retraite pendant le prochain tour.
+  if (turnId !== undefined && pokemon.freeRetreatTurnId === turnId) {
+    return 0;
+  }
+
   const baseRetreatCost =
     pokemon.card.retreatCost;
 

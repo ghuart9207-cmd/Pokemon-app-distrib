@@ -16,6 +16,8 @@ import {
     getTypeIcon,
 } from '@/features/game/utils/card-labels';
 import { styles } from './pokemon-actions.styles';
+import { SummonChoicePreview } from './summon-choice-preview';
+import type { SummonChoices } from '@/features/game/rules';
 
 type PokemonActionsProps = {
   pokemon: PokemonInPlay | null;
@@ -30,9 +32,13 @@ type PokemonActionsProps = {
   round: number;
   player1Discard: GameCard[];
   player2Discard: GameCard[];
+  player1Hand: GameCard[];
+  player2Hand: GameCard[];
   onSelectAttack: (index: number, message: string) => void;
   onAttack: () => void;
   onRetreat: () => void;
+  // Invocations choisies à la préparation par le propriétaire de ce Pokémon.
+  summonChoices?: SummonChoices;
   opponentPlayerPoisoned: boolean;
   opponentPlayerBurned: boolean;
 };
@@ -52,9 +58,12 @@ export function PokemonActions({
   opponentPlayerBurned,
   player1Discard,
   player2Discard,
+  player1Hand,
+  player2Hand,
   onSelectAttack,
   onAttack,
   onRetreat,
+  summonChoices = {},
 }: PokemonActionsProps) {
   if (!pokemon || !cellName) {
     return null;
@@ -65,11 +74,19 @@ export function PokemonActions({
   ownDiscard
 );
 
+  // Pokémon de l'adversaire : on peut le regarder, pas l'utiliser.
+  const readOnly = pokemon.owner !== currentPlayer;
+
   return (
     <View style={sharedStyles.actionBox}>
       <Text style={sharedStyles.actionTitle}>
         {getTypeIcon(pokemon.card.type)} {pokemon.card.name}
       </Text>
+      {readOnly && (
+        <Text style={sharedStyles.actionInfo}>
+          👀 Pokémon du joueur {pokemon.owner} — consultation seulement
+        </Text>
+      )}
       <Text style={sharedStyles.actionInfo}>Case : {cellName}</Text>
       <Text style={sharedStyles.actionInfo}>
         Énergies : {formatEnergies(pokemon.energies)}
@@ -88,7 +105,9 @@ export function PokemonActions({
       )}
 
 {pokemon.card.talent?.type === 'activated' &&
-  pokemon.card.talent?.effect === 'attachEnergyOncePerTurn' && (
+  (pokemon.card.talent?.effect === 'attachEnergyOncePerTurn' ||
+    pokemon.card.talent?.effect === 'moveDamageCounterOncePerTurn' ||
+    pokemon.card.talent?.effect === 'swapWithCardFromHand') && (
     <View>
       {pokemon.owner !== currentPlayer ? (
         <Text style={sharedStyles.actionInfo}>
@@ -137,7 +156,9 @@ export function PokemonActions({
       opponentPlayerPoisoned,
       opponentPlayerBurned,
       player1Discard,
-      player2Discard
+      player2Discard,
+      player1Hand,
+      player2Hand
     );
 
     const displayedCost = copiedFromDiscard
@@ -153,6 +174,7 @@ export function PokemonActions({
         )}
 
         <Pressable
+          disabled={readOnly}
           onPress={() =>
             onSelectAttack(
               index,
@@ -203,12 +225,18 @@ export function PokemonActions({
   }
 )}
 
-      <Pressable onPress={onAttack} style={sharedStyles.attackButton}>
-        <Text style={sharedStyles.attackButtonText}>⚔️ ATTAQUER</Text>
-      </Pressable>
-      <Pressable onPress={onRetreat} style={styles.retreatButton}>
-        <Text style={styles.retreatButtonText}>🔄 RETRAITE</Text>
-      </Pressable>
+      <SummonChoicePreview card={pokemon.card} summonChoices={summonChoices} />
+
+      {!readOnly && (
+        <>
+          <Pressable onPress={onAttack} style={sharedStyles.attackButton}>
+            <Text style={sharedStyles.attackButtonText}>⚔️ ATTAQUER</Text>
+          </Pressable>
+          <Pressable onPress={onRetreat} style={styles.retreatButton}>
+            <Text style={styles.retreatButtonText}>🔄 RETRAITE</Text>
+          </Pressable>
+        </>
+      )}
     </View>
   );
 }

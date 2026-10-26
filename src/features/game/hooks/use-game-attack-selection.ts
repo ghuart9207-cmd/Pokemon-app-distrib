@@ -1,4 +1,4 @@
-import { getPokemonMaxHp } from '@/features/game/rules';
+import { getAttackCoinCount, getPokemonMaxHp } from '@/features/game/rules';
 import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
 import type {
   BoardState,
@@ -142,12 +142,15 @@ const attack = getAvailablePokemonAttacks(
       return;
     }
 
-    if (attack.coinCount && attack.coinCount > 0) {
+    // Nombre de pièces : fixe, ou une par Énergie d'un type attachée.
+    const coinCount = getAttackCoinCount(attack, pokemon);
+
+    if (coinCount > 0) {
       setPendingAttackAfterCoin({
         cellName: selectedPokemonCell,
         attackIndex: selectedAttackIndex,
       });
-      startPokemonCoinFlip(selectedPokemonCell, attack.coinCount);
+      startPokemonCoinFlip(selectedPokemonCell, coinCount);
       return;
     }
 

@@ -1,4 +1,5 @@
 import { createEmptyBoard, createNormalPlayerStatus } from '@/features/game/rules';
+import type { SummonChoices } from '@/features/game/rules';
 import type {
   AttackPath,
   BoardState,
@@ -28,6 +29,10 @@ import type {
   SetupPhase,
   TrainerCard,
   PendingDiscardTalentPlacement,
+  PendingDamageCounterMove,
+  PendingDiscardSummon,
+  PendingOwnBenchDamage,
+  PendingEnergyGather,
   PendingAttackSummonPlacement,
 } from '@/features/game/types';
 
@@ -61,6 +66,15 @@ type UseGameRestartOptions = {
   setSelectedAttachedTool: SetState<{ card: TrainerCard; cellName: string } | null>;
   setPendingOpponentTarget: SetState<PendingOpponentTarget | null>;
   setPendingCoinFlip: SetState<PendingCoinFlip | null>;
+  setPendingDamageCounterMove: SetState<PendingDamageCounterMove | null>;
+  setPendingDiscardSummon: SetState<PendingDiscardSummon | null>;
+  setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
+  setPendingEnergyGather: SetState<PendingEnergyGather | null>;
+  setPlayer1SummonChoices: SetState<SummonChoices>;
+  setPlayer2SummonChoices: SetState<SummonChoices>;
+  setInspectedPokemonCell: SetState<string | null>;
+  setInspectedHandCard: SetState<{ card: PokemonCard; owner: Player } | null>;
+  setVictoriousUsedTurnId: SetState<number | null>;
   setCoinDraft: SetState<(CoinSide | null)[]>;
   setPendingPokemonSwitch: SetState<PendingPokemonSwitch | null>;
   setPlayer1Discard: SetState<GameCard[]>;
@@ -123,6 +137,13 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setSelectedAttachedTool(null);
     options.setPendingOpponentTarget(null);
     options.setPendingCoinFlip(null);
+    options.setPendingDamageCounterMove(null);
+    options.setInspectedPokemonCell(null);
+    options.setInspectedHandCard(null);
+    options.setPendingDiscardSummon(null);
+    options.setPendingOwnBenchDamage(null);
+    options.setPendingEnergyGather(null);
+    options.setVictoriousUsedTurnId(null);
     options.setCoinDraft([]);
     options.setPendingPokemonSwitch(null);
     options.setPlayer1Discard([]);
@@ -155,6 +176,8 @@ export function useGameRestart(options: UseGameRestartOptions) {
     resetMatchState();
     options.setPlayer1InvocationCards([]);
     options.setPlayer2InvocationCards([]);
+    options.setPlayer1SummonChoices({});
+    options.setPlayer2SummonChoices({});
     options.setPlayer1Hand([]);
     options.setPlayer2Hand([]);
     options.setPendingDragonEnergyChoices([]);

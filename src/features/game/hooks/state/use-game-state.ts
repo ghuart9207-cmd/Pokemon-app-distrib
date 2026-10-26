@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { STARTING_HANDS } from '@/features/game/data';
 import { createEmptyBoard, createNormalPlayerStatus } from '@/features/game/rules';
+import type { SummonChoices } from '@/features/game/rules';
 import type {
   AttackPath,
   BoardState,
@@ -18,6 +19,10 @@ import type {
   PendingCoinReturnToHand,
   PendingGeneratedBenchEnergy,
   PendingTalentEnergyAttachment,
+  PendingDamageCounterMove,
+  PendingDiscardSummon,
+  PendingOwnBenchDamage,
+  PendingEnergyGather,
   PendingInvocationPlacement,
   PendingKOEnergyMove,
   PendingKOSurvival,
@@ -102,6 +107,9 @@ export function useGameState() {
 
   // --- pièces (pile ou face) --------------------------------
   const [pendingCoinFlip, setPendingCoinFlip] = useState<PendingCoinFlip | null>(null);
+  // Tour (turnId) pendant lequel un Talent Victorieux a été utilisé :
+  // un seul Talent Victorieux par tour.
+  const [victoriousUsedTurnId, setVictoriousUsedTurnId] = useState<number | null>(null);
   const [coinDraft, setCoinDraft] = useState<(CoinSide | null)[]>([]);
   const [pendingAttackAfterCoin, setPendingAttackAfterCoin] =
     useState<CoinAttackReference | null>(null);
@@ -133,6 +141,27 @@ export function useGameState() {
     useState<PendingAttackSummonPlacement | null>(null);
   const [pendingTalentEnergyAttachment, setPendingTalentEnergyAttachment] =
     useState<PendingTalentEnergyAttachment | null>(null);
+  const [pendingDamageCounterMove, setPendingDamageCounterMove] =
+    useState<PendingDamageCounterMove | null>(null);
+  const [pendingDiscardSummon, setPendingDiscardSummon] =
+    useState<PendingDiscardSummon | null>(null);
+  const [pendingOwnBenchDamage, setPendingOwnBenchDamage] =
+    useState<PendingOwnBenchDamage | null>(null);
+  const [pendingEnergyGather, setPendingEnergyGather] =
+    useState<PendingEnergyGather | null>(null);
+  // Invocation choisie à la préparation pour chaque Pokémon qui invoque
+  // (clé = id de la carte qui invoque, ex : 'plumeline-001').
+  const [player1SummonChoices, setPlayer1SummonChoices] = useState<SummonChoices>({});
+  const [player2SummonChoices, setPlayer2SummonChoices] = useState<SummonChoices>({});
+
+  // Consultation (sans pouvoir l'utiliser) d'un Pokémon adverse sur le plateau
+  // ou d'une carte Pokémon dans une main.
+  const [inspectedPokemonCell, setInspectedPokemonCell] = useState<string | null>(null);
+  const [inspectedHandCard, setInspectedHandCard] = useState<{
+    card: PokemonCard;
+    owner: Player;
+  } | null>(null);
+
   const [pendingInvocationPlacement, setPendingInvocationPlacement] =
     useState<PendingInvocationPlacement | null>(null);
   const [pendingKOEnergyMove, setPendingKOEnergyMove] =
@@ -211,6 +240,8 @@ export function useGameState() {
     player2Status,
     setPlayer2Status,
     pendingCoinFlip,
+    victoriousUsedTurnId,
+    setVictoriousUsedTurnId,
     setPendingCoinFlip,
     coinDraft,
     setCoinDraft,
@@ -238,8 +269,24 @@ export function useGameState() {
     setPendingAttackSummonPlacement,
     pendingTalentEnergyAttachment,
     setPendingTalentEnergyAttachment,
+    pendingDamageCounterMove,
+    setPendingDamageCounterMove,
+    pendingDiscardSummon,
+    setPendingDiscardSummon,
+    pendingOwnBenchDamage,
+    setPendingOwnBenchDamage,
+    pendingEnergyGather,
+    setPendingEnergyGather,
     pendingInvocationPlacement,
     setPendingInvocationPlacement,
+    player1SummonChoices,
+    setPlayer1SummonChoices,
+    player2SummonChoices,
+    setPlayer2SummonChoices,
+    inspectedPokemonCell,
+    setInspectedPokemonCell,
+    inspectedHandCard,
+    setInspectedHandCard,
     pendingKOEnergyMove,
     setPendingKOEnergyMove,
     pendingKOSurvival,

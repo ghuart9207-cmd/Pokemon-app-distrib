@@ -6,6 +6,7 @@ type UseGameRetreatOptions = {
   currentPlayer: Player;
   selectedPokemonCell: string | null;
   round: number;
+  turnId: number;
   setMessage: SetState<string>;
   setBoard: SetState<BoardState>;
   setSelectedPokemonCell: SetState<string | null>;
@@ -17,6 +18,7 @@ export function useGameRetreat({
   board,
   currentPlayer,
   round,
+  turnId,
   selectedPokemonCell,
   setMessage,
   setBoard,
@@ -96,7 +98,8 @@ export function useGameRetreat({
 // Calcul du coût de retraite avec les Talents.
 const retreatCost = getEffectiveRetreatCost(
   pokemon,
-  round
+  round,
+  turnId
 );
 
    if (pokemon.energies.length < retreatCost) {

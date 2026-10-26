@@ -1,4 +1,4 @@
-import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, } from '@/features/game/rules';
+import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, } from '@/features/game/rules';
 import type {
   Attack,
   AttackEffect,
@@ -260,6 +260,21 @@ const attackEffectsPrevented =
     attackDamage += attack.bonusDamageIfTargetEvolved;
   }
 
+  // Bonus contre un Pokémon-GX
+  if (
+    !isFixedDamageAttack &&
+    attack.bonusDamageIfTargetGx &&
+    target.card.variant === 'gx'
+  ) {
+    attackDamage += attack.bonusDamageIfTargetGx;
+  }
+
+  // Bonus selon le type du Pokémon ciblé (ex : +30 contre un Pokémon Eau).
+  if (!isFixedDamageAttack) {
+    attackDamage += getTargetTypeBonusDamage(resolvedAttack.effects, target);
+  }
+
+
   if (
     !isFixedDamageAttack &&
     attack.bonusDamageIfTargetNotEvolved &&
@@ -278,11 +293,24 @@ const attackEffectsPrevented =
       target.card.retreatCost * retreatCostBonusEffect.amount;
   }
 
+  // MOINS DE DÉGÂTS SELON LE COÛT DE RETRAITE DE LA CIBLE
+  const retreatCostPenaltyEffect = resolvedAttack.effects?.find(
+    (effect) => effect.type === 'reduceDamagePerTargetRetreatCost'
+  );
+
+  if (!isFixedDamageAttack && retreatCostPenaltyEffect) {
+    attackDamage = Math.max(
+      0,
+      attackDamage - target.card.retreatCost * retreatCostPenaltyEffect.amount
+    );
+  }
+
   // Talent qui empêche les dégâts
  
 const damagePrevented =
   
   temporaryAttackProtection ||
+  isAttackDamagePreventedByEffect(target, attacker) ||
   doesTemporaryProtectionPreventDamage(
     target,
     attacker
@@ -307,15 +335,11 @@ const activeDamageReduction =
       ? (target.attackDamageReduction ?? 0)
       : 0;
 
-  // réduit les attaques des Pokémon Feu et Eau de 30 dégâts.
-  const fireWaterTalentReduction =
-  !ignoresTargetDamageReduction &&
-  target.card.talent?.type === 'passive' &&
-  target.card.talent.effect === 'reduceDamageFromFireWater' &&
-  (attacker.card.type === 'feu' ||
-    attacker.card.type === 'eau')
-    ? (target.card.talent.amount ?? 30)
-    : 0;
+  // Talents de réduction : Azumarill (Feu/Eau -30)
+  // ou « subit 30 dégâts de moins provenant des attaques ».
+  const fireWaterTalentReduction = ignoresTargetDamageReduction
+    ? 0
+    : getTalentDamageReduction(target, attacker);
 
   // Dégâts finaux
   
@@ -333,6 +357,8 @@ const activeDamageReduction =
 const targetProtectionMessage =
   temporaryAttackProtection
     ? `${target.card.name} est protégé et ne subit ni dégâts ni effets de cette attaque.`
+    : isAttackDamagePreventedByEffect(target, attacker)
+      ? `${target.card.name} évite tous les dégâts de ${attacker.card.name} grâce à son attaque précédente.`
     : doesTemporaryProtectionPreventDamage(target, attacker)
       ? `${target.card.name} évite les dégâts de ${attacker.card.name} grâce à sa protection temporaire.`
       : damagePrevented
@@ -347,7 +373,7 @@ const targetProtectionMessage =
   if (hasDrainEffect && damageToTarget > 0) {
     const currentAttacker = newBoard[selectedPokemonCell];
 
-    if (currentAttacker) {
+    if (currentAttacker && !isHealBlocked(currentAttacker)) {
       const attackerMaxHp = getPokemonMaxHp(currentAttacker);
 
       newBoard[selectedPokemonCell] = {
@@ -365,6 +391,9 @@ const targetProtectionMessage =
   const attackerAfterDrain = newBoard[selectedPokemonCell] ?? attackerAfterConfusion;
 
   const remainingHp = target.currentHp - damageToTarget;
+
+  // Contre-coup éventuel de la cible (et des Pokémon de banc touchés).
+  let retaliationTotal = getRetaliationDamage(target, attacker, damageToTarget);
 
   // --------------------------------
   // DÉGÂTS AUX POKÉMON DE BANC
@@ -410,6 +439,7 @@ const targetProtectionMessage =
 
 const benchDamagePrevented =
   benchTemporaryAttackProtection ||
+  isAttackDamagePreventedByEffect(benchPokemon, attacker) ||
   doesTemporaryProtectionPreventDamage(
     benchPokemon,
     attacker
@@ -426,13 +456,10 @@ const benchDamagePrevented =
           : 0;
 
 
-      const benchFireWaterReduction =
-        benchPokemon.card.talent?.type === 'passive' &&
-        benchPokemon.card.talent.effect === 'reduceDamageFromFireWater' &&
-        (attacker.card.type === 'feu' ||
-          attacker.card.type === 'eau')
-          ? (benchPokemon.card.talent.amount ?? 30)
-          : 0;
+      const benchFireWaterReduction = getTalentDamageReduction(
+        benchPokemon,
+        attacker
+      );
 
 
       const actualBenchDamage = benchDamagePrevented
@@ -442,6 +469,8 @@ const benchDamagePrevented =
       if (actualBenchDamage <= 0) {
         return;
       }
+
+      retaliationTotal += getRetaliationDamage(benchPokemon, attacker, actualBenchDamage);
 
       const benchHpBeforeAttack =
   newBoard[benchCell]?.currentHp ?? benchPokemon.currentHp;
@@ -496,6 +525,32 @@ const newBenchHp = benchHpBeforeAttack - actualBenchDamage;
     });
   }
 
+  // --------------------------------
+  // CONTRE-COUP : MARQUEURS SUR L'ATTAQUANT
+  // (même si la cible est mise K.O.)
+  // --------------------------------
+  const attackerOnBoard = newBoard[selectedPokemonCell];
+
+  if (retaliationTotal > 0 && attackerOnBoard) {
+    newBoard[selectedPokemonCell] = {
+      ...attackerOnBoard,
+      currentHp: attackerOnBoard.currentHp - retaliationTotal,
+    };
+  }
+
+  const attackerForKO =
+    retaliationTotal > 0
+      ? newBoard[selectedPokemonCell] ?? {
+          ...attackerAfterDrain,
+          currentHp: attackerAfterDrain.currentHp - retaliationTotal,
+        }
+      : attackerAfterDrain;
+
+  const retaliationText =
+    retaliationTotal > 0
+      ? ` Contre-coup : ${attacker.card.name} reçoit ${retaliationTotal / 10} marqueurs de dégâts (${retaliationTotal}).`
+      : '';
+
   // K.O.
   if (remainingHp <= 0) {
     if (
@@ -511,6 +566,10 @@ const newBenchHp = benchHpBeforeAttack - actualBenchDamage;
         newBoard
       )
     ) {
+      // Le contre-coup s'applique même si la cible tente de survivre.
+      if (retaliationTotal > 0) {
+        handleAttackerKO(newBoard, attackerForKO, selectedPokemonCell);
+      }
       applyDiscardBothActiveAttachmentsEffect();
       setBoard(newBoard);
       setSelectedPokemonCell(null);
@@ -547,7 +606,7 @@ const newBenchHp = benchHpBeforeAttack - actualBenchDamage;
     }
     const attackerKO = handleAttackerKO(
       newBoard,
-      attackerAfterDrain,
+      attackerForKO,
       selectedPokemonCell
     );
 applyDiscardBothActiveAttachmentsEffect();
@@ -572,7 +631,8 @@ applyDiscardBothActiveAttachmentsEffect();
         (damagedBenchPokemonNames.length > 0
           ? ` Pokémon de banc touchés : ${damagedBenchPokemonNames.join(', ')}.`
           : '') +
-        (attackerKO ? ` ${attacker.card.name} est également K.O. à cause du recul !` : '')
+        retaliationText +
+        (attackerKO ? ` ${attacker.card.name} est également K.O. !` : '')
     );
 
     return;
@@ -643,6 +703,15 @@ applyDiscardBothActiveAttachmentsEffect();
     confused: confusionEffect ? true : target.confused,
 
     confusionTurnsRemaining: confusionEffect ? 2 : target.confusionTurnsRemaining,
+
+    // Ne peut pas être soigné pendant le prochain tour de son propriétaire.
+    healBlockedEndPlayer:
+      !attackEffectsPrevented &&
+      resolvedAttack.effects?.some(
+        (effect) => effect.type === 'preventTargetHealingNextOpponentTurn'
+      )
+        ? target.owner
+        : target.healBlockedEndPlayer,
   };
 
 
@@ -718,6 +787,57 @@ if (currentTarget) {
   }
 
 
+  // -----------------------------------------
+  // DÉFAUSSER L'OUTIL DU POKÉMON ACTIF ADVERSE
+  // -----------------------------------------
+  let toolDiscardText = '';
+
+  const discardToolEffect = attackEffectsPrevented
+    ? undefined
+    : resolvedAttack.effects?.find((effect) => effect.type === 'discardOpponentActiveTool');
+
+  const targetBeforeToolDiscard = newBoard[targetCell];
+
+  if (discardToolEffect && targetBeforeToolDiscard?.attachedTool) {
+    const tool = targetBeforeToolDiscard.attachedTool;
+    const withoutTool = { ...targetBeforeToolDiscard, attachedTool: null };
+
+    // Un Outil peut augmenter les PV maximum (ex : +40) :
+    // les dégâts déjà subis restent, donc les PV restants baissent d'autant.
+    const lostMaxHp =
+      getPokemonMaxHp(targetBeforeToolDiscard) - getPokemonMaxHp(withoutTool);
+    const hpAfterToolLoss = withoutTool.currentHp - Math.max(0, lostMaxHp);
+
+    // L'Outil va dans la défausse de son propriétaire.
+    if (targetBeforeToolDiscard.owner === 1) {
+      setPlayer1Discard((discard) => [...discard, tool]);
+    } else {
+      setPlayer2Discard((discard) => [...discard, tool]);
+    }
+
+    toolDiscardText = ` ${tool.name} de ${targetBeforeToolDiscard.card.name} est défaussé.`;
+
+    if (hpAfterToolLoss > 0) {
+      newBoard[targetCell] = { ...withoutTool, currentHp: hpAfterToolLoss };
+    } else {
+      // Plus assez de PV sans l'Outil : K.O.
+      const penalty = getKOPenalty(withoutTool.card.stage, withoutTool.card.variant);
+      newBoard[targetCell] = null;
+
+      if (withoutTool.owner === 1) {
+        setPlayer1Damage((damage) => damage + penalty);
+        setPlayer1Discard((discard) => [...discard, withoutTool.card]);
+        setPlayer1DiscardEnergies((discard) => [...discard, ...withoutTool.energies]);
+      } else {
+        setPlayer2Damage((damage) => damage + penalty);
+        setPlayer2Discard((discard) => [...discard, withoutTool.card]);
+        setPlayer2DiscardEnergies((discard) => [...discard, ...withoutTool.energies]);
+      }
+
+      toolDiscardText += ` Sans son Outil, ${withoutTool.card.name} est K.O. ! Le joueur ${withoutTool.owner} reçoit +${penalty} dégâts.`;
+    }
+  }
+
   const forceOpponentSwitchEffect = resolvedAttack.effects?.find(
     (effect) => effect.type === 'forceOpponentActiveSwitch'
   );
@@ -739,7 +859,7 @@ if (currentTarget) {
     startPokemonCoinFlip(selectedPokemonCell, 1);
   }
 
-  const attackerKO = handleAttackerKO(newBoard, attackerAfterDrain, selectedPokemonCell);
+  const attackerKO = handleAttackerKO(newBoard, attackerForKO, selectedPokemonCell);
   applyDiscardBothActiveAttachmentsEffect();
   setBoard(newBoard);
 
@@ -789,7 +909,7 @@ if (
     attack.secondaryBenchOrPlayerDamage ?? 0;
 
   setMessage(
-    `${targetProtectionMessage} Choisis une autre cible adverse : le joueur adverse ou un autre Pokémon adverse, pour les ${secondaryDamage} dégâts supplémentaires.`
+    `${targetProtectionMessage}${toolDiscardText}${retaliationText} Choisis une autre cible adverse : le joueur adverse ou un autre Pokémon adverse, pour les ${secondaryDamage} dégâts supplémentaires.`
   );
 
   return;
@@ -799,10 +919,15 @@ if (
   // PAS D'ÉCHANGE POSSIBLE
   // =====================================
 
-  targetProtectionMessage +
+  // (Correctif : ce message n'était jamais affiché, setMessage manquait.)
+  setMessage(
+    targetProtectionMessage +
       (damagedBenchPokemonNames.length > 0
         ? ` Pokémon de banc touchés : ${damagedBenchPokemonNames.join(', ')}.`
         : '') +
+      toolDiscardText +
+      retaliationText +
       (attackerKO ? ` ${attacker.card.name} est également K.O.` : '')
-  
+  );
+
 }
