@@ -98,6 +98,9 @@ export type AttackEffect = {
     | 'freeRetreatNextOwnTurn'
     | 'reduceDamagePerTargetRetreatCost'
     | 'damageOneOwnBenchPokemon'
+    | 'damagePerAllBenchPokemon'
+    | 'moveCountersFromOwnToOpponentActive'
+    | 'damagePerSelfDamageCounter'
     | 'healSelfByDamageDealt'
     | 'forceOpponentActiveSwitch'
     | 'preventAllAttackDamageAndEffectsNextOpponentTurn'
@@ -151,6 +154,10 @@ export type AttackEffect = {
   // à la préparation (4 par défaut) et PV maximum des Invocations (60).
   poolSize?: number;
   maxHp?: number;
+
+  // Effet 'moveCountersFromOwnToOpponentActive' : nombre de vos Pokémon
+  // qui donnent des marqueurs (2 par défaut). `amount` = dégâts par Pokémon.
+  pokemonCount?: number;
 
   // Effet 'summonPokemon' : id de la carte à invoquer.
   // Si absent, on invoque une copie du Pokémon attaquant.
@@ -254,9 +261,18 @@ export type TrainerCard = {
     | 'forceOpponentThenSelfSwitch'
     | 'moveEnergyOnKO'
     | 'coinReturnPokemonToHand'
-    | 'summonTwoBase60';
+    | 'summonTwoBase60'
+    | 'boostPokemonAttackThisTurn';
 
   coinCount?: number;
+
+  // Effet 'boostPokemonAttackThisTurn' (ex : Cynthia) :
+  // pendant ce tour, l'attaque `boostAttackName` de vos Pokémon
+  // dont le nom commence par `boostPokemonName` inflige `boostAmount`
+  // dégâts supplémentaires.
+  boostPokemonName?: string;
+  boostAttackName?: string;
+  boostAmount?: number;
 
   // Cartes qui renvoient un Pokémon en main : mode de repose.
   // Par défaut : 'normal'.

@@ -6,6 +6,7 @@ import {
   GARDIENS_ASCENDANTS_TRAINER_CARDS,
 } from './gardiens-ascendants';
 import { POCKET_POKEMON_CARDS, POCKET_TRAINER_CARDS } from './tcg-pocket';
+import { ULTRA_PRISME_POKEMON_CARDS, ULTRA_PRISME_TRAINER_CARDS } from './ultra-prisme';
 
 /** Une extension = un panneau repliable dans le choix du deck. */
 export type CardExtensionInfo = {
@@ -54,6 +55,12 @@ export const CARD_SERIES: Record<CardSeries, CardSeriesInfo> = {
       label: 'Gardiens Ascendants',
       pokemon: GARDIENS_ASCENDANTS_POKEMON_CARDS,
       trainers: GARDIENS_ASCENDANTS_TRAINER_CARDS,
+    },
+    {
+      id: 'ultra-prisme',
+      label: 'Ultra Prisme',
+      pokemon: ULTRA_PRISME_POKEMON_CARDS,
+      trainers: ULTRA_PRISME_TRAINER_CARDS,
     },
   ]),
   'tcg-pocket': createSeries('tcg-pocket', 'Pokémon TCG Pocket', [

@@ -222,6 +222,19 @@ export type PendingEnergyGather = {
   turnId: number;
 };
 
+/** Déplacer des marqueurs de ses Pokémon vers le Pokémon actif adverse. */
+export type PendingCountersToActive = {
+  player: Player;
+  // Case du Pokémon actif adverse (null = pas de Pokémon en face : le joueur adverse).
+  targetCell: string | null;
+  // Dégâts déplacés par Pokémon choisi (4 marqueurs = 40).
+  perPokemon: number;
+  remainingPicks: number;
+  usedCells: string[];
+  attackName: string;
+  turnId: number;
+};
+
 export type PendingDiscardTalentPlacement = {
   player: Player;
   card: PokemonCard;

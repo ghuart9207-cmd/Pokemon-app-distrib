@@ -1,4 +1,5 @@
 import type { GameApi } from '@/features/game/hooks/use-game';
+import type { Player } from '@/features/game/types';
 import { useSetupLayout } from '@/features/game/hooks/use-setup-layout';
 import {
   describeAttackInvocationRule,
@@ -11,6 +12,8 @@ import { InvocationSetupScreen } from './invocation-setup-screen';
 
 type GameViewProps = {
   game: GameApi;
+  // En ligne : le joueur de cet écran (1 ou 2). En local : non défini.
+  localPlayer?: Player;
 };
 
 /**
@@ -18,7 +21,7 @@ type GameViewProps = {
  * Il ne contient aucune logique : tout vient de `game`, ce qui permet de lui donner
  * soit le jeu local (GameScreen), soit un jeu synchronisé en ligne.
  */
-export function GameView({ game }: GameViewProps) {
+export function GameView({ game, localPlayer }: GameViewProps) {
   const { isTablet, setupPokemonPerRow } = useSetupLayout();
 
   if (game.invocationSetupPlayer) {
@@ -109,6 +112,8 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       selectedTrainerOwner={game.selectedTrainerOwner}
       selectedPokemonCell={game.selectedPokemonCell}
       selectedPokemon={game.selectedPokemon}
+      onForfeit={game.forfeitGame}
+      localPlayer={localPlayer}
       inspectedPokemon={game.inspectedPokemon}
       inspectedPokemonCell={game.inspectedPokemonCell}
       inspectedHandCard={game.inspectedHandCard}

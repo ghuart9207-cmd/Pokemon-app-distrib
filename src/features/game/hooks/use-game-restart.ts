@@ -33,6 +33,7 @@ import type {
   PendingDiscardSummon,
   PendingOwnBenchDamage,
   PendingEnergyGather,
+  PendingCountersToActive,
   PendingAttackSummonPlacement,
 } from '@/features/game/types';
 
@@ -70,6 +71,7 @@ type UseGameRestartOptions = {
   setPendingDiscardSummon: SetState<PendingDiscardSummon | null>;
   setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
   setPendingEnergyGather: SetState<PendingEnergyGather | null>;
+  setPendingCountersToActive: SetState<PendingCountersToActive | null>;
   setPlayer1SummonChoices: SetState<SummonChoices>;
   setPlayer2SummonChoices: SetState<SummonChoices>;
   setInspectedPokemonCell: SetState<string | null>;
@@ -105,6 +107,7 @@ type UseGameRestartOptions = {
   setPlayer1Damage: SetState<number>;
   setPlayer2Damage: SetState<number>;
   setGameOver: SetState<boolean>;
+  setForfeitedPlayer: SetState<Player | null>;
   setMessage: SetState<string>;
   player1SetupCards: GameCard[];
   player2SetupCards: GameCard[];
@@ -143,6 +146,7 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setPendingDiscardSummon(null);
     options.setPendingOwnBenchDamage(null);
     options.setPendingEnergyGather(null);
+    options.setPendingCountersToActive(null);
     options.setVictoriousUsedTurnId(null);
     options.setCoinDraft([]);
     options.setPendingPokemonSwitch(null);
@@ -170,6 +174,7 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setPlayer1Damage(0);
     options.setPlayer2Damage(0);
     options.setGameOver(false);
+    options.setForfeitedPlayer(null);
   }
 
   function restartGame() {

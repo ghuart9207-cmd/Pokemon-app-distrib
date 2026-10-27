@@ -21,7 +21,7 @@ effects: [
     { type: 'summonFromInvocationPool', amount: 2, poolSize: 4, pokemonType: 'feu', maxHp: 60 },
   ],
   effectText:
-    "Invoquez 2 Pokémon Feu de Base ayant 60 PV ou moins sur votre banc (limité à 4). Les Invocations arrivent sans Énergie et ne peuvent pas être ciblés par les cartes Dresseur.",
+    "Invoquez 2 Pokémon Feu de Base ayant 60 PV ou moins sur votre banc . Les Invocations arrivent sans Énergie et ne peuvent pas être ciblés par les cartes Dresseur.",
       
     },
     {

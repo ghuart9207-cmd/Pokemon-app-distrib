@@ -1,4 +1,6 @@
 import type { PokemonCard, TrainerCard } from '@/features/game/types';
+import { bulbizarretcg } from './bulbizarre-tcg';
+import { herbizarre } from './herbizarre-tcg';
 
 
 // =============================================================
@@ -14,7 +16,8 @@ import type { PokemonCard, TrainerCard } from '@/features/game/types';
 // =============================================================
 
 export const POCKET_POKEMON_CARDS: PokemonCard[] = [
-
+bulbizarretcg,
+herbizarre,
 ];
 
 export const POCKET_TRAINER_CARDS: TrainerCard[] = [];

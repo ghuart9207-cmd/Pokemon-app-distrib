@@ -23,6 +23,7 @@ import type {
   PendingDiscardSummon,
   PendingOwnBenchDamage,
   PendingEnergyGather,
+  PendingCountersToActive,
   PendingInvocationPlacement,
   PendingKOEnergyMove,
   PendingKOSurvival,
@@ -51,6 +52,8 @@ export function useGameState() {
   const [round, setRound] = useState(1);
   const [turnId, setTurnId] = useState(1);
   const [gameOver, setGameOver] = useState(false);
+  // Joueur qui a abandonné (la partie est alors terminée).
+  const [forfeitedPlayer, setForfeitedPlayer] = useState<Player | null>(null);
   const [message, setMessage] = useState('Tour du joueur 1 : sélectionne Pikachu.');
 
   // --- actions déjà effectuées pendant le tour --------------
@@ -149,6 +152,8 @@ export function useGameState() {
     useState<PendingOwnBenchDamage | null>(null);
   const [pendingEnergyGather, setPendingEnergyGather] =
     useState<PendingEnergyGather | null>(null);
+  const [pendingCountersToActive, setPendingCountersToActive] =
+    useState<PendingCountersToActive | null>(null);
   // Invocation choisie à la préparation pour chaque Pokémon qui invoque
   // (clé = id de la carte qui invoque, ex : 'plumeline-001').
   const [player1SummonChoices, setPlayer1SummonChoices] = useState<SummonChoices>({});
@@ -189,6 +194,8 @@ export function useGameState() {
     setTurnId,
     gameOver,
     setGameOver,
+    forfeitedPlayer,
+    setForfeitedPlayer,
     message,
     setMessage,
     hasPlacedThisTurn,
@@ -277,6 +284,8 @@ export function useGameState() {
     setPendingOwnBenchDamage,
     pendingEnergyGather,
     setPendingEnergyGather,
+    pendingCountersToActive,
+    setPendingCountersToActive,
     pendingInvocationPlacement,
     setPendingInvocationPlacement,
     player1SummonChoices,

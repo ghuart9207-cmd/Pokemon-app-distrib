@@ -13,6 +13,8 @@ import {
   getTalentDamageReduction,
   isHealBlocked,
   getDiscardSummonCandidates,
+  getAllBenchBonusDamage,
+  getSelfDamageCounterBonusDamage,
   describeAttackInvocationRule,
 } from '@/features/game/rules';
 import type {
@@ -112,6 +114,7 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     setPendingInvocationPlacement,
     setPendingDiscardSummon,
     setPendingOwnBenchDamage,
+    setPendingCountersToActive,
     player1SummonChoices,
     player2SummonChoices,
     setPendingPokemonSwitch,
@@ -200,7 +203,8 @@ if (!selectedAttack) {
 const attack = getAttackWithBaseDamageOverride(
   attacker,
   selectedAttack,
-  turnId
+  turnId,
+  (attacker.owner === 1 ? player1Status : player2Status).attackBonusesThisTurn
 );
     if (coinResult) {
       const resultText = coinResult
@@ -702,6 +706,20 @@ totalDamage += getOpponentActiveEnergyBonusDamage(
   opponentActive,
   resolvedAttack.effects
 );
+
+// X dégâts pour chaque Pokémon de banc (les siens et ceux de l'adversaire),
+// sans compter l'attaquant ni le Pokémon qui subit l'attaque.
+if (attack.fixedDamage === undefined) {
+  totalDamage += getAllBenchBonusDamage(
+    resolvedAttack.effects,
+    board,
+    selectedPokemonCell,
+    targetCell ?? null
+  );
+
+  // X dégâts pour chaque marqueur sur le Pokémon attaquant.
+  totalDamage += getSelfDamageCounterBonusDamage(resolvedAttack.effects, attacker);
+}
     const opponentBenchCount = Object.entries(board).filter(
       ([cellName, pokemon]) =>
         pokemon !== null && pokemon.owner !== attacker.owner && cellName !== targetCell
@@ -1639,6 +1657,58 @@ const requestOwnBenchDamage = () => {
   );
 };
 
+// -----------------------------------------
+// DÉPLACER DES MARQUEURS DE 2 DE SES POKÉMON
+// VERS LE POKÉMON ACTIF ADVERSE (ou le joueur adverse)
+// -----------------------------------------
+
+const countersToActiveEffect = resolvedAttack.effects?.find(
+  (effect) => effect.type === 'moveCountersFromOwnToOpponentActive'
+);
+
+const requestCountersToActive = () => {
+  if (!countersToActiveEffect) {
+    return;
+  }
+
+  // Pokémon en face : il doit être encore en jeu et ne pas être protégé des effets.
+  const activeTarget = targetCell ? newBoard[targetCell] : null;
+
+  if (targetCell && !activeTarget) {
+    return; // déjà K.O. par l'attaque
+  }
+
+  if (activeTarget?.preventAllAttackDamageAndEffects) {
+    setMessage(`${activeTarget.card.name} est protégé des effets de l'attaque : aucun marqueur déplacé.`);
+    return;
+  }
+
+  const hasDamagedOwnPokemon = Object.values(newBoard).some(
+    (pokemon) =>
+      pokemon !== null &&
+      pokemon.owner === attacker.owner &&
+      pokemon.currentHp < getPokemonMaxHp(pokemon)
+  );
+
+  if (!hasDamagedOwnPokemon) {
+    return;
+  }
+
+  setPendingCountersToActive({
+    player: attacker.owner,
+    targetCell: targetCell ?? null,
+    perPokemon: countersToActiveEffect.amount,
+    remainingPicks: countersToActiveEffect.pokemonCount ?? 2,
+    usedCells: [],
+    attackName: attack.name,
+    turnId,
+  });
+
+  setMessage(
+    `${attack.name} : clique sur ${countersToActiveEffect.pokemonCount ?? 2} de tes Pokémon blessés pour déplacer leurs marqueurs (${countersToActiveEffect.amount / 10} chacun) vers ${activeTarget ? activeTarget.card.name : 'le joueur adverse'}.`
+  );
+};
+
     // UN POKÉMON EST TOUCHÉ
     if (targetCell) {
       hitOpponentPokemon(options, {
@@ -1660,6 +1730,7 @@ requestAttackSummon();
 requestPoolSummon();
 requestDiscardSummon();
 requestOwnBenchDamage();
+requestCountersToActive();
 
       return;
     }
@@ -1797,6 +1868,7 @@ const directSpecialConditionBonus =
     requestPoolSummon();
     requestDiscardSummon();
     requestOwnBenchDamage();
+    requestCountersToActive();
   }
 
 function resolveOptionalAttackEffectChoice(accepted: boolean) {

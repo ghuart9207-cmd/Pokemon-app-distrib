@@ -6,10 +6,15 @@ import type {
   GameCard,
   Player,
   AttackEffect,
+  PlayerAttackBonus,
   PokemonInPlay,
 } from '@/features/game/types';
 import { getPokemonMaxHp, isPokemonCard } from './board-rules';
-import { getTargetTypeBonusDamage } from './retaliation-rules';
+import {
+  getAllBenchBonusDamage,
+  getSelfDamageCounterBonusDamage,
+  getTargetTypeBonusDamage,
+} from './retaliation-rules';
 import { calculateCoinDamage } from './coin-rules';
 
 
@@ -101,11 +106,56 @@ export function getDamagePerAttachedEnergy(
  * Remplace les dégâts de base d'une attaque si un effet temporaire
  * est actif pendant ce tour pour cette attaque.
  */
-export function getAttackWithBaseDamageOverride(
+function normalizeForMatch(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[’'-]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    // « Lame Royale », « Lames Royal », « Lames Royales » sont équivalents.
+    .map((word) => word.replace(/(es|e|s)$/, ''))
+    .join(' ');
+}
+
+/**
+ * Bonus de dégâts d'une carte Supporter jouée ce tour (ex : Cynthia)
+ * pour cette attaque de ce Pokémon.
+ */
+export function getPlayerAttackBonus(
   pokemon: PokemonInPlay,
   attack: Attack,
-  turnId: number
+  bonuses: PlayerAttackBonus[] | undefined
+): number {
+  if (!bonuses || bonuses.length === 0 || attack.fixedDamage !== undefined) {
+    return 0;
+  }
+
+  const pokemonName = normalizeForMatch(pokemon.card.name);
+  const attackName = normalizeForMatch(attack.name);
+
+  return bonuses
+    .filter(
+      (bonus) =>
+        pokemonName.startsWith(normalizeForMatch(bonus.pokemonName)) &&
+        attackName === normalizeForMatch(bonus.attackName)
+    )
+    .reduce((total, bonus) => total + bonus.amount, 0);
+}
+
+export function getAttackWithBaseDamageOverride(
+  pokemon: PokemonInPlay,
+  originalAttack: Attack,
+  turnId: number,
+  attackBonuses?: PlayerAttackBonus[]
 ): Attack {
+  const supporterBonus = getPlayerAttackBonus(pokemon, originalAttack, attackBonuses);
+  const attack =
+    supporterBonus > 0
+      ? { ...originalAttack, damage: originalAttack.damage + supporterBonus }
+      : originalAttack;
+
   if (
     attack.fixedDamage !== undefined ||
     pokemon.nextTurnAttackBaseDamageTurnId !== turnId ||
@@ -226,13 +276,15 @@ export function getDisplayedAttackDamage(
   player1Discard: GameCard[] = [],
   player2Discard: GameCard[] = [],
   player1Hand: GameCard[] = [],
-  player2Hand: GameCard[] = []
+  player2Hand: GameCard[] = [],
+  attackBonuses: PlayerAttackBonus[] = []
 
 ): number {
 const attack = getAttackWithBaseDamageOverride(
   pokemon,
   originalAttack,
-  turnId
+  turnId,
+  attackBonuses
 );
 
   const globalDamageEffect = attack.effects?.find(
@@ -415,6 +467,12 @@ damage += getOpponentActiveEnergyBonusDamage(
 
     // Bonus selon le type du Pokémon en face.
     damage += getTargetTypeBonusDamage(attack.effects, target);
+
+    // X dégâts pour chaque Pokémon de banc (les deux camps).
+    damage += getAllBenchBonusDamage(attack.effects, board, selectedPokemonCell, targetCell);
+
+    // X dégâts pour chaque marqueur sur ce Pokémon.
+    damage += getSelfDamageCounterBonusDamage(attack.effects, pokemon);
         const retreatCostBonusEffect = attack.effects?.find(
       (effect) => effect.type === 'bonusDamagePerTargetRetreatCost'
     );

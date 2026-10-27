@@ -14,20 +14,29 @@ export function getPassiveEnergyLimit(card: PokemonCard): number {
   return Math.max(...card.attacks.map((attack) => attack.energyCost));
 }
 
-export function canPlacePokemon(card: PokemonCard, round: number) {
-  if (card.stage === 'base') {
-    return true;
-  }
+/**
+ * Manche à partir de laquelle un Pokémon peut être posé depuis la main.
+ * Le joueur 2 (qui joue en second) a un tour d'avance :
+ * - Joueur 1 : Niveau 1 / Méga-EX dès la manche 2, Niveau 2 dès la manche 3 ;
+ * - Joueur 2 : Niveau 1 / Méga-EX dès la manche 1, Niveau 2 dès la manche 2.
+ */
+export function getFirstPlayableRound(card: PokemonCard, player: Player = 1): number {
+  const head = player === 2 ? 1 : 0;
 
-  if (card.stage === 'niveau1' || card.stage === 'mega_ex') {
-    return round >= 2;
-  }
+  if (card.stage === 'base') return 1;
+  if (card.stage === 'niveau1' || card.stage === 'mega_ex') return 2 - head;
+  if (card.stage === 'niveau2') return 3 - head;
 
-  if (card.stage === 'niveau2') {
-    return round >= 3;
-  }
+  return Infinity;
+}
 
-  return false;
+export function canPlacePokemon(card: PokemonCard, round: number, player: Player = 1) {
+  return round >= getFirstPlayableRound(card, player);
+}
+
+/** Le joueur 1 ne peut faire battre en retraite aucun Pokémon pendant la manche 2. */
+export function isRetreatForbiddenThisRound(player: Player, round: number): boolean {
+  return player === 1 && round === 2;
 }
 
 export function isPokemonCard(card: GameCard): card is PokemonCard {

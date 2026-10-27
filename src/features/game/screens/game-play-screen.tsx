@@ -8,6 +8,7 @@ import { InvocationPlacementPrompt } from '@/features/game/components/panels/inv
 import { DiscardSummonPrompt } from '@/features/game/components/panels/discard-summon-prompt';
 import { EnergyGatherPrompt } from '@/features/game/components/panels/energy-gather-prompt';
 import { HandPokemonPreview } from '@/features/game/components/panels/hand-pokemon-preview';
+import { ForfeitButton } from '@/features/game/components/panels/forfeit-button';
 import type { SummonChoices } from '@/features/game/rules';
 import type { DiscardSummonCandidate } from '@/features/game/rules';
 import { KOEnergyPrompt } from '@/features/game/components/panels/ko-energy-prompt';
@@ -126,6 +127,9 @@ type GamePlayScreenProps = {
   onActivateVictoriousTalent: () => void;
   onEndTurn: () => void;
   onRestartSameCards: () => void;
+  onForfeit: (player: Player) => void;
+  // En ligne : le joueur de cet écran (c'est lui qui peut abandonner).
+  localPlayer?: Player;
   onRestart: () => void;
   pendingOptionalAttackEffect: {
   pokemonName: string;
@@ -298,6 +302,11 @@ const dragonPokemon = dragonChoice
                   : props.player1SummonChoices
               }
               board={props.board}
+              ownAttackBonuses={
+                (props.selectedPokemon ?? props.inspectedPokemon)?.owner === 2
+                  ? props.player2Status.attackBonusesThisTurn
+                  : props.player1Status.attackBonusesThisTurn
+              }
                 opponentPlayerPoisoned={
     props.selectedPokemon?.owner === 1
       ? props.player2Status.poisoned
@@ -423,6 +432,12 @@ onActivateTalent={props.onActivateTalent}
         <Pressable onPress={props.onEndTurn} style={styles.endTurnButton}>
           <Text style={styles.endTurnText}>FIN DU TOUR</Text>
         </Pressable>
+      )}
+      {!props.gameOver && (
+        <ForfeitButton
+          player={props.localPlayer ?? props.currentPlayer}
+          onForfeit={props.onForfeit}
+        />
       )}
       <Pressable onPress={props.onRestartSameCards} style={styles.restartButton}>
         <Text style={styles.restartButtonText}>🔄 RECOMMENCER AVEC LES MÊMES CARTES</Text>

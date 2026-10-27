@@ -18,6 +18,8 @@ type UseGameTrainerActionsOptions = {
   currentPlayer: Player;
   player1Status: PlayerStatusState;
   player2Status: PlayerStatusState;
+  setPlayer1Status: SetState<PlayerStatusState>;
+  setPlayer2Status: SetState<PlayerStatusState>;
   player1Hand: GameCard[];
   player2Hand: GameCard[];
   setPlayer1Hand: SetState<GameCard[]>;
@@ -47,6 +49,8 @@ export function useGameTrainerActions({
   currentPlayer,
   player1Status,
   player2Status,
+  setPlayer1Status,
+  setPlayer2Status,
   player1Hand,
   player2Hand,
   setPlayer1Hand,
@@ -143,6 +147,49 @@ if (
       setSelectedPokemonCell(null);
       setSelectedAttackIndex(null);
       setMessage(`Soin Aquatique : ${healedPokemonNames.join(', ')}.`);
+      return;
+    }
+
+    // -----------------------------------------
+    // BONUS D'ATTAQUE PENDANT CE TOUR (ex : Cynthia)
+    // -----------------------------------------
+    if (card.effect === 'boostPokemonAttackThisTurn') {
+      if (card.category === 'supporter' && hasUsedSupporterThisTurn) {
+        setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');
+        return;
+      }
+
+      const bonus = {
+        pokemonName: card.boostPokemonName ?? '',
+        attackName: card.boostAttackName ?? '',
+        amount: card.boostAmount ?? 0,
+        sourceName: card.name,
+      };
+
+      const setStatus = currentPlayer === 1 ? setPlayer1Status : setPlayer2Status;
+      setStatus((status) => ({
+        ...status,
+        attackBonusesThisTurn: [...(status.attackBonusesThisTurn ?? []), bonus],
+      }));
+
+      if (currentPlayer === 1) {
+        setPlayer1Hand((hand) => hand.filter((handCard) => handCard.id !== card.id));
+        setPlayer1Discard((discard) => [...discard, card]);
+      } else {
+        setPlayer2Hand((hand) => hand.filter((handCard) => handCard.id !== card.id));
+        setPlayer2Discard((discard) => [...discard, card]);
+      }
+
+      if (card.category === 'supporter') {
+        setHasUsedSupporterThisTurn(true);
+      }
+      setSelectedTrainerCard(null);
+      setTrainerEffectActivated(false);
+      setSelectedPokemonCell(null);
+      setSelectedAttackIndex(null);
+      setMessage(
+        `${card.name} : pendant ce tour, l'attaque ${bonus.attackName} de tes ${bonus.pokemonName} inflige ${bonus.amount} dégâts supplémentaires.`
+      );
       return;
     }
 

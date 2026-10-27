@@ -11,7 +11,7 @@ export const froussardine: PokemonCard = {
   retreatCost: 0,
   artwork: require('../../../../../assets/images/froussardine-card.png'),
   talent: {
-  name: 'Bnac',
+  name: 'Banc',
   type: 'activated',
   effect: 'swapWithCardFromHand',
   swapCardId: 'froussardinegx-001',

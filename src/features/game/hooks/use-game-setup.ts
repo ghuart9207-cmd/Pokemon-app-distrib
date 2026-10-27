@@ -42,27 +42,32 @@ function isGxOrExCard(card: GameCard): boolean {
 }
 
 /**
- * Conseils sur le deck (non bloquants) :
- * - tour 1 : seuls les Pokémon de Base peuvent être posés ;
- * - tour 2 : il faut un 2ᵉ Pokémon posable (une 2ᵉ Base ou un Niveau 1).
+ * Conseils sur le deck (non bloquants), selon ce que le joueur peut poser :
+ * - tour 1 : au moins un Pokémon posable ;
+ * - tour 2 : un 2ᵉ Pokémon posable.
+ * (Le joueur 2 peut poser des Niveau 1 dès le tour 1 et des Niveau 2 dès le tour 2.)
  */
-function getDeckWarnings(cards: GameCard[]): string[] {
+function getDeckWarnings(cards: GameCard[], player: Player): string[] {
   const pokemonCards = cards.filter(isPokemonCard);
 
-  const playableTurn1 = pokemonCards.filter((card) => canPlacePokemon(card, 1)).length;
-  const playableTurn2 = pokemonCards.filter((card) => canPlacePokemon(card, 2)).length;
+  const playableTurn1 = pokemonCards.filter((card) => canPlacePokemon(card, 1, player)).length;
+  const playableTurn2 = pokemonCards.filter((card) => canPlacePokemon(card, 2, player)).length;
 
   const warnings: string[] = [];
 
   if (playableTurn1 === 0) {
     warnings.push(
-      "⚠️ Tu n'as aucun Pokémon de Base : au tour 1, on ne peut poser que des Bases. Je te conseille d'en prendre au moins une."
+      player === 2
+        ? "⚠️ Tu n'as aucun Pokémon de Base ni Niveau 1 : au tour 1, tu ne pourras rien poser. Je te conseille d'en prendre au moins un."
+        : "⚠️ Tu n'as aucun Pokémon de Base : au tour 1, on ne peut poser que des Bases. Je te conseille d'en prendre au moins une."
     );
   }
 
   if (playableTurn2 < 2) {
     warnings.push(
-      "⚠️ Au tour 2, tu n'auras pas de nouveau Pokémon à poser : je te conseille de prendre une 2ᵉ Base ou un Niveau 1."
+      player === 2
+        ? "⚠️ Au tour 2, tu n'auras pas de nouveau Pokémon à poser : je te conseille de prendre une 2ᵉ Base, un Niveau 1 ou un Niveau 2."
+        : "⚠️ Au tour 2, tu n'auras pas de nouveau Pokémon à poser : je te conseille de prendre une 2ᵉ Base ou un Niveau 1."
     );
   }
 
@@ -192,7 +197,7 @@ export function useGameSetup({
 
     // Conseils sur les Bases / Niveau 1 : affichés une fois,
     // puis un 2ᵉ clic sur VALIDER confirme le deck quand même.
-    const deckWarnings = getDeckWarnings(cards);
+    const deckWarnings = getDeckWarnings(cards, setupPhase === 'player1' ? 1 : 2);
     const deckKey = `${setupPhase}:${cards.map((card) => card.id).join(',')}`;
 
     if (deckWarnings.length > 0 && setupWarningKey !== deckKey) {

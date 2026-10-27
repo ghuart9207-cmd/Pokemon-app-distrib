@@ -1,5 +1,6 @@
 import type { BoardState, EnergyType, Player, SetState } from '@/features/game/types';
 import { getEffectiveRetreatCost } from '@/features/game/rules/retreat-cost-rules';
+import { isRetreatForbiddenThisRound } from '@/features/game/rules';
 
 type UseGameRetreatOptions = {
   board: BoardState;
@@ -43,6 +44,12 @@ export function useGameRetreat({
 
     if (pokemon.owner !== currentPlayer) {
       setMessage("Ce Pokémon ne t'appartient pas.");
+      return;
+    }
+
+    // Règle : le joueur 1 ne peut pas battre en retraite pendant la manche 2.
+    if (isRetreatForbiddenThisRound(currentPlayer, round)) {
+      setMessage('Le joueur 1 ne peut faire battre en retraite aucun Pokémon pendant la manche 2.');
       return;
     }
 

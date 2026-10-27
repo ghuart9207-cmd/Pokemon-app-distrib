@@ -195,7 +195,7 @@ options.setPendingDragonEnergyChoices(dragonEnergyChoices);
   );
 
   return options.currentPlayer === 1
-    ? { ...advancedStatus, itemsBlockedThisTurn: false }
+    ? { ...advancedStatus, itemsBlockedThisTurn: false, attackBonusesThisTurn: [] }
     : advancedStatus;
 });
     options.setPlayer2Status((status) => {
@@ -205,7 +205,7 @@ options.setPendingDragonEnergyChoices(dragonEnergyChoices);
   );
 
   return options.currentPlayer === 2
-    ? { ...advancedStatus, itemsBlockedThisTurn: false }
+    ? { ...advancedStatus, itemsBlockedThisTurn: false, attackBonusesThisTurn: [] }
     : advancedStatus;
 });
 

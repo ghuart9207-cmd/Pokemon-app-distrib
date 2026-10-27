@@ -1,4 +1,5 @@
-import type { AttackEffect, PokemonInPlay } from '@/features/game/types';
+import type { AttackEffect, BoardState, PokemonInPlay } from '@/features/game/types';
+import { getPokemonMaxHp } from './board-rules';
 
 /**
  * Effet d'attaque 'retaliateDamageNextOpponentTurn' :
@@ -70,4 +71,40 @@ export function getTargetTypeBonusDamage(
         effect.pokemonType === target.card.type
     )
     .reduce((total, effect) => total + effect.amount, 0);
+}
+
+/**
+ * Effet 'damagePerAllBenchPokemon' : X dégâts pour chaque Pokémon de banc,
+ * les vôtres ET ceux de l'adversaire. On compte tous les Pokémon en jeu sauf
+ * l'attaquant et le Pokémon qui subit l'attaque (les joueurs ne comptent pas).
+ */
+/**
+ * Effet 'damagePerSelfDamageCounter' : `amount` dégâts supplémentaires
+ * pour chaque marqueur de dégâts (10 PV perdus) sur le Pokémon attaquant.
+ */
+export function getSelfDamageCounterBonusDamage(
+  effects: AttackEffect[] | undefined,
+  attacker: PokemonInPlay | null | undefined
+): number {
+  const effect = effects?.find((candidate) => candidate.type === 'damagePerSelfDamageCounter');
+  if (!effect || !attacker) return 0;
+
+  const counters = Math.max(0, Math.floor((getPokemonMaxHp(attacker) - attacker.currentHp) / 10));
+  return counters * effect.amount;
+}
+
+export function getAllBenchBonusDamage(
+  effects: AttackEffect[] | undefined,
+  board: BoardState,
+  attackerCell: string,
+  targetCell: string | null | undefined
+): number {
+  const effect = effects?.find((candidate) => candidate.type === 'damagePerAllBenchPokemon');
+  if (!effect) return 0;
+
+  const benchCount = Object.entries(board).filter(
+    ([cell, pokemon]) => pokemon !== null && cell !== attackerCell && cell !== targetCell
+  ).length;
+
+  return benchCount * effect.amount;
 }

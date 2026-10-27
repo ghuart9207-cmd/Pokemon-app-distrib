@@ -46,6 +46,7 @@ import { iguolta } from './iguolta';
 import { lucanongx } from './lucanongx';
 import { plumeline2 } from './plumeline2';
 import { tokoricogx } from './tokoricogx';
+import { ramoloss } from './ramoloss';
 
 // =============================================================
 // EXTENSION « GARDIENS ASCENDANTS » (série Soleil et Lune)
@@ -106,6 +107,7 @@ iguolta,
 lucanongx,
 plumeline2,
 tokoricogx,
+ramoloss,
 ];
 
 export const GARDIENS_ASCENDANTS_TRAINER_CARDS: TrainerCard[] = [];

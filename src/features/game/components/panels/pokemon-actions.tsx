@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 
-import { getDisplayedAttackDamage } from '@/features/game/rules';
+import { getDisplayedAttackDamage, getKOPenalty } from '@/features/game/rules';
 import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 import type {
@@ -8,6 +8,7 @@ import type {
     CoinAttackReference,
     CoinSide,
     GameCard,
+    PlayerAttackBonus,
     PokemonInPlay,
 } from '@/features/game/types';
 import {
@@ -41,6 +42,8 @@ type PokemonActionsProps = {
   summonChoices?: SummonChoices;
   opponentPlayerPoisoned: boolean;
   opponentPlayerBurned: boolean;
+  // Bonus d'attaque du propriétaire pendant ce tour (ex : Cynthia).
+  ownAttackBonuses?: PlayerAttackBonus[];
 };
 
 export function PokemonActions({
@@ -64,6 +67,7 @@ export function PokemonActions({
   onAttack,
   onRetreat,
   summonChoices = {},
+  ownAttackBonuses = [],
 }: PokemonActionsProps) {
   if (!pokemon || !cellName) {
     return null;
@@ -90,6 +94,14 @@ export function PokemonActions({
       <Text style={sharedStyles.actionInfo}>Case : {cellName}</Text>
       <Text style={sharedStyles.actionInfo}>
         Énergies : {formatEnergies(pokemon.energies)}
+      </Text>
+      {pokemon.isInvocation && (
+        <Text style={sharedStyles.actionInfo}>✨ Invocation</Text>
+      )}
+      {/* Pénalité reçue par son propre joueur si ce Pokémon est mis K.O. */}
+      <Text style={sharedStyles.actionInfo}>
+        💀 K.O. : +{getKOPenalty(pokemon.card.stage, pokemon.card.variant)} dégâts au joueur{' '}
+        {pokemon.owner}
       </Text>
 
       {pokemon.card.talent && (
@@ -158,7 +170,8 @@ export function PokemonActions({
       player1Discard,
       player2Discard,
       player1Hand,
-      player2Hand
+      player2Hand,
+      ownAttackBonuses
     );
 
     const displayedCost = copiedFromDiscard

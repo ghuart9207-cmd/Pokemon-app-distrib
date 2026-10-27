@@ -11,6 +11,7 @@ import { handleDamageCounterMove } from './cell-press/handle-damage-counter-move
 import { handleDiscardSummonPlacement } from './cell-press/handle-discard-summon-placement';
 import { handleOwnBenchDamage } from './cell-press/handle-own-bench-damage';
 import { handleEnergyGather } from './cell-press/handle-energy-gather';
+import { handleCountersToActive } from './cell-press/handle-counters-to-active';
 import { handleInvocationPlacement } from './cell-press/handle-invocation-placement';
 import { handleKOEnergyMove } from './cell-press/handle-ko-energy-move';
 import { handleOpponentActiveSwitch } from './cell-press/handle-opponent-active-switch';
@@ -35,6 +36,7 @@ const CELL_PRESS_HANDLERS = [
   handleDiscardSummonPlacement,
   handleOwnBenchDamage,
   handleEnergyGather,
+  handleCountersToActive,
   handleGeneratedBenchEnergy,
   handleOpponentActiveSwitch,
   handleCoinReturnToHand,

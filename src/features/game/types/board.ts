@@ -3,6 +3,13 @@ import type { CoinHistory } from './coins';
 import type {CardVariant,EnergyType,Player,Stage,} from './core';
 
 
+export type PlayerAttackBonus = {
+  pokemonName: string;
+  attackName: string;
+  amount: number;
+  sourceName: string;
+};
+
 export type PlayerStatusState = {
   poisoned: boolean;
   poisonSourcePlayer: Player | null;
@@ -12,6 +19,9 @@ export type PlayerStatusState = {
   burnTriggersRemaining: number;
 
   itemsBlockedThisTurn?: boolean;
+
+  // Bonus d'attaque valable jusqu'à la fin du tour du joueur (ex : Cynthia).
+  attackBonusesThisTurn?: PlayerAttackBonus[];
 
   extraDamageNextTurn?: number;
 

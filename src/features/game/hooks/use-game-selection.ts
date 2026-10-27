@@ -1,5 +1,6 @@
 import {
   canPlacePokemon,
+  getFirstPlayableRound,
   getPokemonPlacementKey,
   isPokemonCard,
 } from '@/features/game/rules';
@@ -84,20 +85,18 @@ export function useGameSelection({
       return;
     }
 
-    if (!canPlacePokemon(card, round)) {
-      if (card.stage === 'niveau1') {
-        setMessage(
-          `${card.name} est un Pokémon Niveau 1. Il peut être posé à partir de la manche 2.`
-        );
-      } else if (card.stage === 'mega_ex') {
-        setMessage(
-          `${card.name} est un Méga Pokémon-ex. Il peut être posé à partir de la manche 2.`
-        );
-      } else if (card.stage === 'niveau2') {
-        setMessage(
-          `${card.name} est un Pokémon Niveau 2. Il peut être posé à partir de la manche 3.`
-        );
-      }
+    if (!canPlacePokemon(card, round, owner)) {
+      const firstRound = getFirstPlayableRound(card, owner);
+      const stageLabel =
+        card.stage === 'niveau1'
+          ? 'un Pokémon Niveau 1'
+          : card.stage === 'mega_ex'
+            ? 'un Méga Pokémon-ex'
+            : 'un Pokémon Niveau 2';
+
+      setMessage(
+        `${card.name} est ${stageLabel}. Le joueur ${owner} peut le poser à partir de la manche ${firstRound}.`
+      );
       return;
     }
 

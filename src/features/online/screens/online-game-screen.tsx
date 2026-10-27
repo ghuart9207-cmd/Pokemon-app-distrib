@@ -22,7 +22,7 @@ export default function OnlineGameScreen() {
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <OnlineStatusBar canAct={canAct} notice={notice} />
       <View style={{ flex: 1 }}>
-        <GameView game={game} />
+        <GameView game={game} localPlayer={room ? room.you : undefined} />
       </View>
     </View>
   );

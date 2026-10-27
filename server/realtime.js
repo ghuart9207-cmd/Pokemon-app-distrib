@@ -53,6 +53,7 @@ const ACTION_NAMES = new Set([
   'optionalEffectChoice',
   'discardSummonSelect',
   'energyGatherDone',
+  'forfeit',
   'restart',
   'restartSame',
   'setupToggle',

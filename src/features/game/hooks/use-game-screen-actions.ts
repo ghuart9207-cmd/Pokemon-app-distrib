@@ -1,4 +1,4 @@
-import type { PendingKOEnergyMove, Player, PokemonInPlay, GameCard, PendingDiscardTalentPlacement,  } from '@/features/game/types';
+import type { PendingKOEnergyMove, Player, PokemonInPlay, GameCard, PendingDiscardTalentPlacement, SetupPhase } from '@/features/game/types';
 import type { GameState } from './state/use-game-state';
 import {
   getBenchRow,
@@ -43,6 +43,8 @@ type GameScreenActionsOptions = Pick<
   | 'inspectedPokemonCell'
   | 'setInspectedPokemonCell'
   | 'setInspectedHandCard'
+  | 'setForfeitedPlayer'
+  | 'setGameOver'
   | 'setPendingDiscardSummon'
   | 'gameOver'
   | 'player1DiscardEnergies'
@@ -57,6 +59,8 @@ type GameScreenActionsOptions = Pick<
   | 'setSelectedAttackIndex'
 > & {
   endTurn: () => void;
+  // Phase de la partie (l'abandon n'est possible que pendant le combat).
+  setupPhase: SetupPhase;
 };
 
 /** Petits handlers qui relient les composants de l'écran de jeu à l'état. */
@@ -94,6 +98,9 @@ export function useGameScreenActions({
   inspectedPokemonCell,
   setInspectedPokemonCell,
   setInspectedHandCard,
+  setForfeitedPlayer,
+  setGameOver,
+  setupPhase,
   endTurn,
   gameOver,
   player1DiscardEnergies,
@@ -519,6 +526,23 @@ if (!hasFreeBoardSpace) {
     );
   }
 
+  // -----------------------------------------
+  // ABANDON : le joueur qui abandonne perd, l'autre gagne.
+  // -----------------------------------------
+  function forfeitGame(player: Player) {
+    if (gameOver || setupPhase !== 'battle') {
+      return;
+    }
+
+    const winner: Player = player === 1 ? 2 : 1;
+
+    setForfeitedPlayer(player);
+    setGameOver(true);
+    setInspectedPokemonCell(null);
+    setInspectedHandCard(null);
+    setMessage(`🏳️ Le joueur ${player} abandonne. 🏆 Le joueur ${winner} gagne la partie !`);
+  }
+
   // `endTurn` est enveloppé pour ne pas recevoir l'événement de clic en argument.
   function handleEndTurn() {
   if (pendingDiscardTalentPlacement) {
@@ -548,5 +572,6 @@ if (!hasFreeBoardSpace) {
     discardSummonCandidates,
     selectDiscardSummonCard,
     finishEnergyGather,
+    forfeitGame,
   };
 }

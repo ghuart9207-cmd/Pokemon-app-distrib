@@ -31,6 +31,7 @@ export type ActionName =
   | 'optionalEffectChoice'
   | 'discardSummonSelect'
   | 'energyGatherDone'
+  | 'forfeit'
   | 'restart'
   | 'restartSame'
   | 'setupToggle'

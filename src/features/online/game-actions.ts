@@ -78,6 +78,7 @@ export function createOnlineGame(game: GameApi, send: SendAction): GameApi {
     selectDiscardSummonCard: (fromPlayer: Player, discardIndex: number) =>
       send('discardSummonSelect', [fromPlayer, discardIndex]),
     finishEnergyGather: () => send('energyGatherDone', []),
+    forfeitGame: (player: Player) => send('forfeit', [player]),
 
     // Nouvelle partie
     restartGame: () => send('restart', []),
@@ -160,6 +161,9 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
       return game.selectDiscardSummonCard(first as Player, Number(second));
     case 'energyGatherDone':
       return game.finishEnergyGather();
+    case 'forfeit':
+      // Seul le joueur lui-même peut abandonner : on utilise le siège de l'envoyeur.
+      return game.forfeitGame(action.from);
 
     case 'restart':
       return game.restartGame();
@@ -214,6 +218,9 @@ export function getActiveSeats(game: GameApi): Seat[] {
 
 /** Gagnant d'une partie terminée : celui qui a subi le moins de dégâts (0 = égalité). */
 export function getWinner(game: GameApi): 0 | 1 | 2 {
+  // Abandon : l'autre joueur gagne.
+  if (game.forfeitedPlayer) return game.forfeitedPlayer === 1 ? 2 : 1;
+
   if (game.player1Damage < game.player2Damage) return 1;
   if (game.player2Damage < game.player1Damage) return 2;
   return 0;

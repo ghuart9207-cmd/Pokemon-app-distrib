@@ -162,7 +162,11 @@ if (
   });
 
   // Handlers de l'écran de jeu
-  const screenActions = useGameScreenActions({ ...state, ...turn });
+  const screenActions = useGameScreenActions({
+    ...state,
+    ...turn,
+    setupPhase: setup.setupPhase,
+  });
 
   return {
     ...state,

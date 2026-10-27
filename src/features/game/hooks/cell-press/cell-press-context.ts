@@ -11,6 +11,7 @@ import type {
   PendingDiscardSummon,
   PendingOwnBenchDamage,
   PendingEnergyGather,
+  PendingCountersToActive,
   PendingInvocationPlacement,
   PendingKOEnergyMove,
   PendingOpponentActiveSwitch,
@@ -52,6 +53,8 @@ export type CellPressContext = {
   pendingDiscardSummon: PendingDiscardSummon | null;
   pendingOwnBenchDamage: PendingOwnBenchDamage | null;
   pendingEnergyGather: PendingEnergyGather | null;
+  pendingCountersToActive: PendingCountersToActive | null;
+  setPendingCountersToActive: SetState<PendingCountersToActive | null>;
   setInspectedPokemonCell: SetState<string | null>;
   setInspectedHandCard: SetState<{ card: PokemonCard; owner: Player } | null>;
   setPendingEnergyGather: SetState<PendingEnergyGather | null>;

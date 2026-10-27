@@ -19,6 +19,7 @@ import type {
   PendingInvocationPlacement,
   PendingDiscardSummon,
   PendingOwnBenchDamage,
+  PendingCountersToActive,
   PokemonCard,
 } from '@/features/game/types';
 
@@ -48,6 +49,7 @@ player2Discard: GameCard[];
   setPendingInvocationPlacement: SetState<PendingInvocationPlacement | null>;
   setPendingDiscardSummon: SetState<PendingDiscardSummon | null>;
   setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
+  setPendingCountersToActive: SetState<PendingCountersToActive | null>;
   player1SummonChoices: SummonChoices;
   player2SummonChoices: SummonChoices;
   setPendingOpponentTarget: SetState<PendingOpponentTarget | null>;

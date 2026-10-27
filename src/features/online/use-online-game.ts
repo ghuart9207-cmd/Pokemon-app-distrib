@@ -78,7 +78,8 @@ export function useOnlineGame(rawGame: GameApi, you: Seat) {
   }
 
   function send(name: ActionName, payload: unknown[]) {
-    if (!canAct) {
+    // On peut abandonner à tout moment, même pendant le tour adverse.
+    if (!canAct && name !== 'forfeit') {
       showNotice("Ce n'est pas à toi de jouer.");
       return;
     }
