@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 
-import { getDisplayedAttackDamage, getKOPenalty } from '@/features/game/rules';
+import { getDisplayedAttackDamage, getKOPenalty, isTalentNegated } from '@/features/game/rules';
 import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 import type {
@@ -73,9 +73,13 @@ export function PokemonActions({
     return null;
   }
 
+  // Talent annulé par un Pokémon adverse de la même colonne.
+  const talentNegated = isTalentNegated(pokemon, board, cellName);
+
   const availableAttacks = getAvailablePokemonAttacks(
   pokemon,
-  ownDiscard
+  ownDiscard,
+  talentNegated
 );
 
   // Pokémon de l'adversaire : on peut le regarder, pas l'utiliser.
@@ -104,12 +108,24 @@ export function PokemonActions({
         {pokemon.owner}
       </Text>
 
+      {pokemon.attackCoinCheck && (
+        <Text style={sharedStyles.actionInfo}>
+          🪙 S'il attaque pendant son prochain tour : {pokemon.attackCoinCheck.coinCount} pièces à lancer avant
+          (au moins un {pokemon.attackCoinCheck.failsOn === 'pile' ? 'PILE' : 'FACE'} = l'attaque ne fait rien).
+        </Text>
+      )}
+
       {pokemon.card.talent && (
         <View>
           <Text style={sharedStyles.attackTitle}>
             ✨ Talent : {pokemon.card.talent.name}
           </Text>
           <Text style={sharedStyles.actionInfo}>{pokemon.card.talent.description}</Text>
+          {talentNegated && (
+            <Text style={sharedStyles.actionInfo}>
+              🚫 Talent annulé : un Pokémon adverse de sa colonne annule les Talents des Pokémon-GX et EX.
+            </Text>
+          )}
           {pokemon.card.talent.type === 'passive' && (
             <Text style={sharedStyles.actionInfo}>🔵 Talent passif : toujours actif</Text>
           )}
@@ -117,8 +133,13 @@ export function PokemonActions({
       )}
 
 {pokemon.card.talent?.type === 'activated' &&
+  !talentNegated &&
   (pokemon.card.talent?.effect === 'attachEnergyOncePerTurn' ||
     pokemon.card.talent?.effect === 'moveDamageCounterOncePerTurn' ||
+    pokemon.card.talent?.effect === 'healOwnPokemonOncePerTurn' ||
+    pokemon.card.talent?.effect === 'summonOncePerTurn' ||
+    pokemon.card.talent?.effect === 'returnToolToHandOncePerTurn' ||
+    pokemon.card.talent?.effect === 'switchWithBenchOncePerTurn' ||
     pokemon.card.talent?.effect === 'swapWithCardFromHand') && (
     <View>
       {pokemon.owner !== currentPlayer ? (
@@ -226,7 +247,14 @@ export function PokemonActions({
                 `Soigne ${effect.amount} PV`}
 
               {effect.type === 'discardEnergy' &&
-                `Défausse ${effect.amount} Énergie(s)`}
+                (effect.optional
+                  ? `Peut défausser ${effect.amount >= 99 ? 'toutes les' : effect.amount} Énergie(s)`
+                  : `Défausse ${effect.amount >= 99 ? 'toutes les' : effect.amount} Énergie(s)`)}
+
+              {effect.type === 'bonusDamage' &&
+                (attack.effects?.some((other) => other.optional)
+                  ? ` (dégâts affichés si tu défausses : sinon ${effect.amount} de moins)`
+                  : '')}
 
               {effect.type === 'recoil' &&
                 `Subit ${effect.amount} dégâts de recul`}

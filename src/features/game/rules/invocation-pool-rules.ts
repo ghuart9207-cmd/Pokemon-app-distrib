@@ -4,19 +4,37 @@ import { isPokemonCard } from './board-rules';
 
 /**
  * Attaques qui invoquent (effet 'summonFromInvocationPool', ex : Plumeline, Goupix d'Alola) :
- * à la préparation, le joueur choisit UN Pokémon pour chaque Pokémon qui invoque.
- * À chaque utilisation, l'attaque invoque `amount` exemplaires de ce Pokémon (sans limite).
+ * à la préparation, le joueur choisit `amount` Pokémon (différents ou non) pour chaque
+ * Pokémon qui invoque. À chaque utilisation, l'attaque invoque ces Pokémon (sans limite).
  *
  * Filtres possibles : `pokemonType` (ex : 'feu') et `maxHp` (60 par défaut).
  * Les Invocations sont toujours des Pokémon de Base.
  */
 export const DEFAULT_INVOCATION_MAX_HP = 60;
 
-/** Pokémon choisi pour chaque Pokémon qui invoque (clé = id de la carte qui invoque). */
-export type SummonChoices = Record<string, PokemonCard | null>;
+/**
+ * Pokémon choisis pour chaque Pokémon qui invoque (clé = id de la carte qui invoque).
+ * Liste vide : aucun Pokémon possible dans la série.
+ */
+export type SummonChoices = Record<string, PokemonCard[]>;
 
-/** Effet d'Invocation « à choisir » d'une carte, ou null. */
+/** Nombre de Pokémon à choisir (et invoqués à chaque attaque) pour cet effet. */
+export function getSummonChoiceCount(rule: AttackEffect): number {
+  return Math.max(1, rule.amount);
+}
+
+/** Effet d'Invocation « à choisir » d'une carte (attaque ou Talent), ou null. */
 export function getSummonChoiceEffect(card: PokemonCard): AttackEffect | null {
+  // Talent « une fois par tour, invoquez … » : même choix à la préparation.
+  if (card.talent?.effect === 'summonOncePerTurn') {
+    return {
+      type: 'summonFromInvocationPool',
+      amount: card.talent.amount ?? 1,
+      pokemonType: card.talent.targetPokemonType,
+      maxHp: card.talent.maxHp,
+    };
+  }
+
   for (const attack of card.attacks) {
     const effect = attack.effects?.find(
       (candidate) => candidate.type === 'summonFromInvocationPool'
@@ -48,7 +66,7 @@ export function getNextSummonerNeedingChoice(
 ): PokemonCard | null {
   const queue: PokemonCard[] = [
     ...sources.filter(isPokemonCard),
-    ...Object.values(choices).filter((card): card is PokemonCard => card !== null),
+    ...Object.values(choices).flat(),
   ];
   const seen = new Set<string>();
 
@@ -61,8 +79,7 @@ export function getNextSummonerNeedingChoice(
       return card;
     }
 
-    const chosen = choices[card.id];
-    if (chosen) queue.push(chosen);
+    queue.push(...(choices[card.id] ?? []));
   }
 
   return null;

@@ -45,7 +45,10 @@ export function handleOwnBenchDamage(context: CellPressContext, cellName: string
 
   // Réductions de Talent (ex : Azumarill) comme pour les autres dégâts sur son propre banc.
   const attacker = board[pending.attackerCell];
-  const damage = Math.max(0, pending.amount - getTalentDamageReduction(target, attacker));
+  // Protection « évitez tous les effets des attaques » (ex : Lucario) : aucun dégât.
+  const damage = target.preventAllAttackDamageAndEffects === true
+    ? 0
+    : Math.max(0, pending.amount - getTalentDamageReduction(target, attacker, board));
   const hpAfter = target.currentHp - damage;
 
   const nextBoard: BoardState = { ...board };

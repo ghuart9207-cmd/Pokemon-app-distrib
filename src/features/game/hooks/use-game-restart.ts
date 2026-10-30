@@ -30,6 +30,8 @@ import type {
   TrainerCard,
   PendingDiscardTalentPlacement,
   PendingDamageCounterMove,
+  PendingTalentHeal,
+  PendingTalentToolReturn,
   PendingDiscardSummon,
   PendingOwnBenchDamage,
   PendingEnergyGather,
@@ -68,6 +70,8 @@ type UseGameRestartOptions = {
   setPendingOpponentTarget: SetState<PendingOpponentTarget | null>;
   setPendingCoinFlip: SetState<PendingCoinFlip | null>;
   setPendingDamageCounterMove: SetState<PendingDamageCounterMove | null>;
+  setPendingTalentHeal: SetState<PendingTalentHeal | null>;
+  setPendingTalentToolReturn: SetState<PendingTalentToolReturn | null>;
   setPendingDiscardSummon: SetState<PendingDiscardSummon | null>;
   setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
   setPendingEnergyGather: SetState<PendingEnergyGather | null>;
@@ -141,6 +145,8 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setPendingOpponentTarget(null);
     options.setPendingCoinFlip(null);
     options.setPendingDamageCounterMove(null);
+    options.setPendingTalentHeal(null);
+    options.setPendingTalentToolReturn(null);
     options.setInspectedPokemonCell(null);
     options.setInspectedHandCard(null);
     options.setPendingDiscardSummon(null);

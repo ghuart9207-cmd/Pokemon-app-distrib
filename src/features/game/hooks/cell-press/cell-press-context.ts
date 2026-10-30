@@ -8,6 +8,8 @@ import type {
   PendingGeneratedBenchEnergy,
   PendingTalentEnergyAttachment,
   PendingDamageCounterMove,
+  PendingTalentHeal,
+  PendingTalentToolReturn,
   PendingDiscardSummon,
   PendingOwnBenchDamage,
   PendingEnergyGather,
@@ -50,6 +52,8 @@ export type CellPressContext = {
   pendingGeneratedBenchEnergy: PendingGeneratedBenchEnergy | null;
   pendingTalentEnergyAttachment: PendingTalentEnergyAttachment | null;
   pendingDamageCounterMove: PendingDamageCounterMove | null;
+  pendingTalentHeal: PendingTalentHeal | null;
+  pendingTalentToolReturn: PendingTalentToolReturn | null;
   pendingDiscardSummon: PendingDiscardSummon | null;
   pendingOwnBenchDamage: PendingOwnBenchDamage | null;
   pendingEnergyGather: PendingEnergyGather | null;
@@ -61,6 +65,8 @@ export type CellPressContext = {
   setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
   setPendingDiscardSummon: SetState<PendingDiscardSummon | null>;
   setPendingDamageCounterMove: SetState<PendingDamageCounterMove | null>;
+  setPendingTalentHeal: SetState<PendingTalentHeal | null>;
+  setPendingTalentToolReturn: SetState<PendingTalentToolReturn | null>;
   pendingInvocationPlacement: PendingInvocationPlacement | null;
   pendingKOEnergyMove: PendingKOEnergyMove | null;
   pendingEnergyTransferToBench: PendingEnergyTransferToBench | null;

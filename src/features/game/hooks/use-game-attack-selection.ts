@@ -1,4 +1,10 @@
-import { getAttackCoinCount, getPokemonMaxHp } from '@/features/game/rules';
+import {
+  getAttackCoinCount,
+  getPendingAttackCoinCheck,
+  getPokemonMaxHp,
+  hasFailedAttackCoinCheck,
+  isTalentNegated,
+} from '@/features/game/rules';
 import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
 import type {
   BoardState,
@@ -99,7 +105,8 @@ if (pokemon.blockedAllAttacksTurnId === turnId) {
 
 const attack = getAvailablePokemonAttacks(
   pokemon,
-  discardForAttackList
+  discardForAttackList,
+  isTalentNegated(pokemon, board)
 )[selectedAttackIndex]?.attack;
     if (attack?.targetMode === 'damagedOpponentOrPlayer') {
       const opponent: Player = pokemon.owner === 1 ? 2 : 1;
@@ -128,6 +135,34 @@ const attack = getAvailablePokemonAttacks(
       setMessage(
         `${pokemon.card.name} ne peut pas utiliser ${attack.name} pendant ce tour.`
       );
+      return;
+    }
+
+    // -----------------------------------------
+    // LANCER DE PIÈCES IMPOSÉ PAR L'ADVERSAIRE AVANT D'ATTAQUER
+    // (ses propres pièces : son compteur personnel s'applique)
+    // -----------------------------------------
+    const coinCheck = getPendingAttackCoinCheck(pokemon, turnId);
+
+    if (coinCheck) {
+      setReadyCoinAttack(null);
+      setPendingAttackAfterCoin({
+        cellName: selectedPokemonCell,
+        attackIndex: selectedAttackIndex,
+        isCoinCheck: true,
+      });
+      startPokemonCoinFlip(selectedPokemonCell, coinCheck.coinCount);
+      setMessage(
+        `${pokemon.card.name} doit lancer ${coinCheck.coinCount} pièces avant d'attaquer : au moins un ${coinCheck.failsOn === 'pile' ? 'PILE' : 'FACE'} et son attaque ne fait rien.`
+      );
+      return;
+    }
+
+    // Lancer de vérification raté : l'attaque ne fait rien (sans lancer ses pièces).
+    if (hasFailedAttackCoinCheck(pokemon, turnId)) {
+      setReadyCoinAttack(null);
+      setPendingAttackAfterCoin(null);
+      attackSelectedPokemon();
       return;
     }
 

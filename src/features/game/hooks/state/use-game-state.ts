@@ -20,6 +20,8 @@ import type {
   PendingGeneratedBenchEnergy,
   PendingTalentEnergyAttachment,
   PendingDamageCounterMove,
+  PendingTalentHeal,
+  PendingTalentToolReturn,
   PendingDiscardSummon,
   PendingOwnBenchDamage,
   PendingEnergyGather,
@@ -144,6 +146,9 @@ export function useGameState() {
     useState<PendingAttackSummonPlacement | null>(null);
   const [pendingTalentEnergyAttachment, setPendingTalentEnergyAttachment] =
     useState<PendingTalentEnergyAttachment | null>(null);
+  const [pendingTalentHeal, setPendingTalentHeal] = useState<PendingTalentHeal | null>(null);
+  const [pendingTalentToolReturn, setPendingTalentToolReturn] =
+    useState<PendingTalentToolReturn | null>(null);
   const [pendingDamageCounterMove, setPendingDamageCounterMove] =
     useState<PendingDamageCounterMove | null>(null);
   const [pendingDiscardSummon, setPendingDiscardSummon] =
@@ -278,6 +283,10 @@ export function useGameState() {
     setPendingTalentEnergyAttachment,
     pendingDamageCounterMove,
     setPendingDamageCounterMove,
+    pendingTalentHeal,
+    setPendingTalentHeal,
+    pendingTalentToolReturn,
+    setPendingTalentToolReturn,
     pendingDiscardSummon,
     setPendingDiscardSummon,
     pendingOwnBenchDamage,

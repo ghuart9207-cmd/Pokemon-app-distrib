@@ -150,6 +150,14 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
 
       case 'error':
         if (message.code === 'ROOM_CLOSED') resetRoom();
+        // Action refusée par le serveur (souvent : serveur pas à jour).
+        if (message.code === 'BAD_ACTION') {
+          clearEchoWait();
+          setError(
+            "Le serveur ne connaît pas cette action : remplace server/realtime.js par la dernière version et redémarre le serveur (npm start)."
+          );
+          break;
+        }
         if (requestRef.current) {
           requestRef.current.reject(new Error(message.message));
           requestRef.current = null;

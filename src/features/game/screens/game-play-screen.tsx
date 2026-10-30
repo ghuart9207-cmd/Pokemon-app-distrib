@@ -89,8 +89,9 @@ type GamePlayScreenProps = {
   pendingOptionalDiscardChoice: {
     pokemonName: string;
     attackName: string;
-    energyType: EnergyType;
+    energyType?: EnergyType;
     amount: number;
+    discardAll?: boolean;
     effectText?: string;
   } | null;
   onChooseOptionalDiscard: (accept: boolean) => void;
@@ -368,6 +369,7 @@ onActivateTalent={props.onActivateTalent}
                 attackName={props.pendingOptionalDiscardChoice.attackName}
                 energyType={props.pendingOptionalDiscardChoice.energyType}
                 amount={props.pendingOptionalDiscardChoice.amount}
+                discardAll={props.pendingOptionalDiscardChoice.discardAll}
                 effectText={props.pendingOptionalDiscardChoice.effectText}
                 onChoose={props.onChooseOptionalDiscard}
               />

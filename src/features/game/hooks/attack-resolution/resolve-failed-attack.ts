@@ -4,7 +4,7 @@ import type { AttackResolutionContext } from './attack-resolution-context';
 /** Attaque ratée au pile ou face : l'attaquant ne subit que les dégâts de confusion éventuels. */
 export function resolveFailedAttack(
   context: AttackResolutionContext,
-  locals: { attacker: PokemonInPlay; selectedPokemonCell: string }
+  locals: { attacker: PokemonInPlay; selectedPokemonCell: string; failText?: string }
 ): void {
   const { board, handleAttackerKO, setBoard, setMessage, setSelectedAttackIndex } =
     context;
@@ -28,10 +28,8 @@ export function resolveFailedAttack(
   const attackerKO = handleAttackerKO(newBoard, failedAttacker, selectedPokemonCell);
 
   setBoard(newBoard);
-  setMessage(
-    attackerKO
-      ? `PILE ! ${attacker.card.name} rate son attaque et est K.O.`
-      : `PILE ! ${attacker.card.name} rate son attaque.`
-  );
+  const failText = locals.failText ?? `PILE ! ${attacker.card.name} rate son attaque.`;
+
+  setMessage(attackerKO ? `${failText} ${attacker.card.name} est K.O.` : failText);
   setSelectedAttackIndex(null);
 }

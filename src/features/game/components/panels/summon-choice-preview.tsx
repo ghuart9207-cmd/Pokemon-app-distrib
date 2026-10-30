@@ -17,14 +17,20 @@ export function SummonChoicePreview({ card, summonChoices }: SummonChoicePreview
     return null;
   }
 
-  const chosen = summonChoices[card.id];
+  const chosen = summonChoices[card.id] ?? [];
 
   return (
     <View style={{ marginTop: 10, alignItems: 'center' }}>
-      <Text style={sharedStyles.attackTitle}>✨ Invocation choisie</Text>
-      {chosen ? (
-        <View style={sharedStyles.handPokemonPressable}>
-          <PokemonHandCard card={chosen} />
+      <Text style={sharedStyles.attackTitle}>
+        ✨ {chosen.length > 1 ? 'Invocations choisies' : 'Invocation choisie'}
+      </Text>
+      {chosen.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+          {chosen.map((chosenCard, index) => (
+            <View key={`${chosenCard.id}-${index}`} style={sharedStyles.handPokemonPressable}>
+              <PokemonHandCard card={chosenCard} />
+            </View>
+          ))}
         </View>
       ) : (
         <Text style={sharedStyles.actionInfo}>Aucune Invocation choisie.</Text>

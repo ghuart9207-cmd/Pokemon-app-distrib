@@ -5,6 +5,7 @@ import {
   describeAttackInvocationRule,
   getNextSummonerNeedingChoice,
   getSummonChoiceEffect,
+  getSummonChoiceCount,
   isPokemonCard,
   isValidAttackInvocation,
 } from '@/features/game/rules';
@@ -350,7 +351,8 @@ export function useGameSetup({
       return;
     }
 
-    // Invocation d'un Pokémon qui invoque : UN seul Pokémon (il remplace le précédent).
+    // Invocation d'un Pokémon qui invoque : autant de Pokémon que l'attaque en invoque
+    // (le même plusieurs fois si on veut).
     if (invocationSetupKind === 'summonChoice') {
       const rule = invocationSetupSummoner
         ? getSummonChoiceEffect(invocationSetupSummoner)
@@ -362,7 +364,12 @@ export function useGameSetup({
         return;
       }
 
-      setSummonChoiceDraft([card]);
+      const count = getSummonChoiceCount(rule);
+
+      // Un seul Pokémon à choisir : le nouveau remplace le précédent.
+      setSummonChoiceDraft((previous) =>
+        count === 1 ? [card] : previous.length >= count ? previous : [...previous, card]
+      );
       return;
     }
 
@@ -378,7 +385,7 @@ export function useGameSetup({
     }
 
     if (invocationSetupKind === 'summonChoice') {
-      setSummonChoiceDraft([]);
+      setSummonChoiceDraft((previous) => previous.filter((_, cardIndex) => cardIndex !== index));
       return;
     }
 
@@ -400,16 +407,18 @@ export function useGameSetup({
       if (!invocationSetupSummoner) return;
 
       const hasCandidates = getSummonChoiceCandidates().length > 0;
+      const summonRule = getSummonChoiceEffect(invocationSetupSummoner);
+      const requiredCount = summonRule ? getSummonChoiceCount(summonRule) : 1;
 
-      if (summonChoiceDraft.length !== 1 && hasCandidates) {
-        setMessage('Choisis 1 Pokémon.');
+      if (summonChoiceDraft.length !== requiredCount && hasCandidates) {
+        setMessage(`Choisis ${requiredCount} Pokémon.`);
         return;
       }
 
       // Aucun Pokémon possible dans la série : on enregistre « aucun ».
       const nextChoices: SummonChoices = {
         ...getSummonChoices(player),
-        [invocationSetupSummoner.id]: summonChoiceDraft[0] ?? null,
+        [invocationSetupSummoner.id]: hasCandidates ? summonChoiceDraft : [],
       };
 
       setSummonChoicesFor(player, nextChoices);

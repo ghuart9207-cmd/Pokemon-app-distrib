@@ -4,7 +4,9 @@ import {
   getBenchRow,
   getDiscardSummonCandidates,
   getPokemonMaxHp,
+  isHealBlocked,
   isPokemonCard,
+  isTalentNegated,
 } from '@/features/game/rules';
 import type { AttackEffect } from '@/features/game/types';
 import { applyKOEnergyMove } from './cell-press/apply-ko-energy-move';
@@ -32,6 +34,10 @@ type GameScreenActionsOptions = Pick<
   | 'turnId'
   | 'setPendingTalentEnergyAttachment'
   | 'setPendingDamageCounterMove'
+  | 'setPendingTalentHeal'
+  | 'setPendingTalentToolReturn'
+  | 'player1SummonChoices'
+  | 'player2SummonChoices'
   | 'pendingDiscardSummon'
   | 'player1Hand'
   | 'player2Hand'
@@ -86,6 +92,10 @@ export function useGameScreenActions({
   turnId,
   setPendingTalentEnergyAttachment,
   setPendingDamageCounterMove,
+  setPendingTalentHeal,
+  setPendingTalentToolReturn,
+  player1SummonChoices,
+  player2SummonChoices,
   pendingDiscardSummon,
   setPendingDiscardSummon,
   player1Hand,
@@ -272,6 +282,14 @@ if (!hasFreeBoardSpace) {
 
     const talent = selectedPokemon.card.talent;
 
+    // Talent annulé par un Pokémon adverse de la même colonne.
+    if (talent && isTalentNegated(selectedPokemon, board, selectedPokemonCell)) {
+      setMessage(
+        `${selectedPokemon.card.name} n'a plus de Talent : un Pokémon adverse de sa colonne annule les Talents des Pokémon-GX et EX.`
+      );
+      return;
+    }
+
     // -----------------------------------------
     // TALENT : ÉCHANGER CE POKÉMON AVEC UNE CARTE DE LA MAIN
     // (ex : Froussardine -> Froussardine GX)
@@ -352,6 +370,181 @@ if (!hasFreeBoardSpace) {
         `${talent.name} : ${oldCard.name} est échangé avec ${newCard.name}` +
           (selectedPokemon.isInvocation ? ' (toujours une Invocation)' : '') +
           `. ${oldCard.name} retourne dans ta main.`
+      );
+      return;
+    }
+
+    // -----------------------------------------
+    // TALENT : ÉCHANGER CE POKÉMON AVEC L'UN DE SES POKÉMON DE BANC
+    // (une seule fois pendant votre tour ; échange horizontal sur la même ligne)
+    // -----------------------------------------
+    if (talent?.type === 'activated' && talent.effect === 'switchWithBenchOncePerTurn') {
+      if (selectedPokemon.owner !== currentPlayer) {
+        setMessage('Tu ne peux utiliser que tes propres Talents.');
+        return;
+      }
+
+      if (selectedPokemon.lastUsedTalentTurnId === turnId) {
+        setMessage('Ce Pokémon a déjà utilisé son Talent pendant ce tour.');
+        return;
+      }
+
+      const row = selectedPokemonCell[0];
+      const hasPartner = Object.entries(board).some(
+        ([cell, pokemon]) =>
+          pokemon !== null &&
+          cell !== selectedPokemonCell &&
+          cell[0] === row &&
+          pokemon.owner === currentPlayer
+      );
+
+      if (!hasPartner) {
+        setMessage(`${talent.name} : aucun de tes Pokémon n'est sur la même ligne pour l'échange.`);
+        return;
+      }
+
+      setPendingPokemonSwitch({
+        player: currentPlayer,
+        attackerCell: selectedPokemonCell,
+        fromTalentTurnId: turnId,
+      });
+
+      setMessage(
+        `${talent.name} : choisis l'un de tes Pokémon sur la même ligne pour échanger avec ${selectedPokemon.card.name}. Clic sur une case vide pour annuler.`
+      );
+      return;
+    }
+
+    // -----------------------------------------
+    // TALENT : UNE FOIS PAR TOUR, INVOQUER LE(S) POKÉMON CHOISI(S) À LA PRÉPARATION
+    // -----------------------------------------
+    if (talent?.type === 'activated' && talent.effect === 'summonOncePerTurn') {
+      if (selectedPokemon.owner !== currentPlayer) {
+        setMessage('Tu ne peux utiliser que tes propres Talents.');
+        return;
+      }
+
+      if (selectedPokemon.lastUsedTalentTurnId === turnId) {
+        setMessage('Ce Pokémon a déjà utilisé son Talent pendant ce tour.');
+        return;
+      }
+
+      const choices = currentPlayer === 1 ? player1SummonChoices : player2SummonChoices;
+      const chosen = choices[selectedPokemon.card.id] ?? [];
+
+      if (chosen.length === 0) {
+        setMessage(`${talent.name} : aucune Invocation n'a été choisie pour ${selectedPokemon.card.name} à la préparation.`);
+        return;
+      }
+
+      const summonRow = currentPlayer === 1 ? 'B' : 'C';
+      const freeCellCount = [1, 2, 3, 4].filter(
+        (column) => board[`${summonRow}${column}`] === null
+      ).length;
+
+      if (freeCellCount === 0) {
+        setMessage(`${talent.name} : aucune case libre de ${summonRow}1 à ${summonRow}4.`);
+        return;
+      }
+
+      // Le Talent est utilisé dès maintenant (une seule fois par tour).
+      const talentCell = selectedPokemonCell;
+      setBoard((previousBoard) => {
+        const current = previousBoard[talentCell];
+        return current
+          ? { ...previousBoard, [talentCell]: { ...current, lastUsedTalentTurnId: turnId } }
+          : previousBoard;
+      });
+
+      const toPlace = Math.min(chosen.length, freeCellCount);
+
+      setPendingInvocationPlacement({
+        player: currentPlayer,
+        cards: [...chosen],
+        selectedIndex: null,
+        source: 'attack',
+        remainingToPlace: toPlace,
+        title: talent.name,
+      });
+
+      setMessage(
+        `${talent.name} : invoque ${chosen.map((card) => card.name).join(' et ')}. Choisis une Invocation puis une case libre de ${summonRow}1 à ${summonRow}4.`
+      );
+      return;
+    }
+
+    // -----------------------------------------
+    // TALENT : REMETTRE EN MAIN UN OUTIL ATTACHÉ À L'UN DE SES POKÉMON
+    // -----------------------------------------
+    if (talent?.type === 'activated' && talent.effect === 'returnToolToHandOncePerTurn') {
+      if (selectedPokemon.owner !== currentPlayer) {
+        setMessage('Tu ne peux utiliser que tes propres Talents.');
+        return;
+      }
+
+      if (selectedPokemon.lastUsedTalentTurnId === turnId) {
+        setMessage('Ce Pokémon a déjà utilisé son Talent pendant ce tour.');
+        return;
+      }
+
+      const hasToolOnOwnPokemon = Object.values(board).some(
+        (pokemon) => pokemon !== null && pokemon.owner === currentPlayer && pokemon.attachedTool
+      );
+
+      if (!hasToolOnOwnPokemon) {
+        setMessage(`Aucun de tes Pokémon ne porte de carte Outil : ${talent.name} est inutile.`);
+        return;
+      }
+
+      setPendingTalentToolReturn({
+        player: currentPlayer,
+        sourceCell: selectedPokemonCell,
+        turnId,
+      });
+
+      setMessage(
+        `${talent.name} : choisis l'un de tes Pokémon qui porte un Outil pour le remettre dans ta main. Clic sur une case vide pour annuler.`
+      );
+      return;
+    }
+
+    // -----------------------------------------
+    // TALENT : SOIGNER X DÉGÂTS À L'UN DE SES POKÉMON
+    // (une seule fois pendant votre tour, avant ou après l'attaque)
+    // -----------------------------------------
+    if (talent?.type === 'activated' && talent.effect === 'healOwnPokemonOncePerTurn') {
+      if (selectedPokemon.owner !== currentPlayer) {
+        setMessage('Tu ne peux utiliser que tes propres Talents.');
+        return;
+      }
+
+      if (selectedPokemon.lastUsedTalentTurnId === turnId) {
+        setMessage('Ce Pokémon a déjà utilisé son Talent pendant ce tour.');
+        return;
+      }
+
+      const hasDamagedOwnPokemon = Object.values(board).some(
+        (pokemon) =>
+          pokemon !== null &&
+          pokemon.owner === currentPlayer &&
+          !isHealBlocked(pokemon) &&
+          pokemon.currentHp < getPokemonMaxHp(pokemon)
+      );
+
+      if (!hasDamagedOwnPokemon) {
+        setMessage(`Aucun de tes Pokémon n'a de dégâts à soigner : ${talent.name} est inutile.`);
+        return;
+      }
+
+      setPendingTalentHeal({
+        player: currentPlayer,
+        sourceCell: selectedPokemonCell,
+        amount: talent.amount ?? 50,
+        turnId,
+      });
+
+      setMessage(
+        `${talent.name} : choisis l'un de tes Pokémon blessés à soigner de ${talent.amount ?? 50} dégâts. Clic sur une case vide pour annuler.`
       );
       return;
     }

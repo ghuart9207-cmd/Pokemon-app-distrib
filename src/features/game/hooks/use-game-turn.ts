@@ -5,6 +5,7 @@ import {
   resolvePokemonEndOfTurn,
   getPassiveEnergyLimit,
   canAttachEnergyFromSource,
+  isTalentNegated,
 } from '@/features/game/rules';
 import type {
   AttackPath,
@@ -76,17 +77,34 @@ if (options.pendingDragonEnergyChoices.length > 0) {
     const playerReceivingEnergy: Player = options.currentPlayer === 1 ? 2 : 1;
     const newBoard: BoardState = { ...(boardOverride ?? options.board) };
 
-    const poisonDamageTalent = Object.values(newBoard).find(
-  (pokemon) =>
+    const poisonDamageTalent = Object.entries(newBoard).find(
+  ([cell, pokemon]) =>
     pokemon !== null &&
+    !isTalentNegated(pokemon, newBoard, cell) &&
     pokemon.owner === options.currentPlayer &&
     pokemon.card.talent?.type === 'passive' &&
     pokemon.card.talent.effect === 'increaseOpponentPoisonDamage'
 );
 
-const poisonDamageBonus = poisonDamageTalent
-  ? poisonDamageTalent.card.talent?.amount ?? 10
+const poisonDamageBonus = poisonDamageTalent?.[1]
+  ? poisonDamageTalent[1].card.talent?.amount ?? 10
   : 0;
+
+    // Talent : la brûlure des Pokémon adverses inflige X dégâts au lieu de 20
+    // (ex : 6 marqueurs = 60). On garde le plus fort si plusieurs.
+    const opponentBurnDamage = Object.entries(newBoard).reduce((best, [cell, pokemon]) => {
+      if (
+        pokemon === null ||
+        isTalentNegated(pokemon, newBoard, cell) ||
+        pokemon.owner !== options.currentPlayer ||
+        pokemon.card.talent?.type !== 'passive' ||
+        pokemon.card.talent.effect !== 'increaseOpponentBurnDamage'
+      ) {
+        return best;
+      }
+
+      return Math.max(best, pokemon.card.talent.amount ?? 60);
+    }, 20);
 
     const dragonEnergyChoices: PendingDragonEnergyChoice[] = [];
 
@@ -103,7 +121,8 @@ const poisonDamageBonus = poisonDamageTalent
   currentPokemon,
   options.currentPlayer,
   playerReceivingEnergy,
-  poisonDamageBonus
+  poisonDamageBonus,
+  opponentBurnDamage
 );
 
       if (pokemon.currentHp <= 0) {
@@ -145,7 +164,8 @@ options.setPendingDragonEnergyChoices(dragonEnergyChoices);
     const player1TurnStatus = resolvePlayerEndOfTurnStatus(
   options.player1Status,
   options.currentPlayer,
-  options.currentPlayer === 1 ? 0 : poisonDamageBonus
+  options.currentPlayer === 1 ? 0 : poisonDamageBonus,
+  options.currentPlayer === 1 ? 20 : opponentBurnDamage
 );
     options.setPlayer1Status(player1TurnStatus.status);
     if (player1TurnStatus.damage > 0) {
@@ -155,7 +175,8 @@ options.setPendingDragonEnergyChoices(dragonEnergyChoices);
     const player2TurnStatus = resolvePlayerEndOfTurnStatus(
   options.player2Status,
   options.currentPlayer,
-  options.currentPlayer === 2 ? 0 : poisonDamageBonus
+  options.currentPlayer === 2 ? 0 : poisonDamageBonus,
+  options.currentPlayer === 2 ? 20 : opponentBurnDamage
 );
     options.setPlayer2Status(player2TurnStatus.status);
     if (player2TurnStatus.damage > 0) {

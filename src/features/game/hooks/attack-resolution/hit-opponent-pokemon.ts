@@ -1,4 +1,4 @@
-import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, } from '@/features/game/rules';
+import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, doesTalentBurnAttacker, burnAttackingPokemon, getCoinCheckForTarget, doesToolAttackerShieldPreventDamage, } from '@/features/game/rules';
 import type {
   Attack,
   AttackEffect,
@@ -339,7 +339,7 @@ const activeDamageReduction =
   // ou « subit 30 dégâts de moins provenant des attaques ».
   const fireWaterTalentReduction = ignoresTargetDamageReduction
     ? 0
-    : getTalentDamageReduction(target, attacker);
+    : getTalentDamageReduction(target, attacker, board);
 
   // Dégâts finaux
   
@@ -362,7 +362,9 @@ const targetProtectionMessage =
     : doesTemporaryProtectionPreventDamage(target, attacker)
       ? `${target.card.name} évite les dégâts de ${attacker.card.name} grâce à sa protection temporaire.`
       : damagePrevented
-        ? `${target.card.name} ne subit aucun dégât grâce à son Talent ${target.card.talent?.name}.`
+        ? doesToolAttackerShieldPreventDamage(target, attacker, board)
+          ? `${target.card.name} ne subit aucun dégât : un Talent allié protège ses Pokémon Métal des attaquants avec un Outil.`
+          : `${target.card.name} ne subit aucun dégât grâce à son Talent ${target.card.talent?.name}.`
         : `${attacker.card.name} utilise ${attack.name} sur ${target.card.name} : ${damageToTarget} dégâts.`;
 
   const hasDrainEffect =
@@ -388,9 +390,59 @@ const targetProtectionMessage =
     }
   }
 
+  // --------------------------------
+  // ÉCHANGER TOUS LES MARQUEURS DE DÉGÂTS
+  // de l'attaquant avec ceux du Pokémon actif adverse
+  // (après les dégâts de l'attaque ; ce ne sont pas des dégâts d'attaque).
+  // --------------------------------
+  const swapCountersEffect = attackEffectsPrevented
+    ? undefined
+    : resolvedAttack.effects?.find(
+        (effect: AttackEffect) => effect.type === 'swapDamageCountersWithOpponentActive'
+      );
+  const hpAfterAttackDamage = target.currentHp - damageToTarget;
+  let swappedTargetHp: number | null = null;
+  let swapText = '';
+
+  if (swapCountersEffect && hpAfterAttackDamage > 0) {
+    const attackerBeforeSwap = newBoard[selectedPokemonCell] ?? attackerAfterConfusion;
+    const attackerMaxHp = getPokemonMaxHp(attackerBeforeSwap);
+    const targetMaxHp = getPokemonMaxHp(target);
+
+    const attackerDamageTaken = Math.max(0, attackerMaxHp - attackerBeforeSwap.currentHp);
+    const targetDamageTaken = Math.max(0, targetMaxHp - hpAfterAttackDamage);
+
+    newBoard[selectedPokemonCell] = {
+      ...attackerBeforeSwap,
+      currentHp: attackerMaxHp - targetDamageTaken,
+    };
+    swappedTargetHp = targetMaxHp - attackerDamageTaken;
+
+    swapText =
+      ` Échange des marqueurs : ${attacker.card.name} a maintenant ${targetDamageTaken} dégâts` +
+      ` et ${target.card.name} ${attackerDamageTaken} dégâts.`;
+  }
+
   const attackerAfterDrain = newBoard[selectedPokemonCell] ?? attackerAfterConfusion;
 
-  const remainingHp = target.currentHp - damageToTarget;
+  // --------------------------------
+  // « Si le Pokémon actif de votre adversaire est un Pokémon de Base,
+  // il est mis K.O. » (sauf s'il est protégé des effets de l'attaque)
+  // --------------------------------
+  const knockOutBaseEffect = attackEffectsPrevented
+    ? undefined
+    : resolvedAttack.effects?.find(
+        (effect: AttackEffect) => effect.type === 'knockOutIfOpponentActiveIsBase'
+      );
+  const knockedOutByEffect = !!knockOutBaseEffect && target.card.stage === 'base';
+
+  if (knockedOutByEffect) {
+    swapText += ` ${target.card.name} est un Pokémon de Base : il est mis K.O. !`;
+  }
+
+  const remainingHp = knockedOutByEffect
+    ? Math.min(0, swappedTargetHp ?? hpAfterAttackDamage)
+    : (swappedTargetHp ?? hpAfterAttackDamage);
 
   // Contre-coup éventuel de la cible (et des Pokémon de banc touchés).
   let retaliationTotal = getRetaliationDamage(target, attacker, damageToTarget);
@@ -458,7 +510,8 @@ const benchDamagePrevented =
 
       const benchFireWaterReduction = getTalentDamageReduction(
         benchPokemon,
-        attacker
+        attacker,
+        board
       );
 
 
@@ -538,6 +591,14 @@ const newBenchHp = benchHpBeforeAttack - actualBenchDamage;
     };
   }
 
+  // Talent du défenseur actif : l'attaquant est maintenant Brûlé.
+  const burnsAttacker = doesTalentBurnAttacker(target, targetCell, board, attacker, damageToTarget);
+  const attackerToBurn = newBoard[selectedPokemonCell];
+
+  if (burnsAttacker && attackerToBurn) {
+    newBoard[selectedPokemonCell] = burnAttackingPokemon(attackerToBurn);
+  }
+
   const attackerForKO =
     retaliationTotal > 0
       ? newBoard[selectedPokemonCell] ?? {
@@ -547,9 +608,13 @@ const newBenchHp = benchHpBeforeAttack - actualBenchDamage;
       : attackerAfterDrain;
 
   const retaliationText =
-    retaliationTotal > 0
+    swapText +
+    (retaliationTotal > 0
       ? ` Contre-coup : ${attacker.card.name} reçoit ${retaliationTotal / 10} marqueurs de dégâts (${retaliationTotal}).`
-      : '';
+      : '') +
+    (burnsAttacker && attackerToBurn
+      ? ` ${target.card.talent?.name ?? 'Talent'} : ${attacker.card.name} est maintenant Brûlé !`
+      : '');
 
   // K.O.
   if (remainingHp <= 0) {
@@ -712,6 +777,9 @@ applyDiscardBothActiveAttachmentsEffect();
       )
         ? target.owner
         : target.healBlockedEndPlayer,
+
+    // S'il attaque pendant son prochain tour : lancer de pièces avant.
+    attackCoinCheck: getCoinCheckForTarget(attackEffectsPrevented ? undefined : resolvedAttack.effects, target) ?? target.attackCoinCheck,
   };
 
 

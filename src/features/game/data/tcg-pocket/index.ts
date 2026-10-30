@@ -1,6 +1,11 @@
 import type { PokemonCard, TrainerCard } from '@/features/game/types';
 import { bulbizarretcg } from './bulbizarre-tcg';
-import { herbizarre } from './herbizarre-tcg';
+import {  herbizarretcg } from './herbizarre-tcg';
+import { florizarreextcg } from './florizarreex-tcg';
+import { aspicottcg } from './aspicot-tcg';
+import { coconforttcg } from './coconfort-tcg';
+import { dardargnanextcg } from './dardagnanex-tcg';
+import { noeunoeuftcg } from './noeunoeuf-tcg';
 
 
 // =============================================================
@@ -17,7 +22,12 @@ import { herbizarre } from './herbizarre-tcg';
 
 export const POCKET_POKEMON_CARDS: PokemonCard[] = [
 bulbizarretcg,
-herbizarre,
+herbizarretcg,
+florizarreextcg,
+aspicottcg,
+coconforttcg,
+dardargnanextcg,
+noeunoeuftcg,
 ];
 
 export const POCKET_TRAINER_CARDS: TrainerCard[] = [];

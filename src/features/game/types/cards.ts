@@ -16,13 +16,22 @@ export type PokemonTalent = {
     | 'preventAllEffectsFromExGx'
     | 'reduceDamageFromFireWater'
     | 'reduceAllAttackDamage'
+    | 'reduceOpposingColumnAttackDamage'
+    | 'preventDamageToTypeFromToolAttackers'
     | 'invertImposedAttackCoinFlipOncePerTurn'
     | 'freeRetreatOnFirstTurn'
     | 'attachEnergyOncePerTurn'
     | 'moveDamageCounterOncePerTurn'
+    | 'healOwnPokemonOncePerTurn'
+    | 'summonOncePerTurn'
+    | 'returnToolToHandOncePerTurn'
+    | 'switchWithBenchOncePerTurn'
+    | 'burnAttackerWhenDamagedWhileActive'
+    | 'negateOpponentGxExTalents'
     | 'swapWithCardFromHand'
     | 'gatherEnergyOnPlayThenSwitch'
     | 'increaseOpponentPoisonDamage'
+    | 'increaseOpponentBurnDamage'
     | 'useBasicPokemonDiscardAttacks'
     | 'recoverFromDiscardOncePerGame'
     | 'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd';
@@ -46,6 +55,10 @@ targetPokemonType?: EnergyType;
   // Talent « déplacer un marqueur de dégâts » : si vrai, le marqueur
   // doit venir de l'un de VOS Pokémon (texte français de Lugulabre).
   fromOwnPokemonOnly?: boolean;
+
+  // Talent 'summonOncePerTurn' : PV maximum des Pokémon invocables (60 par défaut).
+  // Le type se règle avec `targetPokemonType`, le nombre avec `amount` (1 par défaut).
+  maxHp?: number;
 
   description: string;
 };
@@ -101,6 +114,12 @@ export type AttackEffect = {
     | 'damagePerAllBenchPokemon'
     | 'moveCountersFromOwnToOpponentActive'
     | 'damagePerSelfDamageCounter'
+    | 'bonusDamage'
+    | 'bonusDamageIfOpponentHasTypeInPlay'
+    | 'swapDamageCountersWithOpponentActive'
+    | 'knockOutIfOpponentActiveIsBase'
+    | 'coinCheckBeforeTargetAttackNextTurn'
+    | 'damagePerOpponentActiveEnergy'
     | 'healSelfByDamageDealt'
     | 'forceOpponentActiveSwitch'
     | 'preventAllAttackDamageAndEffectsNextOpponentTurn'
@@ -110,6 +129,7 @@ export type AttackEffect = {
     | 'damageEveryoneIgnoringEffects'
     | 'bonusDamageIfToolAttached'
     | 'bonusDamagePerOpponentActiveSpecialCondition'
+    | 'bonusDamageIfOpponentActiveHasCondition'
     | 'damageAllPokemonWithTalent'
     | 'transferAllEnergiesToBench'
     | 'preventTargetRetreatNextTurn'
@@ -142,6 +162,10 @@ export type AttackEffect = {
   targetAllPokemon?: boolean;
 
   attackName?: string;
+
+  // Effet 'bonusDamageIfOpponentActiveHasCondition' : états spéciaux qui
+  // déclenchent le bonus (ex : ['poison']). Absent : n'importe lequel.
+  conditions?: SpecialCondition[];
 
   blockedStage?: Stage;
   blockedVariant?: CardVariant;

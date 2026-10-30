@@ -1,7 +1,7 @@
 import type { PokemonCard } from '@/features/game/types';
 
-export const herbizarre: PokemonCard = {
-  id: 'herbizarre-001',          // unique dans tout le jeu
+export const herbizarretcg: PokemonCard = {
+  id: 'herbizarretcg-001',          // unique dans tout le jeu
   name: 'Herbizarre',
   stage: 'niveau1',                // 'base' | 'niveau1' | 'niveau2' | 'mega_ex'
   variant: 'normal',            // 'normal' | 'ex' | 'gx'

@@ -1,6 +1,6 @@
 import type { BoardState, EnergyType, Player, SetState } from '@/features/game/types';
 import { getEffectiveRetreatCost } from '@/features/game/rules/retreat-cost-rules';
-import { isRetreatForbiddenThisRound } from '@/features/game/rules';
+import { isRetreatForbiddenThisRound, isTalentNegated } from '@/features/game/rules';
 
 type UseGameRetreatOptions = {
   board: BoardState;
@@ -106,7 +106,8 @@ export function useGameRetreat({
 const retreatCost = getEffectiveRetreatCost(
   pokemon,
   round,
-  turnId
+  turnId,
+  isTalentNegated(pokemon, board)
 );
 
    if (pokemon.energies.length < retreatCost) {

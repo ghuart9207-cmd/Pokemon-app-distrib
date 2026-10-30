@@ -1,6 +1,9 @@
 import {
   getKnockoutConsequences,
   getRetaliationDamage,
+  getAttackerColumnDamageReduction,
+  doesTalentBurnAttacker,
+  burnAttackingPokemon,
   getTalentDamageReduction,
   isAttackDamagePreventedByEffect,
   getTargetTypeBonusDamage,
@@ -50,6 +53,11 @@ export function hitAllOpponents(
   const { boardAfterAttack, amount, attacker, attackName, selectedPokemonCell } = locals;
 
   const baseDamage = Math.max(0, amount);
+  // Dégâts au joueur adverse (talent adverse devant l'attaquant : X dégâts de moins).
+  const playerDamage = Math.max(
+    0,
+    baseDamage - getAttackerColumnDamageReduction(attacker, boardAfterAttack, selectedPokemonCell)
+  );
   const opponent: Player = attacker.owner === 1 ? 2 : 1;
   const nextBoard: BoardState = { ...boardAfterAttack };
 
@@ -57,6 +65,8 @@ export function hitAllOpponents(
   const hitNames: string[] = [];
   const protectedNames: string[] = [];
   let retaliationTotal = 0;
+  let burnsAttacker = false;
+  const boardBefore: BoardState = { ...nextBoard };
 
   for (const [cell, pokemon] of Object.entries(nextBoard)) {
     if (!pokemon || pokemon.owner !== opponent) continue;
@@ -74,7 +84,7 @@ export function hitAllOpponents(
         ? (pokemon.attackDamageReduction ?? 0)
         : 0;
 
-    const fireWaterReduction = getTalentDamageReduction(pokemon, attacker);
+    const fireWaterReduction = getTalentDamageReduction(pokemon, attacker, boardBefore);
 
     const damage = damagePrevented
       ? 0
@@ -92,6 +102,9 @@ export function hitAllOpponents(
     }
 
     retaliationTotal += getRetaliationDamage(pokemon, attacker, damage);
+    if (doesTalentBurnAttacker(pokemon, cell, boardBefore, attacker, damage)) {
+      burnsAttacker = true;
+    }
 
     const hpAfterDamage = pokemon.currentHp - damage;
     hitNames.push(`${pokemon.card.name} (-${damage})`);
@@ -113,7 +126,7 @@ export function hitAllOpponents(
 
   // Le joueur adverse subit les dégâts + les pénalités de ses Pokémon K.O.
   const setOpponentDamage = opponent === 1 ? setPlayer1Damage : setPlayer2Damage;
-  setOpponentDamage((previous) => previous + baseDamage + ko.penalty);
+  setOpponentDamage((previous) => previous + playerDamage + ko.penalty);
 
   if (ko.discardedCards.length > 0) {
     const setOpponentDiscard = opponent === 1 ? setPlayer1Discard : setPlayer2Discard;
@@ -133,6 +146,11 @@ export function hitAllOpponents(
     };
   }
 
+  const attackerToBurn = nextBoard[selectedPokemonCell];
+  if (burnsAttacker && attackerToBurn) {
+    nextBoard[selectedPokemonCell] = burnAttackingPokemon(attackerToBurn);
+  }
+
   const attackerNow = nextBoard[selectedPokemonCell];
   const attackerKO = attackerNow
     ? handleAttackerKO(nextBoard, attackerNow, selectedPokemonCell)
@@ -143,7 +161,7 @@ export function hitAllOpponents(
   setSelectedAttackIndex(null);
 
   setMessage(
-    `${attacker.card.name} utilise ${attackName} : ${baseDamage} dégâts au joueur ${opponent}` +
+    `${attacker.card.name} utilise ${attackName} : ${playerDamage} dégâts au joueur ${opponent}` +
       (hitNames.length > 0 ? ` et à ${hitNames.join(', ')}` : '') +
       '.' +
       (protectedNames.length > 0
@@ -155,6 +173,7 @@ export function hitAllOpponents(
       (retaliationTotal > 0
         ? ` Contre-coup : ${attacker.card.name} reçoit ${retaliationTotal / 10} marqueurs de dégâts (${retaliationTotal}).`
         : '') +
+      (burnsAttacker && attackerToBurn ? ` ${attacker.card.name} est maintenant Brûlé par un Talent !` : '') +
       (attackerKO ? ` ${attacker.card.name} est K.O. !` : '')
   );
 }

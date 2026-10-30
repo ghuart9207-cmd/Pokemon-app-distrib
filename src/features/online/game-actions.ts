@@ -93,6 +93,9 @@ export function createOnlineGame(game: GameApi, send: SendAction): GameApi {
   };
 }
 
+/** Marqueur d'une action « emballée » dans une action 'cell' (compatibilité anciens serveurs). */
+export const TUNNEL_MARKER = '__action';
+
 /**
  * Applique sur CE jeu une action reçue du serveur (qu'elle vienne de moi ou de l'adversaire).
  * `game` doit être le jeu local d'origine, pas la version qui envoie au serveur.
@@ -102,6 +105,13 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
 
   switch (action.name) {
     case 'cell':
+      // Action « emballée » (voir TUNNELED_ACTIONS) : on applique la vraie action.
+      if (first === TUNNEL_MARKER) {
+        return applyAction(
+          { ...action, name: second as ActionName, payload: action.payload.slice(2) },
+          game
+        );
+      }
       return game.handleCellPress(String(first));
     case 'hand':
       return game.handleHandCardPress(findCard(String(first), game), second as Player);

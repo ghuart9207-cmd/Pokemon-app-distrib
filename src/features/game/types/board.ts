@@ -1,5 +1,5 @@
 import type { PokemonCard, TrainerCard } from './cards';
-import type { CoinHistory } from './coins';
+import type { CoinHistory, CoinSide } from './coins';
 import type {CardVariant,EnergyType,Player,Stage,} from './core';
 
 
@@ -103,6 +103,14 @@ export type PokemonInPlay = {
 
   // Ne peut pas être soigné jusqu'à la fin du tour de `healBlockedEndPlayer`.
   healBlockedEndPlayer?: Player | null;
+
+  // Effet 'coinCheckBeforeTargetAttackNextTurn' : pendant le prochain tour de
+  // `endPlayer`, si ce Pokémon attaque, il lance d'abord `coinCount` pièces
+  // (avec SON compteur de pièces) ; un seul `failsOn` et l'attaque ne fait rien.
+  attackCoinCheck?: { coinCount: number; failsOn: CoinSide; endPlayer: Player } | null;
+  // Résultat du lancer de vérification pendant ce tour.
+  attackCoinCheckResultTurnId?: number;
+  attackCoinCheckFailed?: boolean;
 
   preventAllAttackDamageAndEffects?: boolean;
 preventAllAttackDamageAndEffectsEndPlayer?: Player | null;

@@ -5,6 +5,7 @@ import type {
   PokemonCard,
   PokemonInPlay,
 } from '@/features/game/types';
+import { isTalentNegatedAt } from './talent-negation';
 
 export function getPassiveEnergyLimit(card: PokemonCard): number {
   if (card.attacks.length === 0) {
@@ -81,8 +82,12 @@ export function getOpponentPlacementDamage(
   board: BoardState,
   placingPlayer: Player
 ): number {
-  return Object.values(board).reduce((total, pokemon) => {
-    if (!pokemon || pokemon.owner === placingPlayer) {
+  return Object.entries(board).reduce((total, [cell, pokemon]) => {
+    if (
+      !pokemon ||
+      pokemon.owner === placingPlayer ||
+      isTalentNegatedAt(board, cell, pokemon.owner, pokemon.card)
+    ) {
       return total;
     }
 

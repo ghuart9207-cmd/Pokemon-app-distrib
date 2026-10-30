@@ -5,6 +5,7 @@ import {
   getKOPenalty,
   isAllCoinSide,
   isPokemonCard,
+  isTalentNegated,
   resolveCoinFlip,
   saveCoinResult,
 } from '@/features/game/rules';
@@ -175,12 +176,13 @@ export function useGameCoinFlow({
   // Un seul Talent Victorieux par tour, même avec plusieurs Pokémon qui l'ont.
 
   const victoriousPokemon = pendingCoinFlip
-    ? Object.values(board).find(
-        (pokemon) =>
+    ? Object.entries(board).find(
+        ([cell, pokemon]) =>
           pokemon !== null &&
+          !isTalentNegated(pokemon, board, cell) &&
           pokemon.owner === pendingCoinFlip.player &&
           pokemon.card.talent?.effect === 'invertImposedAttackCoinFlipOncePerTurn'
-      ) ?? null
+      )?.[1] ?? null
     : null;
 
   const canUseVictoriousTalent = Boolean(
@@ -449,6 +451,36 @@ export function useGameCoinFlow({
       .join(' / ');
 
     if (
+      pendingAttackAfterCoin?.isCoinCheck &&
+      pendingAttackAfterCoin.cellName === pendingCoinFlip.sourceKey
+    ) {
+      // Lancer de vérification imposé par l'adversaire.
+      const checkedCell = pendingCoinFlip.sourceKey;
+      const checkedPokemon = board[checkedCell];
+      const failsOn = checkedPokemon?.attackCoinCheck?.failsOn ?? 'pile';
+      const failed = finalResult.includes(failsOn);
+
+      setBoard((previousBoard) => {
+        const current = previousBoard[checkedCell];
+        if (!current) return previousBoard;
+
+        return {
+          ...previousBoard,
+          [checkedCell]: {
+            ...current,
+            attackCoinCheckResultTurnId: turnId,
+            attackCoinCheckFailed: failed,
+          },
+        };
+      });
+
+      setPendingAttackAfterCoin(null);
+      setMessage(
+        failed
+          ? `🪙 ${pendingCoinFlip.sourceName} : ${resultText}. Raté : son attaque ne fera rien. Appuie sur Attaquer pour terminer.`
+          : `🪙 ${pendingCoinFlip.sourceName} : ${resultText}. Réussi ! Appuie de nouveau sur Attaquer.`
+      );
+    } else if (
       pendingAttackAfterCoin &&
       pendingAttackAfterCoin.cellName === pendingCoinFlip.sourceKey
     ) {

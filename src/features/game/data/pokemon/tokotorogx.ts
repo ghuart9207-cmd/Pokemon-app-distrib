@@ -24,12 +24,7 @@ export const tokotorogx: PokemonCard = {
       energyCost: 3,
 requiredEnergies: { plante: 2,
       },
-     effects: [
-  {
-    type: 'discardAllEnergyForBonus',
-    amount: 60,
-  },
-],
+     effects: [  { type: 'discardEnergy', amount: 99, optional: true },  { type: 'bonusDamage', amount: 60 },],
 effectText:
   'Vous pouvez défausser toutes les Énergies attachées à ce Pokémon. Dans ce cas, cette attaque inflige 60 dégâts supplémentaires.',
     },

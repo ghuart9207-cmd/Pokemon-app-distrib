@@ -8,6 +8,7 @@ import {
   formatSpecialConditions,
   getOnPlayConditions,
   getPlayerApplicableConditions,
+  isTalentNegatedAt,
 } from '@/features/game/rules';
 import type { EnergyType, PokemonInPlay } from '@/features/game/types';
 import type { CellPressContext } from './cell-press-context';
@@ -103,6 +104,11 @@ const energyLabel = isFreeReplacement
 
 
   
+// Talent annulé si un Pokémon adverse de la même colonne annule les Talents des GX/EX.
+const onPlayCard = isTalentNegatedAt(board, cellName, currentPlayer, selectedCard)
+  ? { ...selectedCard, talent: undefined }
+  : selectedCard;
+
 const pokemonToPlace: PokemonInPlay = {
   ...createPokemonInPlay({
     card: selectedCard,
@@ -112,14 +118,14 @@ const pokemonToPlace: PokemonInPlay = {
 
   // Protection temporaire accordée à la pose.
   preventAllAttackDamageAndEffects:
-    selectedCard.talent?.type === 'passive' &&
-    selectedCard.talent.effect ===
+    onPlayCard.talent?.type === 'passive' &&
+    onPlayCard.talent.effect ===
       'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd',
 
   // La protection expire à la fin du prochain tour adverse.
   preventAllAttackDamageAndEffectsEndPlayer:
-    selectedCard.talent?.type === 'passive' &&
-    selectedCard.talent.effect ===
+    onPlayCard.talent?.type === 'passive' &&
+    onPlayCard.talent.effect ===
       'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd'
       ? (currentPlayer === 1 ? 2 : 1)
       : null,
@@ -162,7 +168,7 @@ const pokemonToPlace: PokemonInPlay = {
   } else {
     // Talent : états spéciaux (Paralysé, Empoisonné, Brûlé…)
     // infligés au Pokémon adverse en face lors de la pose.
-    const onPlayConditions = getOnPlayConditions(selectedCard);
+    const onPlayConditions = getOnPlayConditions(onPlayCard);
     const paralysisOnPlay = onPlayConditions.length > 0;
 
     
@@ -264,7 +270,7 @@ if (
 
   // Talent : à la pose depuis la main, rassembler des Énergies
   // de ses autres Pokémon sur celui-ci (puis l'échanger sur sa ligne).
-  const gatherTalent = selectedCard.talent;
+  const gatherTalent = onPlayCard.talent;
   const gatherEnergyType =
     gatherTalent?.type === 'passive' &&
     gatherTalent.effect === 'gatherEnergyOnPlayThenSwitch'
@@ -331,7 +337,7 @@ if (
     ).find((cell) => board[cell] && board[cell]?.owner !== currentPlayer);
 
     const target = oppositeCell ? board[oppositeCell] : null;
-    const onPlayConditions = getOnPlayConditions(selectedCard);
+    const onPlayConditions = getOnPlayConditions(onPlayCard);
 
     const conditionsTriggered = onPlayConditions.length > 0 && !!target;
     const playerConditions = getPlayerApplicableConditions(onPlayConditions);

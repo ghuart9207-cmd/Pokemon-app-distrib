@@ -20,7 +20,9 @@ export type AvailablePokemonAttack = {
  */
 export function getAvailablePokemonAttacks(
   pokemon: PokemonInPlay,
-  ownDiscard: GameCard[]
+  ownDiscard: GameCard[],
+  // Talent annulé (Pokémon adverse de la même colonne) : pas d'attaques copiées.
+  talentNegated = false
 ): AvailablePokemonAttack[] {
   const normalAttacks: AvailablePokemonAttack[] =
     pokemon.card.attacks.map((attack) => ({
@@ -29,6 +31,7 @@ export function getAvailablePokemonAttacks(
     }));
 
   if (
+    talentNegated ||
     pokemon.card.talent?.effect !==
     'useBasicPokemonDiscardAttacks'
   ) {

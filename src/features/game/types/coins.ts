@@ -17,6 +17,8 @@ export type CoinAttackReference = {
   cellName: string;
   attackIndex: number;
   coinResult?: CoinSide[];
+  // Lancer de vérification imposé par l'adversaire (avant l'attaque).
+  isCoinCheck?: boolean;
 };
 
 export type CoinCondition = 'any' | 'all' | 'exact';

@@ -3,6 +3,10 @@ import {
   getKOPenalty,
   getPokemonMaxHp,
   getRetaliationDamage,
+  getCoinCheckForTarget,
+  doesToolAttackerShieldPreventDamage,
+  doesTalentBurnAttacker,
+  burnAttackingPokemon,
   isAttackDamagePreventedByEffect,
   getTargetTypeBonusDamage,
 } from '@/features/game/rules';
@@ -107,13 +111,14 @@ const pendingAttacker =
 const protectedFromDamage =
   pendingAttacker != null &&
   (doesTemporaryProtectionPreventDamage(target, pendingAttacker) ||
-    isAttackDamagePreventedByEffect(target, pendingAttacker));
+    isAttackDamagePreventedByEffect(target, pendingAttacker) ||
+    doesToolAttackerShieldPreventDamage(target, pendingAttacker, board));
 
 // Talent d'Azumarill :
   // réduit de 30 les dégâts des attaques
   // provenant d'un Pokémon Feu ou Eau.
   // (et Talent « subit 30 dégâts de moins provenant des attaques »)
-  const fireWaterReduction = getTalentDamageReduction(target, pendingAttacker);
+  const fireWaterReduction = getTalentDamageReduction(target, pendingAttacker, board);
 
 const pendingDamage = protectedFromDamage
   ? 0
@@ -135,15 +140,26 @@ const pendingDamage = protectedFromDamage
   const retaliation = getRetaliationDamage(target, pendingAttacker, pendingDamage);
 
   /** Applique le contre-coup sur la copie du plateau et renvoie le texte à afficher. */
+  const burnsAttacker = doesTalentBurnAttacker(target, cellName, board, pendingAttacker, pendingDamage);
+
   const applyRetaliation = (boardDraft: BoardState): string => {
-    if (retaliation <= 0) return '';
+    if (retaliation <= 0 && !burnsAttacker) return '';
 
     const attackerCell = pendingOpponentTarget.attackerCell;
-    const attackerNow = boardDraft[attackerCell];
-    if (!attackerNow) return '';
+    const attackerBefore = boardDraft[attackerCell];
+    if (!attackerBefore) return '';
+
+    // Talent du défenseur actif : l'attaquant est maintenant Brûlé.
+    const attackerNow = burnsAttacker ? burnAttackingPokemon(attackerBefore) : attackerBefore;
+    const burnText = burnsAttacker
+      ? ` ${target.card.talent?.name ?? 'Talent'} : ${attackerNow.card.name} est maintenant Brûlé !`
+      : '';
+    boardDraft[attackerCell] = attackerNow;
+
+    if (retaliation <= 0) return burnText;
 
     const hpAfter = attackerNow.currentHp - retaliation;
-    const text = ` Contre-coup : ${attackerNow.card.name} reçoit ${retaliation / 10} marqueurs de dégâts (${retaliation}).`;
+    const text = `${burnText} Contre-coup : ${attackerNow.card.name} reçoit ${retaliation / 10} marqueurs de dégâts (${retaliation}).`;
 
     if (hpAfter > 0) {
       boardDraft[attackerCell] = { ...attackerNow, currentHp: hpAfter };
@@ -291,6 +307,12 @@ healBlockedEndPlayer:
   )
     ? target.owner
     : target.healBlockedEndPlayer,
+
+// S'il attaque pendant son prochain tour : lancer de pièces avant.
+attackCoinCheck:
+  (target.preventAllAttackDamageAndEffects !== true
+    ? getCoinCheckForTarget(pendingOpponentTarget.effects, target)
+    : null) ?? target.attackCoinCheck,
     },
     pendingOpponentTarget.effects,
     target.preventAllAttackDamageAndEffects === true

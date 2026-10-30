@@ -10,7 +10,9 @@ import type {
 export function getEffectiveRetreatCost(
   pokemon: PokemonInPlay,
   round: number,
-  turnId?: number
+  turnId?: number,
+  // Talent annulé (Pokémon adverse de la même colonne).
+  talentNegated = false
 ): number {
   // Effet d'attaque : pas de coût de retraite pendant le prochain tour.
   if (turnId !== undefined && pokemon.freeRetreatTurnId === turnId) {
@@ -24,6 +26,7 @@ export function getEffectiveRetreatCost(
 
   // Talent : retraite gratuite au premier tour
   if (
+    !talentNegated &&
     talent?.type === 'passive' &&
     talent.effect === 'freeRetreatOnFirstTurn' &&
     round === 1

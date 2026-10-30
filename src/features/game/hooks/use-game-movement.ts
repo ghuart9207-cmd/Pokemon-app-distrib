@@ -1,4 +1,4 @@
-import { createAttackPaths } from '@/features/game/rules';
+import { createAttackPaths, isTalentNegated } from '@/features/game/rules';
 import type {
   AttackPath,
   BoardState,
@@ -30,7 +30,8 @@ export function useGameMovement({
         !talentPokemon ||
         talentPokemon.owner === attacker.owner ||
         talentPokemon.card.talent?.type !== 'passive' ||
-        talentPokemon.card.talent.effect !== 'blockBaseAttacks'
+        talentPokemon.card.talent.effect !== 'blockBaseAttacks' ||
+        isTalentNegated(talentPokemon, board, talentCell)
       ) {
         continue;
       }

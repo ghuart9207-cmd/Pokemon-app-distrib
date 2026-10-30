@@ -7,8 +7,10 @@ import { sharedStyles } from '@/features/game/styles/shared-styles';
 type OptionalDiscardPromptProps = {
   pokemonName: string;
   attackName: string;
-  energyType: EnergyType;
+  // Absent : n'importe quel type d'Énergie.
+  energyType?: EnergyType;
   amount: number;
+  discardAll?: boolean;
   effectText?: string;
   onChoose: (accept: boolean) => void;
 };
@@ -19,13 +21,16 @@ export function OptionalDiscardPrompt({
   attackName,
   energyType,
   amount,
+  discardAll,
   effectText,
   onChoose,
 }: OptionalDiscardPromptProps) {
   return (
     <View style={sharedStyles.actionBox}>
       <Text style={sharedStyles.actionTitle}>
-        {getTypeIcon(energyType)} Défausser {amount} Énergie(s) {energyType} ?
+        {discardAll
+          ? `${energyType ? `${getTypeIcon(energyType)} ` : ''}Défausser toutes les Énergies${energyType ? ` ${energyType}` : ''} (${amount}) ?`
+          : `${energyType ? `${getTypeIcon(energyType)} ` : ''}Défausser ${amount} Énergie(s)${energyType ? ` ${energyType}` : ''} ?`}
       </Text>
 
       <Text style={sharedStyles.actionInfo}>

@@ -26,7 +26,22 @@ export function handlePokemonSwitch(
     return true;
   }
 
+  // Échange par Talent : le tour a changé, on annule.
+  if (
+    pendingPokemonSwitch.fromTalentTurnId !== undefined &&
+    pendingPokemonSwitch.fromTalentTurnId !== turnId
+  ) {
+    setPendingPokemonSwitch(null);
+    return false;
+  }
+
   if (!targetPokemon) {
+    if (pendingPokemonSwitch.fromTalentTurnId !== undefined) {
+      setPendingPokemonSwitch(null);
+      setMessage("Échange annulé. Tu pourras utiliser le Talent plus tard pendant ce tour.");
+      return true;
+    }
+
     setMessage('Choisis un de tes Pokémon de banc.');
     return true;
   }
@@ -77,6 +92,11 @@ export function handlePokemonSwitch(
       ...currentAttacker,
 
       lastSwitchedTurnId: turnId,
+
+      // Talent « une fois par tour » : marqué comme utilisé.
+      ...(pendingPokemonSwitch.fromTalentTurnId !== undefined
+        ? { lastUsedTalentTurnId: turnId }
+        : {}),
     };
 
     return newBoard;

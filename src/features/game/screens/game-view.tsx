@@ -4,6 +4,7 @@ import { useSetupLayout } from '@/features/game/hooks/use-setup-layout';
 import {
   describeAttackInvocationRule,
   getSummonChoiceEffect,
+  getSummonChoiceCount,
   isValidAttackInvocation,
 } from '@/features/game/rules';
 import { CardSetupScreen } from './card-setup-screen';
@@ -27,7 +28,7 @@ export function GameView({ game, localPlayer }: GameViewProps) {
   if (game.invocationSetupPlayer) {
     const setupPlayer = game.invocationSetupPlayer;
 
-    // Invocation d'un Pokémon qui invoque (ex : Plumeline) : 1 Pokémon à choisir.
+    // Invocation d'un Pokémon qui invoque (ex : Plumeline) : `amount` Pokémon à choisir.
     const summoner =
       game.invocationSetupKind === 'summonChoice' ? game.invocationSetupSummoner : null;
     const attackRule = summoner ? getSummonChoiceEffect(summoner) : null;
@@ -43,7 +44,7 @@ export function GameView({ game, localPlayer }: GameViewProps) {
               ? game.player1InvocationCards
               : game.player2InvocationCards
         }
-        requiredCount={attackRule ? 1 : 2}
+        requiredCount={attackRule ? getSummonChoiceCount(attackRule) : 2}
         ruleText={
           attackRule && summoner
             ? `${describeAttackInvocationRule(attackRule)} que ${summoner.name} invoquera`

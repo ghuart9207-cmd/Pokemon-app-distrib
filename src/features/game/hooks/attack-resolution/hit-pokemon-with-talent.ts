@@ -1,4 +1,5 @@
 
+import { isTalentNegated } from '@/features/game/rules';
 import type { BoardState, PokemonInPlay } from '@/features/game/types';
 import type { AttackResolutionContext } from './attack-resolution-context';
 
@@ -26,6 +27,11 @@ export function hitPokemonWithTalent(
   for (const [cell, pokemon] of Object.entries(nextBoard)) {
     // Ignorer les cases vides et les Pokémon sans Talent.
     if (!pokemon || !pokemon.card.talent) {
+      continue;
+    }
+
+    // Pokémon-GX/EX dont le Talent est annulé (même colonne) : il n'a pas de Talent.
+    if (isTalentNegated(pokemon, boardAfterAttack, cell)) {
       continue;
     }
 

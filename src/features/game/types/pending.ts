@@ -146,6 +146,10 @@ export type PendingInvocationPlacement = {
 export type PendingPokemonSwitch = {
   player: Player;
   attackerCell: string;
+
+  // Échange lancé par un Talent (« une seule fois pendant votre tour ») :
+  // clic sur une case vide = annuler, et le Talent est marqué utilisé après l'échange.
+  fromTalentTurnId?: number;
 };
 
 
@@ -173,6 +177,23 @@ export type PendingAttackSummonPlacement = {
   // Pour les messages.
   attackerName: string;
   attackName: string;
+};
+
+/** Talent « placez un Outil attaché à l'un de vos Pokémon dans votre main » en cours. */
+export type PendingTalentToolReturn = {
+  player: Player;
+  // Case du Pokémon qui possède le Talent.
+  sourceCell: string;
+  turnId: number;
+};
+
+/** Talent « soignez X dégâts à l'un de vos Pokémon » en cours. */
+export type PendingTalentHeal = {
+  player: Player;
+  // Case du Pokémon qui possède le Talent.
+  sourceCell: string;
+  amount: number;
+  turnId: number;
 };
 
 /** Talent « déplacer un marqueur de dégâts » (Lugulabre) en cours. */

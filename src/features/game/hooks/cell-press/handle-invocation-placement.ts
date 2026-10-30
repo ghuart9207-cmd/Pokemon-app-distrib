@@ -2,6 +2,7 @@ import {
   createPokemonInPlay,
   getKOPenalty,
   getOpponentPlacementDamage,
+  isTalentNegatedAt,
 } from '@/features/game/rules';
 import type { PokemonInPlay } from '@/features/game/types';
 import type { CellPressContext } from './cell-press-context';
@@ -57,6 +58,11 @@ export function handleInvocationPlacement(
   const card = cards[selectedIndex];
 
   
+// Talent annulé si un Pokémon adverse de la même colonne annule les Talents des GX/EX.
+const onPlayCard = isTalentNegatedAt(board, cellName, player, card)
+  ? { ...card, talent: undefined }
+  : card;
+
 const invocation: PokemonInPlay = {
   ...createPokemonInPlay({
     // IMPORTANT : aucune Énergie à l'invocation.
@@ -68,14 +74,14 @@ const invocation: PokemonInPlay = {
 
   // Protection temporaire accordée à la pose.
   preventAllAttackDamageAndEffects:
-    card.talent?.type === 'passive' &&
-    card.talent.effect ===
+    onPlayCard.talent?.type === 'passive' &&
+    onPlayCard.talent.effect ===
       'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd',
 
   // La protection expire à la fin du prochain tour adverse.
   preventAllAttackDamageAndEffectsEndPlayer:
-    card.talent?.type === 'passive' &&
-    card.talent.effect ===
+    onPlayCard.talent?.type === 'passive' &&
+    onPlayCard.talent.effect ===
       'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd'
       ? (player === 1 ? 2 : 1)
       : null,

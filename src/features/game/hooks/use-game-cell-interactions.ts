@@ -8,6 +8,8 @@ import { handleEmptyCell } from './cell-press/handle-empty-cell';
 import { handleGeneratedBenchEnergy } from './cell-press/handle-generated-bench-energy';
 import { handleTalentEnergyAttachment } from './cell-press/handle-talent-energy-attachment';
 import { handleDamageCounterMove } from './cell-press/handle-damage-counter-move';
+import { handleTalentHeal } from './cell-press/handle-talent-heal';
+import { handleTalentToolReturn } from './cell-press/handle-talent-tool-return';
 import { handleDiscardSummonPlacement } from './cell-press/handle-discard-summon-placement';
 import { handleOwnBenchDamage } from './cell-press/handle-own-bench-damage';
 import { handleEnergyGather } from './cell-press/handle-energy-gather';
@@ -33,6 +35,8 @@ const CELL_PRESS_HANDLERS = [
   handleInvocationPlacement,
   handleTalentEnergyAttachment,
   handleDamageCounterMove,
+  handleTalentHeal,
+  handleTalentToolReturn,
   handleDiscardSummonPlacement,
   handleOwnBenchDamage,
   handleEnergyGather,
