@@ -6,7 +6,9 @@ export function resolvePokemonEndOfTurn(
   pokemon: PokemonInPlay,
   currentPlayer: Player,
   playerReceivingEnergy: Player,
-  poisonDamageBonus = 0
+  poisonDamageBonus = 0,
+  // Dégâts de brûlure sur les Pokémon ADVERSES (talent : 60 au lieu de 20).
+  opponentBurnDamage = 20
 ): PokemonInPlay {
   let updatedPokemon = pokemon;
 
@@ -54,7 +56,9 @@ const canReceivePassiveEnergy =
     const remaining = updatedPokemon.burnTriggersRemaining - 1;
     updatedPokemon = {
       ...updatedPokemon,
-      currentHp: updatedPokemon.currentHp - 20,
+      currentHp:
+        updatedPokemon.currentHp -
+        (updatedPokemon.owner !== currentPlayer ? opponentBurnDamage : 20),
       burnTriggersRemaining: remaining,
       burned: remaining > 0,
       burnSourcePlayer: remaining === 0 ? null : updatedPokemon.burnSourcePlayer,
@@ -108,6 +112,15 @@ const canReceivePassiveEnergy =
       : { ...updatedPokemon, extraDamageNextTurnReady: true };
   }
 
+  // Le contre-coup expire à la fin du tour adverse.
+  if (updatedPokemon.retaliationEndPlayer === currentPlayer) {
+    updatedPokemon = {
+      ...updatedPokemon,
+      retaliationDamage: 0,
+      retaliationEndPlayer: null,
+    };
+  }
+
   if (updatedPokemon.attackDamageReductionEndPlayer === currentPlayer) {
     updatedPokemon = {
       ...updatedPokemon,
@@ -131,6 +144,25 @@ const canReceivePassiveEnergy =
 
     preventAllAttackDamageAndEffectsEndPlayer:
       null,
+  };
+}
+
+// Fin de l'interdiction de soin.
+if (updatedPokemon.healBlockedEndPlayer === currentPlayer) {
+  updatedPokemon = { ...updatedPokemon, healBlockedEndPlayer: null };
+}
+
+// Fin du lancer de pièces imposé avant d'attaquer.
+if (updatedPokemon.attackCoinCheck && updatedPokemon.attackCoinCheck.endPlayer === currentPlayer) {
+  updatedPokemon = { ...updatedPokemon, attackCoinCheck: null };
+}
+
+// Fin de la protection contre les dégâts des attaques.
+if (updatedPokemon.preventAttackDamage && updatedPokemon.preventAttackDamageEndPlayer === currentPlayer) {
+  updatedPokemon = {
+    ...updatedPokemon,
+    preventAttackDamage: false,
+    preventAttackDamageEndPlayer: null,
   };
 }
 
@@ -174,7 +206,8 @@ if (
 export function resolvePlayerEndOfTurnStatus(
   status: PlayerStatusState,
   currentPlayer: Player,
-  poisonDamageBonus = 0
+  poisonDamageBonus = 0,
+  burnDamage = 20
 ): { status: PlayerStatusState; damage: number } {
   let nextStatus = status;
   let damage = 0;
@@ -188,7 +221,7 @@ export function resolvePlayerEndOfTurnStatus(
     status.burnSourcePlayer === currentPlayer &&
     status.burnTriggersRemaining > 0
   ) {
-    damage += 20;
+    damage += burnDamage;
     const remaining = status.burnTriggersRemaining - 1;
     nextStatus = {
       ...status,

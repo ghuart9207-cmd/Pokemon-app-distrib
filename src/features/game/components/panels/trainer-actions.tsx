@@ -80,7 +80,7 @@ export function TrainerActions({
           </Pressable>
         )}
 
-      {card.coinCount && !coinFlipPending && (
+      {card.coinCount && !coinFlipPending && owner === currentPlayer && (
         <Button
           title={`🪙 Lancer ${card.coinCount} pièce${card.coinCount > 1 ? 's' : ''}`}
           onPress={() => onStartCoinFlip(card, currentPlayer, card.coinCount!)}

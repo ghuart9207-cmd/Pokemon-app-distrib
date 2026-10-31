@@ -1,4 +1,8 @@
-import { getKOPenalty } from '@/features/game/rules';
+import {
+  doesToolAttackerShieldPreventDamage,
+  getKOPenalty,
+  isTalentNegated,
+} from '@/features/game/rules';
 import type {
   Attack,
   BoardState,
@@ -13,6 +17,7 @@ import type {
 } from '@/features/game/types';
 
 type UseGameCombatSupportOptions = {
+  board: BoardState;
   setMessage: SetState<string>;
   setBoard: SetState<BoardState>;
   setPendingKOEnergyMove: SetState<PendingKOEnergyMove | null>;
@@ -32,6 +37,7 @@ type UseGameCombatSupportOptions = {
 const KO_ENERGY_MOVE_AMOUNT = 2;
 
 export function useGameCombatSupport({
+  board,
   setMessage,
   setBoard,
   setPendingKOEnergyMove,
@@ -97,7 +103,10 @@ export function useGameCombatSupport({
       return false;
     }
 
-    if (attacker.card.talent?.effect === 'surviveKOOnCoin') {
+    if (
+      attacker.card.talent?.effect === 'surviveKOOnCoin' &&
+      !isTalentNegated(attacker, newBoard, attackerCell)
+    ) {
       newBoard[attackerCell] = { ...attacker, currentHp: 0 };
       setPendingKOSurvival({ cellName: attackerCell, player: attacker.owner });
       startPokemonCoinFlip(attackerCell, 1);
@@ -180,7 +189,10 @@ export function useGameCombatSupport({
     cellName: string,
     newBoard: BoardState
   ): boolean {
-    if (pokemon.card.talent?.effect !== 'surviveKOOnCoin') {
+    if (
+      pokemon.card.talent?.effect !== 'surviveKOOnCoin' ||
+      isTalentNegated(pokemon, newBoard, cellName)
+    ) {
       return false;
     }
 
@@ -200,6 +212,7 @@ export function useGameCombatSupport({
   ): boolean {
     return (
       target.card.talent?.effect === 'preventAllEffectsFromExGx' &&
+      !isTalentNegated(target, board) &&
       attacker.owner !== target.owner &&
       (attacker.card.variant === 'gx' || attacker.card.variant === 'ex')
     );
@@ -213,9 +226,15 @@ export function useGameCombatSupport({
       return true;
     }
 
+    // Talent d'un allié : les Pokémon Métal évitent les dégâts des attaquants avec un Outil.
+    if (doesToolAttackerShieldPreventDamage(target, attacker, board)) {
+      return true;
+    }
+
     const talent = target.card.talent;
     return !!(
       talent &&
+      !isTalentNegated(target, board) &&
       talent.type === 'passive' &&
       talent.effect === 'preventDamageFromType' &&
       talent.blockedType === attacker.card.type

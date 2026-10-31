@@ -157,6 +157,12 @@ export const sharedStyles = StyleSheet.create({
     backgroundColor: '#D8D8D8',
   },
 
+  // Symbole ✨ des Invocations, entre le niveau et les PV.
+  miniCardInvocationBadge: {
+    fontSize: 9,
+    marginRight: 4,
+  },
+
   miniCardStageBadge: {
     color: '#222222',
     fontSize: 6,

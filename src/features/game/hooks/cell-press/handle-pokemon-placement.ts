@@ -3,6 +3,12 @@ import {
   getKOPenalty,
   getOpponentPlacementDamage,
   getPassiveEnergyLimit,
+  applySpecialConditions,
+  applySpecialConditionsToPlayer,
+  formatSpecialConditions,
+  getOnPlayConditions,
+  getPlayerApplicableConditions,
+  isTalentNegatedAt,
 } from '@/features/game/rules';
 import type { EnergyType, PokemonInPlay } from '@/features/game/types';
 import type { CellPressContext } from './cell-press-context';
@@ -35,6 +41,10 @@ export function handlePokemonPlacement(
     setPlayer2Hand,
     setSelectedCard,
     setPendingDragonEnergyChoices,
+    setPlayer1Status,
+    setPlayer2Status,
+    turnId,
+    setPendingEnergyGather,
   } = context;
 
   const pokemon = board[cellName];
@@ -94,6 +104,11 @@ const energyLabel = isFreeReplacement
 
 
   
+// Talent annulé si un Pokémon adverse de la même colonne annule les Talents des GX/EX.
+const onPlayCard = isTalentNegatedAt(board, cellName, currentPlayer, selectedCard)
+  ? { ...selectedCard, talent: undefined }
+  : selectedCard;
+
 const pokemonToPlace: PokemonInPlay = {
   ...createPokemonInPlay({
     card: selectedCard,
@@ -103,14 +118,14 @@ const pokemonToPlace: PokemonInPlay = {
 
   // Protection temporaire accordée à la pose.
   preventAllAttackDamageAndEffects:
-    selectedCard.talent?.type === 'passive' &&
-    selectedCard.talent.effect ===
+    onPlayCard.talent?.type === 'passive' &&
+    onPlayCard.talent.effect ===
       'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd',
 
   // La protection expire à la fin du prochain tour adverse.
   preventAllAttackDamageAndEffectsEndPlayer:
-    selectedCard.talent?.type === 'passive' &&
-    selectedCard.talent.effect ===
+    onPlayCard.talent?.type === 'passive' &&
+    onPlayCard.talent.effect ===
       'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd'
       ? (currentPlayer === 1 ? 2 : 1)
       : null,
@@ -151,12 +166,10 @@ const pokemonToPlace: PokemonInPlay = {
     }
   
   } else {
-    // Talent : paralyse le Pokémon adverse en face
-    // lors de la pose sur le plateau.
-    const paralysisOnPlay =
-      selectedCard.talent?.type === 'passive' &&
-      selectedCard.talent.effect ===
-        'paralyzeOpponentOnPlay';
+    // Talent : états spéciaux (Paralysé, Empoisonné, Brûlé…)
+    // infligés au Pokémon adverse en face lors de la pose.
+    const onPlayConditions = getOnPlayConditions(onPlayCard);
+    const paralysisOnPlay = onPlayConditions.length > 0;
 
     
 
@@ -189,6 +202,19 @@ const canParalyze =
   target !== undefined &&
   target.owner !== currentPlayer;
 
+    // Aucun Pokémon adverse en face : le JOUEUR adverse subit les états
+    // (seulement Empoisonné et Brûlé, comme une attaque directe).
+    const playerConditions = getPlayerApplicableConditions(onPlayConditions);
+
+    if (!target && playerConditions.length > 0) {
+      const opponent = currentPlayer === 1 ? 2 : 1;
+      const setOpponentStatus = opponent === 1 ? setPlayer1Status : setPlayer2Status;
+
+      setOpponentStatus((status) =>
+        applySpecialConditionsToPlayer(status, playerConditions, currentPlayer)
+      );
+    }
+
 
     setBoard((previousBoard) => {
       const updatedBoard = {
@@ -206,11 +232,11 @@ const canParalyze =
   target &&
   target.owner !== currentPlayer
 ) {
-        updatedBoard[oppositeCell] = {
-          ...target,
-          paralyzed: true,
-          paralysisTurnsRemaining: 1,
-        };
+        updatedBoard[oppositeCell] = applySpecialConditions(
+          target,
+          onPlayConditions,
+          currentPlayer
+        );
       }
 
       return updatedBoard;
@@ -242,6 +268,39 @@ if (
     setPlayer2Hand((hand) => hand.filter((card) => card.id !== selectedCard.id));
   }
 
+  // Talent : à la pose depuis la main, rassembler des Énergies
+  // de ses autres Pokémon sur celui-ci (puis l'échanger sur sa ligne).
+  const gatherTalent = onPlayCard.talent;
+  const gatherEnergyType =
+    gatherTalent?.type === 'passive' &&
+    gatherTalent.effect === 'gatherEnergyOnPlayThenSwitch'
+      ? (gatherTalent.energyType ?? 'electrique')
+      : null;
+
+  const hasEnergyToGather =
+    gatherEnergyType !== null &&
+    Object.entries(board).some(
+      ([cell, pokemon]) =>
+        cell !== cellName &&
+        pokemon !== null &&
+        pokemon.owner === currentPlayer &&
+        pokemon.energies.includes(gatherEnergyType)
+    );
+
+  const startEnergyGather =
+    !knockedOutOnPlacement && gatherTalent && gatherEnergyType && hasEnergyToGather;
+
+  if (startEnergyGather) {
+    setPendingEnergyGather({
+      player: currentPlayer,
+      targetCell: cellName,
+      energyType: gatherEnergyType,
+      moved: 0,
+      talentName: gatherTalent.name,
+      turnId,
+    });
+  }
+
   if (isFreeReplacement) {
     // On consomme la repose gratuite,
     // sans utiliser la pose normale du tour.
@@ -271,26 +330,34 @@ if (
     );
   
   } else {
-    const oppositeCell =
-      `${currentPlayer === 1 ? 'C' : 'B'}${cellName.slice(1)}`;
+    // Même cible que l'effet du Talent : Pokémon adverse en face (rangée de jeu, sinon arrière).
+    const column = cellName.slice(1);
+    const oppositeCell = (
+      currentPlayer === 1 ? [`C${column}`, `D${column}`] : [`B${column}`, `A${column}`]
+    ).find((cell) => board[cell] && board[cell]?.owner !== currentPlayer);
 
-    const target = board[oppositeCell];
+    const target = oppositeCell ? board[oppositeCell] : null;
+    const onPlayConditions = getOnPlayConditions(onPlayCard);
 
-    const paralysisTriggered =
-      selectedCard.talent?.type === 'passive' &&
-      selectedCard.talent.effect ===
-        'paralyzeOpponentOnPlay' &&
-      target !== null &&
-      target !== undefined &&
-      target.owner !== currentPlayer;
+    const conditionsTriggered = onPlayConditions.length > 0 && !!target;
+    const playerConditions = getPlayerApplicableConditions(onPlayConditions);
+    const opponent = currentPlayer === 1 ? 2 : 1;
 
     setMessage(
-      paralysisTriggered
-        ? `${selectedCard.name} est posé en ${cellName}. Son Talent paralyse ${target!.card.name} en ${oppositeCell} !`
-        : `${selectedCard.name} est posé en ${cellName} ${energyLabel}.`
+      conditionsTriggered && target && oppositeCell
+        ? `${selectedCard.name} est posé en ${cellName} ${energyLabel}. Son Talent rend ${target.card.name} (${oppositeCell}) ${formatSpecialConditions(onPlayConditions)} !`
+        : !target && playerConditions.length > 0
+          ? `${selectedCard.name} est posé en ${cellName} ${energyLabel}. Aucun Pokémon en face : son Talent rend le joueur ${opponent} ${formatSpecialConditions(playerConditions)} !`
+          : `${selectedCard.name} est posé en ${cellName} ${energyLabel}.`
     );
   }
 
+
+  if (startEnergyGather) {
+    setMessage(
+      `${selectedCard.name} est posé en ${cellName}. Talent ${gatherTalent.name} : clique sur tes autres Pokémon pour déplacer leurs Énergies ${gatherEnergyType} vers lui, puis « Terminer ».`
+    );
+  }
 
   setSelectedCard(null);
   return true;

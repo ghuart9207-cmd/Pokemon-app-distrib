@@ -1,3 +1,4 @@
+import type { SummonChoices } from '@/features/game/rules';
 import type {
   Attack,
   BoardState,
@@ -15,6 +16,11 @@ import type {
   SetState,
   PendingEnergyTransferToBench,
   PendingAttackSummonPlacement,
+  PendingInvocationPlacement,
+  PendingDiscardSummon,
+  PendingOwnBenchDamage,
+  PendingCountersToActive,
+  PokemonCard,
 } from '@/features/game/types';
 
 export type AttackResolutionContext = {
@@ -22,6 +28,8 @@ export type AttackResolutionContext = {
   currentPlayer: Player;
   player1Status: PlayerStatusState;
   player2Status: PlayerStatusState;
+  player1Hand: GameCard[];
+  player2Hand: GameCard[];
   player1Discard: GameCard[];
 player2Discard: GameCard[];
   player1DiscardEnergies: EnergyType[];
@@ -38,6 +46,12 @@ player2Discard: GameCard[];
   setPendingOpponentActiveSwitch: SetState<PendingOpponentActiveSwitch | null>;
   setPendingEnergyTransferToBench: SetState<PendingEnergyTransferToBench | null>;
   setPendingAttackSummonPlacement: SetState<PendingAttackSummonPlacement | null>;
+  setPendingInvocationPlacement: SetState<PendingInvocationPlacement | null>;
+  setPendingDiscardSummon: SetState<PendingDiscardSummon | null>;
+  setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
+  setPendingCountersToActive: SetState<PendingCountersToActive | null>;
+  player1SummonChoices: SummonChoices;
+  player2SummonChoices: SummonChoices;
   setPendingOpponentTarget: SetState<PendingOpponentTarget | null>;
   setPendingPokemonSwitch: SetState<PendingPokemonSwitch | null>;
   setPendingSleepResolution: SetState<PendingSleepResolution | null>;

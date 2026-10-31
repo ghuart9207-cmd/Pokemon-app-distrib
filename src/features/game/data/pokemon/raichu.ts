@@ -14,11 +14,11 @@ export const raichu: PokemonCard = {
   talent: {
     name: 'Choc Evolutif',
     type: 'passive',
-    effect: 'paralyzeOpponentOnPlay',
-    description:
-      "Lorsque vous posez ce Pokémon sur le plateau, le Pokémon actif de votre adversaire est maintenant Paralysé.",
+    effect: 'applyConditionsToOpponentOnPlay',
+  conditions: ['poison', 'burn'],
+  description:
+    "Lorsque vous posez ce Pokémon sur le plateau, le Pokémon actif de votre adversaire est maintenant Paralysé.",
   },
-
   attacks: [
     
     {

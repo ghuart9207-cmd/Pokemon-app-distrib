@@ -1,5 +1,6 @@
 import {
   canPlacePokemon,
+  getFirstPlayableRound,
   getPokemonPlacementKey,
   isPokemonCard,
 } from '@/features/game/rules';
@@ -30,6 +31,8 @@ type UseGameSelectionOptions = {
     cellName: string;
   } | null>;
   setTrainerEffectActivated: SetState<boolean>;
+  setInspectedPokemonCell: SetState<string | null>;
+  setInspectedHandCard: SetState<{ card: PokemonCard; owner: Player } | null>;
 };
 
 export function useGameSelection({
@@ -48,6 +51,8 @@ export function useGameSelection({
   setSelectedAttackIndex,
   setSelectedAttachedTool,
   setTrainerEffectActivated,
+  setInspectedPokemonCell,
+  setInspectedHandCard,
 }: UseGameSelectionOptions) {
   function selectCard(card: PokemonCard, owner: Player) {
     if (gameOver) {
@@ -80,20 +85,18 @@ export function useGameSelection({
       return;
     }
 
-    if (!canPlacePokemon(card, round)) {
-      if (card.stage === 'niveau1') {
-        setMessage(
-          `${card.name} est un Pokémon Niveau 1. Il peut être posé à partir de la manche 2.`
-        );
-      } else if (card.stage === 'mega_ex') {
-        setMessage(
-          `${card.name} est un Méga Pokémon-ex. Il peut être posé à partir de la manche 2.`
-        );
-      } else if (card.stage === 'niveau2') {
-        setMessage(
-          `${card.name} est un Pokémon Niveau 2. Il peut être posé à partir de la manche 3.`
-        );
-      }
+    if (!canPlacePokemon(card, round, owner)) {
+      const firstRound = getFirstPlayableRound(card, owner);
+      const stageLabel =
+        card.stage === 'niveau1'
+          ? 'un Pokémon Niveau 1'
+          : card.stage === 'mega_ex'
+            ? 'un Méga Pokémon-ex'
+            : 'un Pokémon Niveau 2';
+
+      setMessage(
+        `${card.name} est ${stageLabel}. Le joueur ${owner} peut le poser à partir de la manche ${firstRound}.`
+      );
       return;
     }
 
@@ -113,24 +116,32 @@ export function useGameSelection({
       return;
     }
 
+    // Carte de la main adverse : consultation seulement (pas d'utilisation).
     if (owner !== currentPlayer) {
-      if (!isPokemonCard(card) && card.effect === 'summonTwoBase60') {
-        setSelectedCard(null);
-        setSelectedPokemonCell(null);
-        setSelectedAttackIndex(null);
-        setSelectedAttachedTool(null);
+      setSelectedCard(null);
+      setSelectedPokemonCell(null);
+      setSelectedAttackIndex(null);
+      setSelectedAttachedTool(null);
+      setInspectedPokemonCell(null);
+      setTrainerEffectActivated(false);
+
+      if (isPokemonCard(card)) {
+        setSelectedTrainerCard(null);
+        setSelectedTrainerOwner(null);
+        setInspectedHandCard({ card, owner });
+      } else {
+        setInspectedHandCard(null);
         setSelectedTrainerCard(card);
         setSelectedTrainerOwner(owner);
-        setTrainerEffectActivated(false);
-        setMessage(
-          `Invocation Duo du joueur ${owner}. Tu peux consulter ses Invocations, mais pas activer la carte.`
-        );
-        return;
       }
 
-      setMessage(`C'est au joueur ${currentPlayer} de jouer.`);
+      setMessage(`${card.name} : carte du joueur ${owner}, consultation seulement.`);
       return;
     }
+
+    // Carte de sa propre main : fin de la consultation éventuelle.
+    setInspectedPokemonCell(null);
+    setInspectedHandCard(null);
 
     if (
       !isPokemonCard(card) &&

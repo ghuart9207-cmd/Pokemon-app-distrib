@@ -2,6 +2,7 @@ import {
   createPokemonInPlay,
   getKOPenalty,
   getOpponentPlacementDamage,
+  isTalentNegatedAt,
 } from '@/features/game/rules';
 import type { PokemonInPlay } from '@/features/game/types';
 import type { CellPressContext } from './cell-press-context';
@@ -57,6 +58,11 @@ export function handleInvocationPlacement(
   const card = cards[selectedIndex];
 
   
+// Talent annulé si un Pokémon adverse de la même colonne annule les Talents des GX/EX.
+const onPlayCard = isTalentNegatedAt(board, cellName, player, card)
+  ? { ...card, talent: undefined }
+  : card;
+
 const invocation: PokemonInPlay = {
   ...createPokemonInPlay({
     // IMPORTANT : aucune Énergie à l'invocation.
@@ -68,14 +74,14 @@ const invocation: PokemonInPlay = {
 
   // Protection temporaire accordée à la pose.
   preventAllAttackDamageAndEffects:
-    card.talent?.type === 'passive' &&
-    card.talent.effect ===
+    onPlayCard.talent?.type === 'passive' &&
+    onPlayCard.talent.effect ===
       'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd',
 
   // La protection expire à la fin du prochain tour adverse.
   preventAllAttackDamageAndEffectsEndPlayer:
-    card.talent?.type === 'passive' &&
-    card.talent.effect ===
+    onPlayCard.talent?.type === 'passive' &&
+    onPlayCard.talent.effect ===
       'preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd'
       ? (player === 1 ? 2 : 1)
       : null,
@@ -132,6 +138,37 @@ const invocation: PokemonInPlay = {
   // cartes peuvent avoir le
   // même id.
   const remainingCards = cards.filter((_, index) => index !== selectedIndex);
+
+  // -----------------------------------------
+  // INVOCATION PAR UNE ATTAQUE (réserve)
+  // -----------------------------------------
+  if (pendingInvocationPlacement.source === 'attack') {
+    const remainingToPlace = (pendingInvocationPlacement.remainingToPlace ?? 1) - 1;
+    const freeCellsLeft = [1, 2, 3, 4]
+      .map((column) => `${allowedRow}${column}`)
+      .filter((cell) => board[cell] === null && (cell !== cellName || knockedOutOnPlacement));
+
+    const placedText = knockedOutOnPlacement
+      ? `${card.name} est invoqué en ${cellName}, subit ${placementDamage} dégâts et est K.O. !`
+      : placementDamage > 0
+        ? `${card.name} est invoqué en ${cellName} avec 0 Énergie et subit ${placementDamage} dégâts.`
+        : `${card.name} est invoqué en ${cellName} avec 0 Énergie.`;
+
+    if (remainingToPlace > 0 && remainingCards.length > 0 && freeCellsLeft.length > 0) {
+      setPendingInvocationPlacement({
+        ...pendingInvocationPlacement,
+        cards: remainingCards,
+        selectedIndex: null,
+        remainingToPlace,
+      });
+      setMessage(`${placedText} Choisis maintenant la deuxième Invocation.`);
+      return true;
+    }
+
+    setPendingInvocationPlacement(null);
+    setMessage(placedText);
+    return true;
+  }
 
   if (remainingCards.length === 0) {
     setPendingInvocationPlacement(null);

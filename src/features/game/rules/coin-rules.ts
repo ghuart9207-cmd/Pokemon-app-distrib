@@ -7,6 +7,7 @@ import type {
   CoinFlipResolution,
   CoinHistory,
   CoinSide,
+  PokemonInPlay,
 } from '@/features/game/types';
 
 function oppositeCoinSide(side: CoinSide): CoinSide {
@@ -232,4 +233,60 @@ export function isAllCoinSide(
   side: CoinSide
 ): boolean {
   return !!result && result.length > 0 && result.every((coin) => coin === side);
+}
+
+/**
+ * Nombre de pièces à lancer pour une attaque :
+ * `coinCountPerAttachedEnergy` (une pièce par Énergie de ce type attachée)
+ * ou `coinCount` (nombre fixe).
+ */
+/** Pièces de vérification à lancer avant d'attaquer (effet adverse), ou null. */
+export function getPendingAttackCoinCheck(
+  pokemon: PokemonInPlay,
+  turnId: number
+): { coinCount: number; failsOn: CoinSide } | null {
+  const check = pokemon.attackCoinCheck;
+
+  if (!check || check.endPlayer !== pokemon.owner || pokemon.attackCoinCheckResultTurnId === turnId) {
+    return null;
+  }
+
+  return { coinCount: check.coinCount, failsOn: check.failsOn };
+}
+
+/** Le lancer de vérification de ce tour a-t-il fait rater l'attaque ? */
+export function hasFailedAttackCoinCheck(pokemon: PokemonInPlay, turnId: number): boolean {
+  return pokemon.attackCoinCheckResultTurnId === turnId && pokemon.attackCoinCheckFailed === true;
+}
+
+export function getAttackCoinCount(attack: Attack, pokemon: PokemonInPlay): number {
+  if (attack.coinCountPerAttachedEnergy) {
+    return pokemon.energies.filter(
+      (energy) => energy === attack.coinCountPerAttachedEnergy
+    ).length;
+  }
+
+  return attack.coinCount ?? 0;
+}
+
+/**
+ * Effet d'attaque 'coinCheckBeforeTargetAttackNextTurn' : le Pokémon ciblé devra,
+ * s'il attaque pendant son prochain tour, lancer `amount` pièces (2 par défaut) ;
+ * s'il obtient au moins un `failsOn` (PILE par défaut), son attaque ne fait rien.
+ */
+export function getCoinCheckForTarget(
+  effects: AttackEffect[] | undefined,
+  target: PokemonInPlay
+): { coinCount: number; failsOn: CoinSide; endPlayer: PokemonInPlay['owner'] } | null {
+  const effect = effects?.find(
+    (candidate) => candidate.type === 'coinCheckBeforeTargetAttackNextTurn'
+  );
+
+  if (!effect) return null;
+
+  return {
+    coinCount: effect.amount > 0 ? effect.amount : 2,
+    failsOn: 'pile',
+    endPlayer: target.owner,
+  };
 }

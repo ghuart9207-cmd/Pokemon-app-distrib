@@ -15,10 +15,15 @@ export function InvocationPlacementPrompt({
 }: InvocationPlacementPromptProps) {
   return (
     <View style={sharedStyles.actionBox}>
-      <Text style={sharedStyles.actionTitle}>✨ Invocation Duo</Text>
+      <Text style={sharedStyles.actionTitle}>✨ {pending.title ?? 'Invocation Duo'}</Text>
       <Text style={sharedStyles.actionInfo}>
         Choisis une Invocation, puis clique sur une case vide de ta ligne.
       </Text>
+      {pending.source === 'attack' && pending.remainingToPlace !== undefined && (
+        <Text style={sharedStyles.actionInfo}>
+          Encore {pending.remainingToPlace} à poser.
+        </Text>
+      )}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {pending.cards.map((card, index) => (
           <Pressable

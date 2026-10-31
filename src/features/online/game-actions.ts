@@ -1,4 +1,4 @@
-import { ALL_POKEMON_CARDS, ALL_TRAINER_CARDS } from '@/features/game/data';
+import { ALL_SERIES_POKEMON_CARDS, ALL_SERIES_TRAINER_CARDS } from '@/features/game/data';
 import type { GameApi } from '@/features/game/hooks/use-game';
 import type {
   CoinSide,
@@ -12,7 +12,7 @@ import type { ActionName, OnlineAction, Seat } from './protocol';
 
 type SendAction = (name: ActionName, payload: unknown[]) => void;
 
-const CATALOG: GameCard[] = [...ALL_POKEMON_CARDS, ...ALL_TRAINER_CARDS];
+const CATALOG: GameCard[] = [...ALL_SERIES_POKEMON_CARDS, ...ALL_SERIES_TRAINER_CARDS];
 
 /**
  * Retrouve une carte à partir de son identifiant.
@@ -63,6 +63,22 @@ export function createOnlineGame(game: GameApi, send: SendAction): GameApi {
       send('trainerCoin', [card.id, player, count]),
     chooseCoinSide: (index: number, side: CoinSide) => send('coinSide', [index, side]),
     validatePendingCoinFlip: () => send('validateCoin', []),
+    activateVictoriousTalent: () => send('victorious', []),
+    handleActivateTalent: () => send('talent', []),
+    resolveOptionalDiscardChoice: (accept: boolean) => send('optionalDiscard', [accept]),
+    // Panneaux de choix des attaques (OUI / NON, cible sur son banc)
+    resolveDiscardAllEnergyChoice: (discard: boolean) =>
+      send('discardAllChoice', [discard]),
+    resolveOptionalBonusDamageChoice: (useBonus: boolean) =>
+      send('optionalBonusChoice', [useBonus]),
+    resolveOptionalOwnBenchDamageTarget: (cellName: string) =>
+      send('ownBenchTarget', [cellName]),
+    resolveOptionalAttackEffectChoice: (accepted: boolean) =>
+      send('optionalEffectChoice', [accepted]),
+    selectDiscardSummonCard: (fromPlayer: Player, discardIndex: number) =>
+      send('discardSummonSelect', [fromPlayer, discardIndex]),
+    finishEnergyGather: () => send('energyGatherDone', []),
+    forfeitGame: (player: Player) => send('forfeit', [player]),
 
     // Nouvelle partie
     restartGame: () => send('restart', []),
@@ -77,6 +93,9 @@ export function createOnlineGame(game: GameApi, send: SendAction): GameApi {
   };
 }
 
+/** Marqueur d'une action « emballée » dans une action 'cell' (compatibilité anciens serveurs). */
+export const TUNNEL_MARKER = '__action';
+
 /**
  * Applique sur CE jeu une action reçue du serveur (qu'elle vienne de moi ou de l'adversaire).
  * `game` doit être le jeu local d'origine, pas la version qui envoie au serveur.
@@ -86,6 +105,13 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
 
   switch (action.name) {
     case 'cell':
+      // Action « emballée » (voir TUNNELED_ACTIONS) : on applique la vraie action.
+      if (first === TUNNEL_MARKER) {
+        return applyAction(
+          { ...action, name: second as ActionName, payload: action.payload.slice(2) },
+          game
+        );
+      }
       return game.handleCellPress(String(first));
     case 'hand':
       return game.handleHandCardPress(findCard(String(first), game), second as Player);
@@ -127,6 +153,27 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
       return game.chooseCoinSide(Number(first), second as CoinSide);
     case 'validateCoin':
       return game.validatePendingCoinFlip();
+    case 'victorious':
+      return game.activateVictoriousTalent();
+    case 'talent':
+      return game.handleActivateTalent();
+    case 'optionalDiscard':
+      return game.resolveOptionalDiscardChoice(first === true);
+    case 'discardAllChoice':
+      return game.resolveDiscardAllEnergyChoice(first === true);
+    case 'optionalBonusChoice':
+      return game.resolveOptionalBonusDamageChoice(first === true);
+    case 'ownBenchTarget':
+      return game.resolveOptionalOwnBenchDamageTarget(String(first));
+    case 'optionalEffectChoice':
+      return game.resolveOptionalAttackEffectChoice(first === true);
+    case 'discardSummonSelect':
+      return game.selectDiscardSummonCard(first as Player, Number(second));
+    case 'energyGatherDone':
+      return game.finishEnergyGather();
+    case 'forfeit':
+      // Seul le joueur lui-même peut abandonner : on utilise le siège de l'envoyeur.
+      return game.forfeitGame(action.from);
 
     case 'restart':
       return game.restartGame();
@@ -181,6 +228,9 @@ export function getActiveSeats(game: GameApi): Seat[] {
 
 /** Gagnant d'une partie terminée : celui qui a subi le moins de dégâts (0 = égalité). */
 export function getWinner(game: GameApi): 0 | 1 | 2 {
+  // Abandon : l'autre joueur gagne.
+  if (game.forfeitedPlayer) return game.forfeitedPlayer === 1 ? 2 : 1;
+
   if (game.player1Damage < game.player2Damage) return 1;
   if (game.player2Damage < game.player1Damage) return 2;
   return 0;

@@ -67,9 +67,20 @@ export function PokemonBoardCard({ pokemon, onToolPress }: PokemonBoardCardProps
 
       <View style={[sharedStyles.miniCardHeader, { backgroundColor: colors.header }]}>
         <View style={sharedStyles.miniCardHeaderLeft}>
-          <Text style={sharedStyles.miniCardStageBadge}>
-            {getStageName(pokemon.card.stage)}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={sharedStyles.miniCardStageBadge}>
+              {getStageName(pokemon.card.stage)}
+            </Text>
+            {/* Petit symbole pour repérer les Invocations */}
+            {pokemon.isInvocation && (
+              <Text
+                style={sharedStyles.miniCardInvocationBadge}
+                accessibilityLabel="Invocation"
+              >
+                ✨
+              </Text>
+            )}
+          </View>
           <View style={sharedStyles.miniCardNameRow}>
             <Text style={sharedStyles.miniCardName} numberOfLines={1}>
               {pokemon.card.variant === 'gx'

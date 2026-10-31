@@ -4,7 +4,7 @@ export const darkraigx: PokemonCard = {
   id: 'darkraigx-001',
   name: 'Darkrai GX',
   stage: 'base',
-  variant: 'normal',
+  variant: 'gx',
   type: 'obscurite',
   maxHp: 180,
   retreatCost: 2,
@@ -19,7 +19,7 @@ export const darkraigx: PokemonCard = {
   attacks: [
     
     {
-      name: '¨énombre Pourfendue',
+      name: 'Pénombre Pourfendue',
       damage: 130,
       energyCost: 3,
 

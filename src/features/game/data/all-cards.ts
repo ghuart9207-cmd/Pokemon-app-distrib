@@ -1,5 +1,5 @@
 import type { PokemonCard, TrainerCard } from '@/features/game/types';
-import { anchwatt, araqua, azumarill, bacabouh, bombydou, bourrinos, brutapode, bruyvernegx, bulbizarretcg, chrysacier, coatox, coxy, crabagarre, crabominable, darkraigx, diancie, dimoret, elekable,  farfuret,  feuillajou, flamajou, flotajou, flotoutan, gardevoirgx, goupixdalola, grotadmorvdalolagx, hoothoot, hypotrempe, karaclee, kirlia, lamperoie, lampignon, leviator, lougaroc, lougaroc2, lougarocgx, lucario, marill, marshadowgx, miaouss, mistigrix, mystherbe, nounourson, ohmassacre, porygon, psytigri, qulbutoke, rattatacdalola, rattatadalola, rhinocorne, rhinoferos, riolu, scobolide, seleroc, sepiatop, sepiatroce, seviper, skelenox, sonistrelle, sovkipou, spododo, tadmorvdalola, tarenbulle, tarsal, teraclope, tiboudet, togedemaru, tokotorogx, trepassable, venipatte, zygarde } from './pokemon';
+import { anchwatt, araqua, azumarill, bacabouh, bombydou, bourrinos, brutapode, bruyvernegx, chrysacier, coatox, coxy, crabagarre, crabominable, darkraigx, diancie, dimoret, elekable, farfuret, feuillajou, flamajou, flotajou, flotoutan, gardevoirgx, goupixdalola, grotadmorvdalolagx, hoothoot, hypocean, hypotrempe, karaclee, kirlia, lamperoie, lampignon, leviator, lougaroc, lougaroc2, lougarocgx, lucario, marill, marshadowgx, miaouss, mistigrix, mystherbe, nounourson, ohmassacre, porygon, psytigri, qulbutoke, rattatacdalola, rattatadalola, rhinocorne, rhinoferos, riolu, scobolide, seleroc, sepiatop, sepiatroce, seviper, skelenox, sonistrelle, sovkipou, spododo, tadmorvdalola, tarenbulle, tarsal, teraclope, tiboudet, togedemaru, tokotorogx, trepassable, venipatte, zygarde } from './pokemon';
 import { bouldeneu } from './pokemon/bouldeneu';
 import { boumata } from './pokemon/boumata';
 import { chenipan } from './pokemon/chenipan';
@@ -7,6 +7,7 @@ import { coxyclaque } from './pokemon/coxyclaque';
 import { cradopaud } from './pokemon/cradopaud';
 import { denticrisse } from './pokemon/denticrisse';
 import { dracaufeuGx } from './pokemon/dracaufeu-gx';
+import { elektek } from './pokemon/elektek';
 import { feuiloutan } from './pokemon/feuiloutan';
 import { feunardalola } from './pokemon/feunardalola';
 import { flamoutan } from './pokemon/flamoutan';
@@ -22,10 +23,13 @@ import { ortide } from './pokemon/ortide';
 import { papilusion } from './pokemon/papilusion';
 import { persian } from './pokemon/persian';
 import { pikachu } from './pokemon/pikachu';
+import { porygonz } from './pokemon/porygonz';
+import { quartermac } from './pokemon/quartermac';
 import { rafflesia } from './pokemon/rafflesia';
 import { raichu } from './pokemon/raichu';
 import { reptincel } from './pokemon/reptincel';
 import { salameche } from './pokemon/salameche';
+import { saquedeneu } from './pokemon/saquedeneu';
 import { sarmurai } from './pokemon/sarmurai';
 import { scarhino } from './pokemon/scarhino';
 import { tokopiscoGx } from './pokemon/tokopisco-gx';
@@ -39,10 +43,6 @@ import { nephie } from './trainers/nephie';
 import { potion } from './trainers/potion';
 import { relais } from './trainers/relais';
 import { superRappel } from './trainers/super-rappel';
-import { elektek } from './pokemon/elektek';
-import { saquedeneu } from './pokemon/saquedeneu';
-import { quartermac } from './pokemon/quartermac';
-import { porygonz } from './pokemon/porygonz';
 
 
 // Pour ajouter une carte : crée son fichier dans `pokemon/` ou `trainers/`,
@@ -78,6 +78,7 @@ export const ALL_POKEMON_CARDS: PokemonCard[] = [
   goupixdalola,
   feunardalola,
   hypotrempe,
+  hypocean,
   hyporoi,
   magicarpe,
   leviator,
@@ -152,7 +153,7 @@ export const ALL_POKEMON_CARDS: PokemonCard[] = [
   frison,
   sonistrelle,
   nounourson,
-  bulbizarretcg,
+  
 ];
 
 export const ALL_TRAINER_CARDS: TrainerCard[] = [

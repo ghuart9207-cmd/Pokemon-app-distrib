@@ -21,10 +21,15 @@ export const papilusion: PokemonCard = {
       },
 
       effects: [
+        // Soigne tous les dégâts de chacun de vos Pokémon.
         {
-          type: 'healAllOwnAndReturnSelf',
+          type: 'healAllOwnPokemon',
           amount: 0,
-          // Reposé comme pose normale du tour, avec ses 2 Énergies.
+        },
+        // Retourne dans la main (reposé comme pose normale du tour, avec ses 2 Énergies).
+        {
+          type: 'returnSelfToHand',
+          amount: 0,
           returnToHandReplacement: 'normal',
         },
       ],

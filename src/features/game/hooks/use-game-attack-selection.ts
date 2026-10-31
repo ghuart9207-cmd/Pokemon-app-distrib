@@ -1,4 +1,10 @@
-import { getPokemonMaxHp } from '@/features/game/rules';
+import {
+  getAttackCoinCount,
+  getPendingAttackCoinCheck,
+  getPokemonMaxHp,
+  hasFailedAttackCoinCheck,
+  isTalentNegated,
+} from '@/features/game/rules';
 import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
 import type {
   BoardState,
@@ -99,7 +105,8 @@ if (pokemon.blockedAllAttacksTurnId === turnId) {
 
 const attack = getAvailablePokemonAttacks(
   pokemon,
-  discardForAttackList
+  discardForAttackList,
+  isTalentNegated(pokemon, board)
 )[selectedAttackIndex]?.attack;
     if (attack?.targetMode === 'damagedOpponentOrPlayer') {
       const opponent: Player = pokemon.owner === 1 ? 2 : 1;
@@ -131,6 +138,34 @@ const attack = getAvailablePokemonAttacks(
       return;
     }
 
+    // -----------------------------------------
+    // LANCER DE PIÈCES IMPOSÉ PAR L'ADVERSAIRE AVANT D'ATTAQUER
+    // (ses propres pièces : son compteur personnel s'applique)
+    // -----------------------------------------
+    const coinCheck = getPendingAttackCoinCheck(pokemon, turnId);
+
+    if (coinCheck) {
+      setReadyCoinAttack(null);
+      setPendingAttackAfterCoin({
+        cellName: selectedPokemonCell,
+        attackIndex: selectedAttackIndex,
+        isCoinCheck: true,
+      });
+      startPokemonCoinFlip(selectedPokemonCell, coinCheck.coinCount);
+      setMessage(
+        `${pokemon.card.name} doit lancer ${coinCheck.coinCount} pièces avant d'attaquer : au moins un ${coinCheck.failsOn === 'pile' ? 'PILE' : 'FACE'} et son attaque ne fait rien.`
+      );
+      return;
+    }
+
+    // Lancer de vérification raté : l'attaque ne fait rien (sans lancer ses pièces).
+    if (hasFailedAttackCoinCheck(pokemon, turnId)) {
+      setReadyCoinAttack(null);
+      setPendingAttackAfterCoin(null);
+      attackSelectedPokemon();
+      return;
+    }
+
     if (
       readyCoinAttack &&
       readyCoinAttack.cellName === selectedPokemonCell &&
@@ -142,12 +177,15 @@ const attack = getAvailablePokemonAttacks(
       return;
     }
 
-    if (attack.coinCount && attack.coinCount > 0) {
+    // Nombre de pièces : fixe, ou une par Énergie d'un type attachée.
+    const coinCount = getAttackCoinCount(attack, pokemon);
+
+    if (coinCount > 0) {
       setPendingAttackAfterCoin({
         cellName: selectedPokemonCell,
         attackIndex: selectedAttackIndex,
       });
-      startPokemonCoinFlip(selectedPokemonCell, attack.coinCount);
+      startPokemonCoinFlip(selectedPokemonCell, coinCount);
       return;
     }
 

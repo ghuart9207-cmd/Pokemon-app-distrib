@@ -114,6 +114,9 @@ export type PendingCoinFlip = {
   player: Player;
   coinCount: number;
   resolution: CoinFlipResolution;
+
+  // Vrai si le Talent Victorieux a déjà été utilisé sur ce lancer.
+  victoriousUsed?: boolean;
 };
 
 export type PendingSleepResolution = {
@@ -129,12 +132,24 @@ export type PendingInvocationPlacement = {
 
   selectedIndex: number | null;
 
-  supporter: TrainerCard;
+  // Fan Club Pokémon (Supporter) ou attaque à réserve d'Invocations.
+  supporter?: TrainerCard;
+  source?: 'supporter' | 'attack';
+
+  // Attaque : nombre d'Invocations qu'il reste à poser (les autres restent en réserve).
+  remainingToPlace?: number;
+
+  // Titre du panneau (ex : nom de l'attaque).
+  title?: string;
 };
 
 export type PendingPokemonSwitch = {
   player: Player;
   attackerCell: string;
+
+  // Échange lancé par un Talent (« une seule fois pendant votre tour ») :
+  // clic sur une case vide = annuler, et le Talent est marqué utilisé après l'échange.
+  fromTalentTurnId?: number;
 };
 
 
@@ -162,6 +177,83 @@ export type PendingAttackSummonPlacement = {
   // Pour les messages.
   attackerName: string;
   attackName: string;
+};
+
+/** Talent « placez un Outil attaché à l'un de vos Pokémon dans votre main » en cours. */
+export type PendingTalentToolReturn = {
+  player: Player;
+  // Case du Pokémon qui possède le Talent.
+  sourceCell: string;
+  turnId: number;
+};
+
+/** Talent « soignez X dégâts à l'un de vos Pokémon » en cours. */
+export type PendingTalentHeal = {
+  player: Player;
+  // Case du Pokémon qui possède le Talent.
+  sourceCell: string;
+  amount: number;
+  turnId: number;
+};
+
+/** Talent « déplacer un marqueur de dégâts » (Lugulabre) en cours. */
+export type PendingDamageCounterMove = {
+  player: Player;
+  // Case du Pokémon qui possède le Talent.
+  sourceCell: string;
+  // Case du Pokémon qui donne le marqueur (null tant qu'il n'est pas choisi).
+  fromCell: string | null;
+  // Dégâts déplacés (1 marqueur = 10).
+  amount: number;
+  // Si vrai, le marqueur doit venir de l'un des Pokémon du joueur.
+  fromOwnPokemonOnly: boolean;
+  turnId: number;
+};
+
+/** Invocation d'un Pokémon depuis une défausse (la sienne ou celle de l'adversaire). */
+export type PendingDiscardSummon = {
+  // Joueur qui a attaqué (c'est lui qui choisit).
+  player: Player;
+  attackName: string;
+  // Règle de l'effet (type, PV maximum).
+  pokemonType?: EnergyType;
+  maxHp?: number;
+  // Pokémon choisi dans une défausse (null tant qu'il n'est pas choisi).
+  selected: { fromPlayer: Player; discardIndex: number; cardId: string } | null;
+  turnId: number;
+};
+
+/** Effet « infligez X dégâts à l'un de vos Pokémon de banc » en attente du choix. */
+export type PendingOwnBenchDamage = {
+  player: Player;
+  attackerCell: string;
+  amount: number;
+  attackName: string;
+  turnId: number;
+};
+
+/** Talent à la pose : rassembler des Énergies sur ce Pokémon, puis l'échanger. */
+export type PendingEnergyGather = {
+  player: Player;
+  // Case du Pokémon qui vient d'être posé (il reçoit les Énergies).
+  targetCell: string;
+  energyType: EnergyType;
+  moved: number;
+  talentName: string;
+  turnId: number;
+};
+
+/** Déplacer des marqueurs de ses Pokémon vers le Pokémon actif adverse. */
+export type PendingCountersToActive = {
+  player: Player;
+  // Case du Pokémon actif adverse (null = pas de Pokémon en face : le joueur adverse).
+  targetCell: string | null;
+  // Dégâts déplacés par Pokémon choisi (4 marqueurs = 40).
+  perPokemon: number;
+  remainingPicks: number;
+  usedCells: string[];
+  attackName: string;
+  turnId: number;
 };
 
 export type PendingDiscardTalentPlacement = {

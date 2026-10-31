@@ -1,11 +1,13 @@
 import type { BoardState, EnergyType, Player, SetState } from '@/features/game/types';
 import { getEffectiveRetreatCost } from '@/features/game/rules/retreat-cost-rules';
+import { isRetreatForbiddenThisRound, isTalentNegated } from '@/features/game/rules';
 
 type UseGameRetreatOptions = {
   board: BoardState;
   currentPlayer: Player;
   selectedPokemonCell: string | null;
   round: number;
+  turnId: number;
   setMessage: SetState<string>;
   setBoard: SetState<BoardState>;
   setSelectedPokemonCell: SetState<string | null>;
@@ -17,6 +19,7 @@ export function useGameRetreat({
   board,
   currentPlayer,
   round,
+  turnId,
   selectedPokemonCell,
   setMessage,
   setBoard,
@@ -41,6 +44,12 @@ export function useGameRetreat({
 
     if (pokemon.owner !== currentPlayer) {
       setMessage("Ce Pokémon ne t'appartient pas.");
+      return;
+    }
+
+    // Règle : le joueur 1 ne peut pas battre en retraite pendant la manche 2.
+    if (isRetreatForbiddenThisRound(currentPlayer, round)) {
+      setMessage('Le joueur 1 ne peut faire battre en retraite aucun Pokémon pendant la manche 2.');
       return;
     }
 
@@ -96,7 +105,9 @@ export function useGameRetreat({
 // Calcul du coût de retraite avec les Talents.
 const retreatCost = getEffectiveRetreatCost(
   pokemon,
-  round
+  round,
+  turnId,
+  isTalentNegated(pokemon, board)
 );
 
    if (pokemon.energies.length < retreatCost) {

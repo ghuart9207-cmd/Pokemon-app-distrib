@@ -6,10 +6,19 @@ import type {
   GameCard,
   Player,
   AttackEffect,
+  PlayerAttackBonus,
   PokemonInPlay,
 } from '@/features/game/types';
-import { getPokemonMaxHp } from './board-rules';
+import { getPokemonMaxHp, isPokemonCard } from './board-rules';
+import {
+  getAllBenchBonusDamage,
+  getSelfDamageCounterBonusDamage,
+  getFlatBonusDamage,
+  getOpponentTypeInPlayBonusDamage,
+  getTargetTypeBonusDamage,
+} from './retaliation-rules';
 import { calculateCoinDamage } from './coin-rules';
+import { getAttackerColumnDamageReduction } from './talent-damage-reduction';
 
 
 export function getAttachedEnergyBonusDamage(
@@ -69,12 +78,27 @@ export function getOpponentActiveEnergyBonusDamage(
     return 0;
   }
 
-  return (effects ?? [])
-    .filter(
-      (effect) =>
-        effect.type === 'bonusDamageIfOpponentActiveHasEnergy'
-    )
-    .reduce((total, effect) => total + effect.amount, 0);
+  // Effet 'damagePerOpponentActiveEnergy' : X dégâts pour CHAQUE Énergie
+  // attachée au Pokémon actif adverse (d'un type précis si `energyType`).
+  const perEnergyBonus = (effects ?? [])
+    .filter((effect) => effect.type === 'damagePerOpponentActiveEnergy')
+    .reduce((total, effect) => {
+      const count = effect.energyType
+        ? opponentActive.energies.filter((energy) => energy === effect.energyType).length
+        : opponentActive.energies.length;
+
+      return total + count * effect.amount;
+    }, 0);
+
+  return (
+    perEnergyBonus +
+    (effects ?? [])
+      .filter(
+        (effect) =>
+          effect.type === 'bonusDamageIfOpponentActiveHasEnergy'
+      )
+      .reduce((total, effect) => total + effect.amount, 0)
+  );
 }
 
 
@@ -100,11 +124,56 @@ export function getDamagePerAttachedEnergy(
  * Remplace les dégâts de base d'une attaque si un effet temporaire
  * est actif pendant ce tour pour cette attaque.
  */
-export function getAttackWithBaseDamageOverride(
+function normalizeForMatch(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[’'-]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    // « Lame Royale », « Lames Royal », « Lames Royales » sont équivalents.
+    .map((word) => word.replace(/(es|e|s)$/, ''))
+    .join(' ');
+}
+
+/**
+ * Bonus de dégâts d'une carte Supporter jouée ce tour (ex : Cynthia)
+ * pour cette attaque de ce Pokémon.
+ */
+export function getPlayerAttackBonus(
   pokemon: PokemonInPlay,
   attack: Attack,
-  turnId: number
+  bonuses: PlayerAttackBonus[] | undefined
+): number {
+  if (!bonuses || bonuses.length === 0 || attack.fixedDamage !== undefined) {
+    return 0;
+  }
+
+  const pokemonName = normalizeForMatch(pokemon.card.name);
+  const attackName = normalizeForMatch(attack.name);
+
+  return bonuses
+    .filter(
+      (bonus) =>
+        pokemonName.startsWith(normalizeForMatch(bonus.pokemonName)) &&
+        attackName === normalizeForMatch(bonus.attackName)
+    )
+    .reduce((total, bonus) => total + bonus.amount, 0);
+}
+
+export function getAttackWithBaseDamageOverride(
+  pokemon: PokemonInPlay,
+  originalAttack: Attack,
+  turnId: number,
+  attackBonuses?: PlayerAttackBonus[]
 ): Attack {
+  const supporterBonus = getPlayerAttackBonus(pokemon, originalAttack, attackBonuses);
+  const attack =
+    supporterBonus > 0
+      ? { ...originalAttack, damage: originalAttack.damage + supporterBonus }
+      : originalAttack;
+
   if (
     attack.fixedDamage !== undefined ||
     pokemon.nextTurnAttackBaseDamageTurnId !== turnId ||
@@ -141,11 +210,49 @@ export function getToolAttachedAttackBonus(
   );
 }
 
+/**
+ * Effet 'bonusDamageIfOpponentActiveHasCondition' : X dégâts supplémentaires
+ * (une seule fois) si le Pokémon actif adverse — ou le joueur adverse quand il
+ * n'y a pas de Pokémon en face — est affecté par l'un des états `conditions`
+ * (tous les états si `conditions` est absent).
+ */
+export function getConditionPresenceBonus(
+  effects: AttackEffect[] | undefined,
+  state: {
+    poisoned?: boolean;
+    burned?: boolean;
+    paralyzed?: boolean;
+    asleep?: boolean;
+    confused?: boolean;
+  }
+): number {
+  return (effects ?? [])
+    .filter((effect) => effect.type === 'bonusDamageIfOpponentActiveHasCondition')
+    .reduce((total, effect) => {
+      const wanted = effect.conditions ?? ['poison', 'burn', 'paralyze', 'sleep', 'confuse'];
+      const affected = wanted.some(
+        (condition) =>
+          (condition === 'poison' && state.poisoned) ||
+          (condition === 'burn' && state.burned) ||
+          (condition === 'paralyze' && state.paralyzed) ||
+          (condition === 'sleep' && state.asleep) ||
+          (condition === 'confuse' && state.confused)
+      );
+
+      return affected ? total + effect.amount : total;
+    }, 0);
+}
+
 export function getOpponentPlayerSpecialConditionBonus(
   attack: Attack,
   opponentPlayerPoisoned: boolean,
   opponentPlayerBurned: boolean
 ): number {
+  const presenceBonus = getConditionPresenceBonus(attack.effects, {
+    poisoned: opponentPlayerPoisoned,
+    burned: opponentPlayerBurned,
+  });
+
   const effect = attack.effects?.find(
     (item) =>
       item.type ===
@@ -153,7 +260,7 @@ export function getOpponentPlayerSpecialConditionBonus(
   );
 
   if (!effect) {
-    return 0;
+    return presenceBonus;
   }
 
   const conditionCount = [
@@ -161,7 +268,7 @@ export function getOpponentPlayerSpecialConditionBonus(
     opponentPlayerBurned,
   ].filter(Boolean).length;
 
-  return conditionCount * effect.amount;
+  return presenceBonus + conditionCount * effect.amount;
 }
 
 /**
@@ -179,8 +286,11 @@ export function getOpponentActiveSpecialConditionBonus(
       item.type ===
       'bonusDamagePerOpponentActiveSpecialCondition'
   );
+  const hasPresenceEffect = attack.effects?.some(
+    (item) => item.type === 'bonusDamageIfOpponentActiveHasCondition'
+  );
 
-  if (!effect || !selectedPokemonCell) {
+  if ((!effect && !hasPresenceEffect) || !selectedPokemonCell) {
     return 0;
   }
 
@@ -209,7 +319,10 @@ export function getOpponentActiveSpecialConditionBonus(
     target.confused,
   ].filter(Boolean).length;
 
-  return specialConditionCount * effect.amount;
+  return (
+    specialConditionCount * (effect?.amount ?? 0) +
+    getConditionPresenceBonus(attack.effects, target)
+  );
 }
 
 export function getDisplayedAttackDamage(
@@ -223,13 +336,17 @@ export function getDisplayedAttackDamage(
   opponentPlayerPoisoned: boolean = false,
   opponentPlayerBurned: boolean = false,
   player1Discard: GameCard[] = [],
-  player2Discard: GameCard[] = []
+  player2Discard: GameCard[] = [],
+  player1Hand: GameCard[] = [],
+  player2Hand: GameCard[] = [],
+  attackBonuses: PlayerAttackBonus[] = []
 
 ): number {
 const attack = getAttackWithBaseDamageOverride(
   pokemon,
   originalAttack,
-  turnId
+  turnId,
+  attackBonuses
 );
 
   const globalDamageEffect = attack.effects?.find(
@@ -237,6 +354,15 @@ const attack = getAttackWithBaseDamageOverride(
       effect.type === 'damageEveryoneIgnoringEffects' ||
 effect.type === 'damageAllPokemonWithTalent'
   );
+
+  // Dégâts à chaque Pokémon adverse + joueur adverse : on affiche le montant.
+  const allOpponentsEffect = attack.effects?.find(
+    (effect) => effect.type === 'damageAllOpponentPokemonAndPlayer'
+  );
+
+  if (allOpponentsEffect) {
+    return allOpponentsEffect.amount;
+  }
 
   if (globalDamageEffect) {
   return (
@@ -307,6 +433,37 @@ if (attack.bonusDamagePerOwnDiscardCard) {
 
   damage += Math.floor(round / 2) * (attack.bonusDamageEveryTwoRounds ?? 0);
 
+  // Bonus si ce Pokémon a des marqueurs de dégâts.
+  const selfDamagedBonusEffect = attack.effects?.find(
+    (effect) => effect.type === 'bonusDamageIfSelfDamaged'
+  );
+
+  if (selfDamagedBonusEffect && pokemon.currentHp < getPokemonMaxHp(pokemon)) {
+    damage += selfDamagedBonusEffect.amount;
+  }
+
+  // Dégâts selon les cartes en main (total réel du moment).
+  const ownHand = pokemon.owner === 1 ? player1Hand : player2Hand;
+  const opponentHand = pokemon.owner === 1 ? player2Hand : player1Hand;
+
+  const perOpponentTrainerEffect = attack.effects?.find(
+    (effect) => effect.type === 'damagePerOpponentTrainerInHand'
+  );
+
+  if (perOpponentTrainerEffect) {
+    damage +=
+      opponentHand.filter((card) => !isPokemonCard(card)).length *
+      perOpponentTrainerEffect.amount;
+  }
+
+  const perOwnCardEffect = attack.effects?.find(
+    (effect) => effect.type === 'damagePerOwnCardInHand'
+  );
+
+  if (perOwnCardEffect) {
+    damage += ownHand.length * perOwnCardEffect.amount;
+  }
+
  
 
   const discardAllBonus = attack.effects?.find(
@@ -366,6 +523,24 @@ damage += getOpponentActiveEnergyBonusDamage(
     if (target && attack.bonusDamageIfTargetNotEvolved && target.card.stage === 'base' ) {
       damage += attack.bonusDamageIfTargetNotEvolved;
     }
+    if (target && attack.bonusDamageIfTargetGx && target.card.variant === 'gx') {
+      damage += attack.bonusDamageIfTargetGx;
+    }
+
+    // Bonus selon le type du Pokémon en face.
+    damage += getTargetTypeBonusDamage(attack.effects, target);
+
+    // X dégâts pour chaque Pokémon de banc (les deux camps).
+    damage += getAllBenchBonusDamage(attack.effects, board, selectedPokemonCell, targetCell);
+
+    // X dégâts pour chaque marqueur sur ce Pokémon.
+    damage += getSelfDamageCounterBonusDamage(attack.effects, pokemon);
+
+    // X dégâts supplémentaires (si défausse facultative : montant si le joueur accepte).
+    damage += getFlatBonusDamage(attack.effects);
+
+    // X dégâts si l'adversaire a un Pokémon d'un certain type en jeu.
+    damage += getOpponentTypeInPlayBonusDamage(attack.effects, board, pokemon.owner);
         const retreatCostBonusEffect = attack.effects?.find(
       (effect) => effect.type === 'bonusDamagePerTargetRetreatCost'
     );
@@ -373,6 +548,18 @@ damage += getOpponentActiveEnergyBonusDamage(
     if (target && retreatCostBonusEffect) {
       damage +=
         target.card.retreatCost * retreatCostBonusEffect.amount;
+    }
+
+    // Moins de dégâts selon le coût de retraite du Pokémon en face.
+    const retreatCostPenaltyEffect = attack.effects?.find(
+      (effect) => effect.type === 'reduceDamagePerTargetRetreatCost'
+    );
+
+    if (target && retreatCostPenaltyEffect) {
+      damage = Math.max(
+        0,
+        damage - target.card.retreatCost * retreatCostPenaltyEffect.amount
+      );
     }
   }
 // Bonus si le joueur adverse est affecté par un état spécial.
@@ -398,7 +585,8 @@ if (selectedPokemonCell) {
     );
   }
 }
-  return damage;
+  // Talent adverse devant l'attaquant (ex : Luxray) : X dégâts de moins.
+  return Math.max(0, damage - getAttackerColumnDamageReduction(pokemon, board, selectedPokemonCell));
 }
 
 export function createAttackPaths(startCell: string, player: Player): string[][] {
@@ -435,6 +623,9 @@ export function createAttackPaths(startCell: string, player: Player): string[][]
 }
 
 
+/** Dans une défausse d'Énergies, `amount` de 99 ou plus veut dire « toutes ». */
+export const DISCARD_ALL_ENERGY_AMOUNT = 99;
+
 export function canPayTypedDiscard(
   energies: EnergyType[],
   attack: Attack
@@ -444,7 +635,11 @@ export function canPayTypedDiscard(
   for (const effect of attack.effects ?? []) {
     if (
       effect.type !== 'discardTypedEnergy' ||
-      !effect.energyType
+      !effect.energyType ||
+      // Une défausse facultative n'est pas obligatoire pour attaquer.
+      effect.optional === true ||
+      // 99 (ou plus) = « toutes les Énergies de ce type » : rien d'obligatoire.
+      effect.amount >= DISCARD_ALL_ENERGY_AMOUNT
     ) {
       continue;
     }
@@ -518,7 +713,7 @@ if (
   };
 }
 
-    if (effect.type === 'heal') {
+    if (effect.type === 'heal' && !updatedPokemon.healBlockedEndPlayer) {
       updatedPokemon = {
         ...updatedPokemon,
         currentHp: Math.min(
@@ -553,6 +748,15 @@ if (effect.type === 'selfDamageEqualToDamageTaken') {
       updatedPokemon.currentHp - damageAlreadyTaken,
   };
 }
+    // Évite seulement les DÉGÂTS des attaques au prochain tour adverse.
+    if (effect.type === 'preventAllAttackDamageNextOpponentTurn') {
+      updatedPokemon = {
+        ...updatedPokemon,
+        preventAttackDamage: true,
+        preventAttackDamageEndPlayer: pokemon.owner === 1 ? 2 : 1,
+      };
+    }
+
     if (
   effect.type ===
   'preventAllAttackDamageAndEffectsNextOpponentTurn'

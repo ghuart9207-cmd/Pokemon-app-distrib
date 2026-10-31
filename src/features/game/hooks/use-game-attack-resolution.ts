@@ -4,11 +4,25 @@ import {
   calculateCoinDamage,
   canPayAttackCost,
   canPayTypedDiscard,
+  DISCARD_ALL_ENERGY_AMOUNT,
   doesAttackFailFromCoin,
+  hasFailedAttackCoinCheck,
   getCoinTriggeredEffects,
   getKOPenalty,
   getPokemonMaxHp,
   getToolAttachedAttackBonus,
+  isPokemonCard,
+  getTalentDamageReduction,
+  isHealBlocked,
+  getDiscardSummonCandidates,
+  getAllBenchBonusDamage,
+  getSelfDamageCounterBonusDamage,
+  getFlatBonusDamage,
+  getOpponentTypeInPlayBonusDamage,
+  getConditionPresenceBonus,
+  isTalentNegated,
+  getAttackerColumnDamageReduction,
+  describeAttackInvocationRule,
 } from '@/features/game/rules';
 import type {
   Attack,
@@ -23,6 +37,7 @@ import type { AttackResolutionContext } from './attack-resolution/attack-resolut
 import { healAllAndReturnToHand } from './attack-resolution/heal-all-and-return-to-hand';
 import { hitOpponentPokemon } from './attack-resolution/hit-opponent-pokemon';
 import { hitEveryoneIgnoringEffects } from './attack-resolution/hit-everyone-ignoring-effects';
+import { hitAllOpponents } from './attack-resolution/hit-all-opponents';
 import { resolveFailedAttack } from './attack-resolution/resolve-failed-attack';
 import { startBenchEnergyAttachment } from './attack-resolution/start-bench-energy-attachment';
 import { startFreeTargetAttack } from './attack-resolution/start-free-target-attack';
@@ -31,7 +46,7 @@ import { getDamagePerAttachedEnergy } from  '@/features/game/rules/attack-rules'
 import { useState } from 'react';
 import { hitPokemonWithTalent } from './attack-resolution/hit-pokemon-with-talent';
 import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
-import { ALL_POKEMON_CARDS } from '@/features/game/data';
+import { ALL_SERIES_POKEMON_CARDS } from '@/features/game/data';
 
 export function useGameAttackResolution(options: AttackResolutionContext) {
     const [pendingDiscardAllEnergyChoice, setPendingDiscardAllEnergyChoice] =
@@ -53,6 +68,22 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     stage: 'choice' | 'target';
     discardAllEnergyChoice?: boolean;
   } | null>(null);
+  // Défausse facultative d'Énergies (« Vous pouvez défausser… Dans ce cas… »).
+  const [pendingOptionalDiscardChoice, setPendingOptionalDiscardChoice] =
+    useState<{
+      pokemonName: string;
+      attackName: string;
+      // Absent : n'importe quel type d'Énergie (effet 'discardEnergy').
+      energyType?: EnergyType;
+      amount: number;
+      // Vrai : toutes les Énergies du Pokémon sont défaussées.
+      discardAll?: boolean;
+      effectText?: string;
+      coinResult?: CoinSide[];
+      discardAllEnergyChoice?: boolean;
+      optionalBonusDamageChoice?: boolean;
+      ownBenchDamageTargetCell?: string;
+    } | null>(null);
   const [pendingOptionalAttackEffect, setPendingOptionalAttackEffect] =
   useState<{
     pokemonName: string;
@@ -60,6 +91,15 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     effectType: AttackEffect['type'];
     player: Player;
     attackerCell: string;
+    // Question posée AVANT l'attaque (effets avec optional: true) :
+    // les choix déjà faits, pour relancer l'attaque avec la réponse.
+    beforeAttack?: {
+      coinResult?: CoinSide[];
+      discardAllEnergyChoice?: boolean;
+      optionalBonusDamageChoice?: boolean;
+      ownBenchDamageTargetCell?: string;
+      optionalDiscardChoice?: boolean;
+    };
   } | null>(null);
   const {
     advanceAttackOrder,
@@ -77,6 +117,8 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     handleAttackerKO,
     player1Discard,
     player2Discard,
+    player1Hand,
+    player2Hand,
     player1DiscardEnergies,
     player2DiscardEnergies,
     round,
@@ -88,6 +130,12 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     setPendingBenchEnergyAttachment,
     setPendingEnergyTransferToBench,
     setPendingAttackSummonPlacement,
+    setPendingInvocationPlacement,
+    setPendingDiscardSummon,
+    setPendingOwnBenchDamage,
+    setPendingCountersToActive,
+    player1SummonChoices,
+    player2SummonChoices,
     setPendingPokemonSwitch,
     setPlayer1Damage,
     setPlayer1DiscardEnergies,
@@ -107,7 +155,9 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
   coinResult?: CoinSide[],
   discardAllEnergyChoice?: boolean,
   optionalBonusDamageChoice?: boolean,
-  ownBenchDamageTargetCell?: string
+  ownBenchDamageTargetCell?: string,
+  optionalDiscardChoice?: boolean,
+  optionalEffectsChoice?: boolean
 ) {
     if (!selectedPokemonCell) return;
 
@@ -162,7 +212,8 @@ if (attacker.blockedAllAttacksTurnId === turnId) {
 
 const selectedAttack = getAvailablePokemonAttacks(
   attacker,
-  discardForAttackList
+  discardForAttackList,
+  isTalentNegated(attacker, board, selectedPokemonCell)
 )[selectedAttackIndex]?.attack;
 
 if (!selectedAttack) {
@@ -170,10 +221,30 @@ if (!selectedAttack) {
   return;
 }
 
+// Lancer de vérification imposé par l'adversaire raté : l'attaque ne fait rien.
+if (hasFailedAttackCoinCheck(attacker, turnId)) {
+  if (!canPayAttackCost(attacker.energies, selectedAttack)) {
+    setMessage(
+      `${attacker.card.name} n'a pas les Énergies nécessaires. Coût : ${formatAttackCost(selectedAttack)}.`
+    );
+    return;
+  }
+
+  setHasAttackedThisTurn(true);
+  advanceAttackOrder(selectedPokemonCell, attacker.owner);
+  resolveFailedAttack(options, {
+    attacker,
+    selectedPokemonCell,
+    failText: `${attacker.card.name} utilise ${selectedAttack.name}, mais l'attaque ne fait rien (au moins un PILE).`,
+  });
+  return;
+}
+
 const attack = getAttackWithBaseDamageOverride(
   attacker,
   selectedAttack,
-  turnId
+  turnId,
+  (attacker.owner === 1 ? player1Status : player2Status).attackBonusesThisTurn
 );
     if (coinResult) {
       const resultText = coinResult
@@ -185,7 +256,7 @@ const attack = getAttackWithBaseDamageOverride(
 
     const coinTriggeredEffects = getCoinTriggeredEffects(attack, coinResult);
 
-    const resolvedAttack: Attack = {
+    let resolvedAttack: Attack = {
       ...attack,
 
       effects: [...(attack.effects ?? []), ...coinTriggeredEffects],
@@ -306,6 +377,138 @@ if (optionalBonusDamageEffect && useOptionalBonusDamage === true) {
     }
   }
 }
+    // -----------------------------------------
+    // DÉFAUSSE FACULTATIVE D'ÉNERGIES
+    // ex : « Vous pouvez défausser 2 Énergies Eau. Dans ce cas, … »
+    // Effet 'discardTypedEnergy' avec optional: true.
+    // Si le joueur refuse (ou n'a pas assez d'Énergies), la défausse
+    // et TOUS les autres effets de l'attaque sont retirés ; les dégâts restent.
+    // -----------------------------------------
+
+    // Aussi 'discardEnergy' avec optional: true (n'importe quel type d'Énergie).
+    const optionalDiscardEffect = resolvedAttack.effects?.find(
+      (effect) =>
+        effect.optional === true &&
+        ((effect.type === 'discardTypedEnergy' && effect.energyType !== undefined) ||
+          effect.type === 'discardEnergy')
+    );
+
+    let acceptOptionalDiscard = optionalDiscardChoice;
+
+    if (optionalDiscardEffect) {
+      const availableTypedEnergy = attacker.energies.filter(
+        (energy) =>
+          optionalDiscardEffect.type === 'discardEnergy' ||
+          energy === optionalDiscardEffect.energyType
+      ).length;
+
+      // 'discardEnergy' : un grand nombre (ex : 99) veut dire « toutes les Énergies ».
+      // 'discardTypedEnergy' : 99 (ou plus) veut dire « toutes les Énergies de ce type ».
+      const isDiscardAll =
+        (optionalDiscardEffect.type === 'discardEnergy' &&
+          optionalDiscardEffect.amount >= availableTypedEnergy) ||
+        (optionalDiscardEffect.type === 'discardTypedEnergy' &&
+          optionalDiscardEffect.amount >= DISCARD_ALL_ENERGY_AMOUNT);
+      const requiredDiscard =
+        optionalDiscardEffect.type === 'discardEnergy' || isDiscardAll
+          ? Math.min(optionalDiscardEffect.amount, availableTypedEnergy)
+          : optionalDiscardEffect.amount;
+
+      if (requiredDiscard === 0 || availableTypedEnergy < requiredDiscard) {
+        // Pas assez d'Énergies : impossible d'accepter.
+        acceptOptionalDiscard = false;
+      } else if (acceptOptionalDiscard === undefined) {
+        if (!canPayAttackCost(attacker.energies, attack)) {
+          setMessage(
+            `${attacker.card.name} n'a pas les Énergies nécessaires. Coût : ${formatAttackCost(attack)}.`
+          );
+          return;
+        }
+
+        setPendingOptionalDiscardChoice({
+          pokemonName: attacker.card.name,
+          attackName: attack.name,
+          energyType:
+            optionalDiscardEffect.type === 'discardEnergy'
+              ? undefined
+              : optionalDiscardEffect.energyType,
+          amount: requiredDiscard,
+          discardAll: isDiscardAll,
+          effectText: attack.effectText,
+          coinResult,
+          discardAllEnergyChoice,
+          optionalBonusDamageChoice,
+          ownBenchDamageTargetCell,
+        });
+
+        setMessage(
+          isDiscardAll
+            ? `${attack.name} : veux-tu défausser toutes les Énergies${optionalDiscardEffect.type === 'discardTypedEnergy' ? ` ${optionalDiscardEffect.energyType}` : ''} (${requiredDiscard}) de ${attacker.card.name} ?`
+            : `${attack.name} : veux-tu défausser ${requiredDiscard} Énergie(s)${optionalDiscardEffect.type === 'discardEnergy' ? '' : ` ${optionalDiscardEffect.energyType}`} de ${attacker.card.name} ?`
+        );
+        return;
+      }
+
+      if (!acceptOptionalDiscard) {
+        resolvedAttack = { ...resolvedAttack, effects: [] };
+      }
+    }
+
+    // -----------------------------------------
+    // EFFETS FACULTATIFS (optional: true sur n'importe quel effet)
+    // Une seule question OUI / NON avant l'attaque ; NON retire tous ces effets.
+    // (Les défausses facultatives et le transfert d'Énergies ont leur propre question.)
+    // -----------------------------------------
+
+    const OWN_OPTIONAL_PROMPT_EFFECTS: AttackEffect['type'][] = [
+      'discardTypedEnergy',
+      'discardEnergy',
+      'transferAllEnergiesToBench',
+    ];
+
+    const genericOptionalEffects = (resolvedAttack.effects ?? []).filter(
+      (effect) => effect.optional === true && !OWN_OPTIONAL_PROMPT_EFFECTS.includes(effect.type)
+    );
+
+    if (genericOptionalEffects.length > 0) {
+      if (optionalEffectsChoice === undefined) {
+        if (!canPayAttackCost(attacker.energies, attack)) {
+          setMessage(
+            `${attacker.card.name} n'a pas les Énergies nécessaires. Coût : ${formatAttackCost(attack)}.`
+          );
+          return;
+        }
+
+        setPendingOptionalAttackEffect({
+          pokemonName: attacker.card.name,
+          message: `${attack.name} : veux-tu appliquer l'effet facultatif ?` +
+            (attack.effectText ? ` « ${attack.effectText} »` : ''),
+          effectType: genericOptionalEffects[0].type,
+          player: attacker.owner,
+          attackerCell: selectedPokemonCell,
+          beforeAttack: {
+            coinResult,
+            discardAllEnergyChoice,
+            optionalBonusDamageChoice,
+            ownBenchDamageTargetCell,
+            optionalDiscardChoice: acceptOptionalDiscard,
+          },
+        });
+
+        setMessage(`${attack.name} : veux-tu appliquer l'effet facultatif ? (OUI / NON)`);
+        return;
+      }
+
+      if (!optionalEffectsChoice) {
+        resolvedAttack = {
+          ...resolvedAttack,
+          effects: (resolvedAttack.effects ?? []).filter(
+            (effect) => !genericOptionalEffects.includes(effect)
+          ),
+        };
+      }
+    }
+
     const switchEffect = resolvedAttack.effects?.find(
       (effect) => effect.type === 'switchWithBench'
     );
@@ -371,6 +574,48 @@ let totalDamage =
   everyTwoRoundsBonus +
   discardCardBonus;
   totalDamage += getToolAttachedAttackBonus(attacker, attack);
+
+  // -----------------------------------------
+  // BONUS SI CE POKÉMON A DES MARQUEURS DE DÉGÂTS
+  // (dégâts déjà subis avant l'attaque)
+  // -----------------------------------------
+
+  const selfDamagedBonusEffect = resolvedAttack.effects?.find(
+    (effect) => effect.type === 'bonusDamageIfSelfDamaged'
+  );
+
+  if (selfDamagedBonusEffect && attacker.currentHp < getPokemonMaxHp(attacker)) {
+    totalDamage += selfDamagedBonusEffect.amount;
+  }
+
+  // -----------------------------------------
+  // DÉGÂTS SELON LES CARTES EN MAIN
+  // -----------------------------------------
+
+  const ownHand = attacker.owner === 1 ? player1Hand : player2Hand;
+  const opponentHand = attacker.owner === 1 ? player2Hand : player1Hand;
+
+  // X dégâts pour chaque carte Dresseur dans la main de l'adversaire.
+  const perOpponentTrainerEffect = resolvedAttack.effects?.find(
+    (effect) => effect.type === 'damagePerOpponentTrainerInHand'
+  );
+
+  if (perOpponentTrainerEffect) {
+    const opponentTrainerCount = opponentHand.filter(
+      (card) => !isPokemonCard(card)
+    ).length;
+
+    totalDamage += opponentTrainerCount * perOpponentTrainerEffect.amount;
+  }
+
+  // X dégâts pour chaque carte dans la main du joueur qui attaque.
+  const perOwnCardEffect = resolvedAttack.effects?.find(
+    (effect) => effect.type === 'damagePerOwnCardInHand'
+  );
+
+  if (perOwnCardEffect) {
+    totalDamage += ownHand.length * perOwnCardEffect.amount;
+  }
 
     if (discardAllForBonusEffect) {
       totalDamage += energiesDiscardedForBonus.length * discardAllForBonusEffect.amount;
@@ -480,15 +725,31 @@ const attackForDamage: Attack =
       return;
     }
 
-    const healAllAndReturnEffect = resolvedAttack.effects?.find(
+    // -----------------------------------------
+    // SOIGNER TOUS SES POKÉMON / RETOURNER DANS LA MAIN
+    // Deux effets séparés : 'healAllOwnPokemon' et 'returnSelfToHand'.
+    // L'ancien effet combiné 'healAllOwnAndReturnSelf' fait les deux.
+    // -----------------------------------------
+
+    const combinedHealReturnEffect = resolvedAttack.effects?.find(
       (effect) => effect.type === 'healAllOwnAndReturnSelf'
     );
+    const healAllOwnEffect = resolvedAttack.effects?.find(
+      (effect) => effect.type === 'healAllOwnPokemon'
+    );
+    const returnSelfEffect =
+      resolvedAttack.effects?.find((effect) => effect.type === 'returnSelfToHand') ??
+      combinedHealReturnEffect;
 
-    if (healAllAndReturnEffect) {
+    const shouldHealAllOwn = Boolean(healAllOwnEffect || combinedHealReturnEffect);
+
+    if (returnSelfEffect) {
       healAllAndReturnToHand(options, {
         attacker,
         selectedPokemonCell,
-        returnToHandReplacement: healAllAndReturnEffect.returnToHandReplacement,
+        healAll: shouldHealAllOwn,
+        attackName: attack.name,
+        returnToHandReplacement: returnSelfEffect.returnToHandReplacement,
       });
 
       return;
@@ -561,6 +822,26 @@ totalDamage += getOpponentActiveEnergyBonusDamage(
   opponentActive,
   resolvedAttack.effects
 );
+
+// X dégâts pour chaque Pokémon de banc (les siens et ceux de l'adversaire),
+// sans compter l'attaquant ni le Pokémon qui subit l'attaque.
+if (attack.fixedDamage === undefined) {
+  totalDamage += getAllBenchBonusDamage(
+    resolvedAttack.effects,
+    board,
+    selectedPokemonCell,
+    targetCell ?? null
+  );
+
+  // X dégâts pour chaque marqueur sur le Pokémon attaquant.
+  totalDamage += getSelfDamageCounterBonusDamage(resolvedAttack.effects, attacker);
+
+  // X dégâts supplémentaires (retirés si la défausse facultative est refusée).
+  totalDamage += getFlatBonusDamage(resolvedAttack.effects);
+
+  // X dégâts si l'adversaire a un Pokémon d'un certain type en jeu.
+  totalDamage += getOpponentTypeInPlayBonusDamage(resolvedAttack.effects, board, attacker.owner);
+}
     const opponentBenchCount = Object.entries(board).filter(
       ([cellName, pokemon]) =>
         pokemon !== null && pokemon.owner !== attacker.owner && cellName !== targetCell
@@ -571,7 +852,8 @@ totalDamage += getOpponentActiveEnergyBonusDamage(
 
     const newBoard = { ...board };
 
-    const discardEnergyEffect = attack.effects?.find(
+    // resolvedAttack : une défausse facultative refusée n'est plus dans la liste.
+    const discardEnergyEffect = resolvedAttack.effects?.find(
       (effect) => effect.type === 'discardEnergy'
     );
 
@@ -645,6 +927,34 @@ if (
     // AU PROCHAIN TOUR ADVERSE
     // --------------------------------
 
+    // --------------------------------
+    // PAS DE COÛT DE RETRAITE PENDANT LE PROCHAIN TOUR
+    // --------------------------------
+
+    if (resolvedAttack.effects?.some((effect) => effect.type === 'freeRetreatNextOwnTurn')) {
+      attackerAfterEffect = {
+        ...attackerAfterEffect,
+        // turnId + 2 = le prochain tour du même joueur.
+        freeRetreatTurnId: turnId + 2,
+      };
+    }
+
+    // --------------------------------
+    // CONTRE-COUP AU PROCHAIN TOUR ADVERSE
+    // --------------------------------
+
+    const retaliationEffect = resolvedAttack.effects?.find(
+      (effect) => effect.type === 'retaliateDamageNextOpponentTurn'
+    );
+
+    if (retaliationEffect) {
+      attackerAfterEffect = {
+        ...attackerAfterEffect,
+        retaliationDamage: retaliationEffect.amount,
+        retaliationEndPlayer: attacker.owner === 1 ? 2 : 1,
+      };
+    }
+
     const damageReductionEffect = resolvedAttack.effects?.find(
       (effect) => effect.type === 'reduceDamageNextOpponentTurn'
     );
@@ -690,11 +1000,14 @@ if (
       }
     }
 
+    // Récupérer des Énergies de sa défausse et les attacher à ce Pokémon.
+    // Avec `energyType` : seulement ce type. Sans : n'importe quelle Énergie
+    // (la dernière défaussée en premier).
     const recoverEnergyEffect = resolvedAttack.effects?.find(
-      (effect) => effect.type === 'recoverEnergy' && effect.energyType
+      (effect) => effect.type === 'recoverEnergy'
     );
 
-    if (recoverEnergyEffect && recoverEnergyEffect.energyType) {
+    if (recoverEnergyEffect) {
       const discardEnergies =
         attacker.owner === 1 ? player1DiscardEnergies : player2DiscardEnergies;
 
@@ -703,9 +1016,9 @@ if (
       const recoveredEnergies: EnergyType[] = [];
 
       for (let i = 0; i < recoverEnergyEffect.amount; i++) {
-        const energyIndex = newDiscard.findIndex(
-          (energy) => energy === recoverEnergyEffect.energyType
-        );
+        const energyIndex = recoverEnergyEffect.energyType
+          ? newDiscard.findIndex((energy) => energy === recoverEnergyEffect.energyType)
+          : newDiscard.length - 1;
 
         if (energyIndex === -1) {
           break;
@@ -743,9 +1056,9 @@ const healPerOpponentEnergyEffect = resolvedAttack.effects?.find(
 // relevé avant que les effets de l'attaque ne les modifient.
 const opponentEnergyCount = opponentActivePokemon?.energies.length ?? 0;
 
-const selfHealAmount =
-  (healPerOpponentEnergyEffect?.amount ?? 0) *
-  opponentEnergyCount;
+const selfHealAmount = isHealBlocked(attackerAfterEffect)
+  ? 0
+  : (healPerOpponentEnergyEffect?.amount ?? 0) * opponentEnergyCount;
 
 // La confusion inflige d'abord ses dégâts.
 // Le soin ne peut pas ressusciter un Pokémon K.O.
@@ -784,6 +1097,26 @@ const attackerAfterConfusion = {
 
 
     // =====================================
+    // SOIGNER TOUS LES DÉGÂTS DE SES POKÉMON
+    // (sans retour dans la main)
+    // =====================================
+
+    if (shouldHealAllOwn) {
+      for (const [cellName, pokemon] of Object.entries(newBoard)) {
+        if (
+          !pokemon ||
+          pokemon.owner !== attacker.owner ||
+          pokemon.currentHp <= 0 ||
+          isHealBlocked(pokemon)
+        ) {
+          continue;
+        }
+
+        newBoard[cellName] = { ...pokemon, currentHp: getPokemonMaxHp(pokemon) };
+      }
+    }
+
+    // =====================================
     // SOIN DES POKÉMON SELON LEUR TYPE
     // OU DE TOUS LES POKÉMON
     // =====================================
@@ -810,7 +1143,7 @@ const attackerAfterConfusion = {
             pokemon.card.type === healPokemonByTypeEffect.pokemonType
           );
 
-        if (!matchesTarget) {
+        if (!matchesTarget || isHealBlocked(pokemon)) {
           continue;
         }
 
@@ -913,6 +1246,28 @@ if (talentDamageEffect) {
 }
 
     // =====================================
+    // DÉGÂTS À CHAQUE POKÉMON ADVERSE
+    // ET AU JOUEUR ADVERSE (protections incluses)
+    // =====================================
+
+    const allOpponentsDamageEffect = resolvedAttack.effects?.find(
+      (effect) => effect.type === 'damageAllOpponentPokemonAndPlayer'
+    );
+
+    if (allOpponentsDamageEffect) {
+      hitAllOpponents(options, {
+        boardAfterAttack: newBoard,
+        amount: allOpponentsDamageEffect.amount,
+        attacker,
+        attackName: attack.name,
+        selectedPokemonCell,
+        effects: resolvedAttack.effects,
+      });
+
+      return;
+    }
+
+    // =====================================
     // DÉGÂTS À TOUS, SANS PROTECTION
     // =====================================
 
@@ -970,20 +1325,20 @@ const damageForThisPokemon =
   ownBenchDamage +
   (cellName === ownBenchDamageTargetCell ? optionalOwnBenchDamage : 0);
 
-if (damageForThisPokemon <= 0) {
+ if (damageForThisPokemon <= 0) {
   return;
 }
+
+      // Protection « évitez tous les effets des attaques, y compris les dégâts »
+      // (ex : Talent Position de Lucario) : vaut aussi contre les attaques de son camp.
+      if (benchPokemon.preventAllAttackDamageAndEffects === true) {
+        return;
+      }
       
       // Talent d'Azumarill : réduction des dégâts
       // provenant des Pokémon Feu et Eau.
-      const fireWaterReduction =
-        benchPokemon.card.talent?.type === 'passive' &&
-        benchPokemon.card.talent.effect ===
-          'reduceDamageFromFireWater' &&
-        (attacker.card.type === 'feu' ||
-          attacker.card.type === 'eau')
-          ? (benchPokemon.card.talent.amount ?? 30)
-          : 0;
+      // (et Talent « subit 30 dégâts de moins provenant des attaques »)
+      const fireWaterReduction = getTalentDamageReduction(benchPokemon, attacker, board);
 
       const actualOwnBenchDamage = Math.max(
   0,
@@ -1267,7 +1622,7 @@ const requestAttackSummon = () => {
   // Carte à invoquer : celle indiquée par l'effet,
   // sinon une copie du Pokémon attaquant.
   const summonCard = summonEffect.summonCardId
-    ? ALL_POKEMON_CARDS.find((card) => card.id === summonEffect.summonCardId)
+    ? ALL_SERIES_POKEMON_CARDS.find((card) => card.id === summonEffect.summonCardId)
     : attacker.card;
 
   if (!summonCard) {
@@ -1301,6 +1656,191 @@ const requestAttackSummon = () => {
   );
 };
 
+// -----------------------------------------
+// INVOQUER LE POKÉMON CHOISI À LA PRÉPARATION
+// (ex : Plumeline invoque 2 exemplaires de son Invocation, sans limite)
+// -----------------------------------------
+
+const poolSummonEffect = resolvedAttack.effects?.find(
+  (effect) => effect.type === 'summonFromInvocationPool'
+);
+
+const requestPoolSummon = () => {
+  if (!poolSummonEffect) {
+    return;
+  }
+
+  const choices = attacker.owner === 1 ? player1SummonChoices : player2SummonChoices;
+  const chosen = choices[attacker.card.id] ?? [];
+
+  if (chosen.length === 0) {
+    setMessage(
+      `${attacker.card.name} utilise ${attack.name}, mais aucune Invocation n'a été choisie pour lui à la préparation.`
+    );
+    return;
+  }
+
+  const summonRow = attacker.owner === 1 ? 'B' : 'C';
+  const freeCellCount = [1, 2, 3, 4].filter(
+    (column) => newBoard[`${summonRow}${column}`] === null
+  ).length;
+
+  if (freeCellCount === 0) {
+    setMessage(
+      `${attacker.card.name} utilise ${attack.name}, mais aucune case n'est libre de ${summonRow}1 à ${summonRow}4 : aucune Invocation.`
+    );
+    return;
+  }
+
+  // Tous les Pokémon choisis à la préparation (s'il manque de place,
+  // le joueur choisit lesquels poser).
+  const toPlace = Math.min(chosen.length, freeCellCount);
+
+  setPendingInvocationPlacement({
+    player: attacker.owner,
+    cards: [...chosen],
+    selectedIndex: null,
+    source: 'attack',
+    remainingToPlace: toPlace,
+    title: attack.name,
+  });
+
+  setMessage(
+    `${attacker.card.name} utilise ${attack.name} : invoque ${chosen.map((card) => card.name).join(' et ')}` +
+      (toPlace < chosen.length ? ` (place pour ${toPlace} seulement)` : '') +
+      `. Choisis une Invocation puis une case libre de ${summonRow}1 à ${summonRow}4.`
+  );
+};
+
+// -----------------------------------------
+// INVOQUER DEPUIS UNE DÉFAUSSE (la sienne -> son banc,
+// celle de l'adversaire -> le banc adverse)
+// -----------------------------------------
+
+const discardSummonEffect = resolvedAttack.effects?.find(
+  (effect) => effect.type === 'summonFromAnyDiscard'
+);
+
+const requestDiscardSummon = () => {
+  if (!discardSummonEffect) {
+    return;
+  }
+
+  const candidates = getDiscardSummonCandidates(
+    discardSummonEffect,
+    newBoard,
+    player1Discard,
+    player2Discard
+  );
+
+  if (candidates.length === 0) {
+    setMessage(
+      `${attacker.card.name} utilise ${attack.name}, mais aucun ${describeAttackInvocationRule(discardSummonEffect)} ne peut être invoqué depuis les défausses (ou les bancs sont pleins).`
+    );
+    return;
+  }
+
+  setPendingDiscardSummon({
+    player: attacker.owner,
+    attackName: attack.name,
+    pokemonType: discardSummonEffect.pokemonType,
+    maxHp: discardSummonEffect.maxHp,
+    selected: null,
+    turnId,
+  });
+
+  setMessage(
+    `${attacker.card.name} utilise ${attack.name} : choisis un Pokémon dans une défausse, puis une case libre du banc de son propriétaire.`
+  );
+};
+
+// -----------------------------------------
+// INFLIGER X DÉGÂTS À L'UN DE SES POKÉMON DE BANC (au choix)
+// -----------------------------------------
+
+const ownBenchDamageEffect = resolvedAttack.effects?.find(
+  (effect) => effect.type === 'damageOneOwnBenchPokemon'
+);
+
+const requestOwnBenchDamage = () => {
+  if (!ownBenchDamageEffect) {
+    return;
+  }
+
+  const hasOwnBenchPokemon = Object.entries(newBoard).some(
+    ([cellName, pokemon]) =>
+      pokemon !== null && pokemon.owner === attacker.owner && cellName !== selectedPokemonCell
+  );
+
+  if (!hasOwnBenchPokemon) {
+    return;
+  }
+
+  setPendingOwnBenchDamage({
+    player: attacker.owner,
+    attackerCell: selectedPokemonCell,
+    amount: ownBenchDamageEffect.amount,
+    attackName: attack.name,
+    turnId,
+  });
+
+  setMessage(
+    `${attack.name} : choisis l'un de tes Pokémon de banc qui subira ${ownBenchDamageEffect.amount} dégâts.`
+  );
+};
+
+// -----------------------------------------
+// DÉPLACER DES MARQUEURS DE 2 DE SES POKÉMON
+// VERS LE POKÉMON ACTIF ADVERSE (ou le joueur adverse)
+// -----------------------------------------
+
+const countersToActiveEffect = resolvedAttack.effects?.find(
+  (effect) => effect.type === 'moveCountersFromOwnToOpponentActive'
+);
+
+const requestCountersToActive = () => {
+  if (!countersToActiveEffect) {
+    return;
+  }
+
+  // Pokémon en face : il doit être encore en jeu et ne pas être protégé des effets.
+  const activeTarget = targetCell ? newBoard[targetCell] : null;
+
+  if (targetCell && !activeTarget) {
+    return; // déjà K.O. par l'attaque
+  }
+
+  if (activeTarget?.preventAllAttackDamageAndEffects) {
+    setMessage(`${activeTarget.card.name} est protégé des effets de l'attaque : aucun marqueur déplacé.`);
+    return;
+  }
+
+  const hasDamagedOwnPokemon = Object.values(newBoard).some(
+    (pokemon) =>
+      pokemon !== null &&
+      pokemon.owner === attacker.owner &&
+      pokemon.currentHp < getPokemonMaxHp(pokemon)
+  );
+
+  if (!hasDamagedOwnPokemon) {
+    return;
+  }
+
+  setPendingCountersToActive({
+    player: attacker.owner,
+    targetCell: targetCell ?? null,
+    perPokemon: countersToActiveEffect.amount,
+    remainingPicks: countersToActiveEffect.pokemonCount ?? 2,
+    usedCells: [],
+    attackName: attack.name,
+    turnId,
+  });
+
+  setMessage(
+    `${attack.name} : clique sur ${countersToActiveEffect.pokemonCount ?? 2} de tes Pokémon blessés pour déplacer leurs marqueurs (${countersToActiveEffect.amount / 10} chacun) vers ${activeTarget ? activeTarget.card.name : 'le joueur adverse'}.`
+  );
+};
+
     // UN POKÉMON EST TOUCHÉ
     if (targetCell) {
       hitOpponentPokemon(options, {
@@ -1319,6 +1859,10 @@ const requestAttackSummon = () => {
 
 requestEnergyTransferToBench();
 requestAttackSummon();
+requestPoolSummon();
+requestDiscardSummon();
+requestOwnBenchDamage();
+requestCountersToActive();
 
       return;
     }
@@ -1376,10 +1920,12 @@ const opponentPlayerSpecialConditionCount = [
 ].filter(Boolean).length;
 
 const directSpecialConditionBonus =
-  specialConditionDamageEffect
+  (specialConditionDamageEffect
     ? opponentPlayerSpecialConditionCount *
       specialConditionDamageEffect.amount
-    : 0;
+    : 0) +
+  // Bonus si le joueur adverse (sans Pokémon en face) a un état spécial.
+  getConditionPresenceBonus(resolvedAttack.effects, opponentStatus);
 
     // -----------------------------------------
 // TRANSFÉRER TOUTES LES ÉNERGIES AU BANC
@@ -1387,7 +1933,7 @@ const directSpecialConditionBonus =
 
 
 
-    const directDamage =
+    const directDamageBeforeReduction =
   (attack.fixedDamage !== undefined
     ? attack.fixedDamage +
       getToolAttachedAttackBonus(attacker, attack)
@@ -1395,6 +1941,13 @@ const directSpecialConditionBonus =
   PlayerExtraDamage+
    directSpecialConditionBonus+
   poisonedPlayerBonus;
+
+    // Talent adverse devant l'attaquant (ex : Luxray) : X dégâts de moins au joueur.
+    const directDamage = Math.max(
+      0,
+      directDamageBeforeReduction -
+        getAttackerColumnDamageReduction(attacker, board, selectedPokemonCell)
+    );
 
 
     // --------------------------------
@@ -1409,7 +1962,7 @@ const directSpecialConditionBonus =
     if (hasDirectDrainEffect && directDamage > 0) {
       const currentAttacker = newBoard[selectedPokemonCell];
 
-      if (currentAttacker) {
+      if (currentAttacker && !isHealBlocked(currentAttacker)) {
         const attackerMaxHp = getPokemonMaxHp(currentAttacker);
 
         newBoard[selectedPokemonCell] = {
@@ -1453,6 +2006,10 @@ const directSpecialConditionBonus =
     );
     requestEnergyTransferToBench();
     requestAttackSummon();
+    requestPoolSummon();
+    requestDiscardSummon();
+    requestOwnBenchDamage();
+    requestCountersToActive();
   }
 
 function resolveOptionalAttackEffectChoice(accepted: boolean) {
@@ -1463,6 +2020,19 @@ function resolveOptionalAttackEffectChoice(accepted: boolean) {
   }
 
   setPendingOptionalAttackEffect(null);
+
+  // Question posée avant l'attaque : on relance l'attaque avec la réponse.
+  if (pending.beforeAttack) {
+    attackSelectedPokemon(
+      pending.beforeAttack.coinResult,
+      pending.beforeAttack.discardAllEnergyChoice,
+      pending.beforeAttack.optionalBonusDamageChoice,
+      pending.beforeAttack.ownBenchDamageTargetCell,
+      pending.beforeAttack.optionalDiscardChoice,
+      accepted
+    );
+    return;
+  }
 
   if (!accepted) {
     setMessage(
@@ -1539,6 +2109,21 @@ function resolveOptionalOwnBenchDamageTarget(cellName: string) {
   );
 }
 
+  function resolveOptionalDiscardChoice(accept: boolean) {
+    const pending = pendingOptionalDiscardChoice;
+
+    if (!pending) return;
+
+    setPendingOptionalDiscardChoice(null);
+    attackSelectedPokemon(
+      pending.coinResult,
+      pending.discardAllEnergyChoice,
+      pending.optionalBonusDamageChoice,
+      pending.ownBenchDamageTargetCell,
+      accept
+    );
+  }
+
     function resolveDiscardAllEnergyChoice(discard: boolean) {
     const pending = pendingDiscardAllEnergyChoice;
 
@@ -1562,5 +2147,7 @@ function resolveOptionalOwnBenchDamageTarget(cellName: string) {
     resolveOptionalOwnBenchDamageTarget,
     pendingOptionalAttackEffect,
     resolveOptionalAttackEffectChoice,
+    pendingOptionalDiscardChoice,
+    resolveOptionalDiscardChoice,
   };
 }

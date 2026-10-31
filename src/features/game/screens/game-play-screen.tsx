@@ -5,6 +5,12 @@ import { AttachedToolPreview } from '@/features/game/components/panels/attached-
 import { CoinFlipPrompt } from '@/features/game/components/panels/coin-flip-prompt';
 import { DiscardPreview } from '@/features/game/components/panels/discard-preview';
 import { InvocationPlacementPrompt } from '@/features/game/components/panels/invocation-placement-prompt';
+import { DiscardSummonPrompt } from '@/features/game/components/panels/discard-summon-prompt';
+import { EnergyGatherPrompt } from '@/features/game/components/panels/energy-gather-prompt';
+import { HandPokemonPreview } from '@/features/game/components/panels/hand-pokemon-preview';
+import { ForfeitButton } from '@/features/game/components/panels/forfeit-button';
+import type { SummonChoices } from '@/features/game/rules';
+import type { DiscardSummonCandidate } from '@/features/game/rules';
 import { KOEnergyPrompt } from '@/features/game/components/panels/ko-energy-prompt';
 import { PokemonActions } from '@/features/game/components/panels/pokemon-actions';
 import { TrainerActions } from '@/features/game/components/panels/trainer-actions';
@@ -13,6 +19,7 @@ import { PlayerHandArea } from '@/features/game/components/player/player-hand-ar
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 import { DragonEnergyPrompt } from '@/features/game/components/panels/dragon-energy-prompt';
 import { DiscardAllEnergyPrompt } from '@/features/game/components/panels/discard-all-energy-prompt';
+import { OptionalDiscardPrompt } from '@/features/game/components/panels/optional-discard-prompt';
 import { OptionalBonusDamagePrompt } from '@/features/game/components/panels/optional-bonus-damage-prompt';
 import { OptionalAttackEffectPrompt } from '@/features/game/components/panels/optional-attack-effect-prompt';
 import type {
@@ -23,6 +30,8 @@ import type {
     GameCard,
     PendingCoinFlip,
     PendingInvocationPlacement,
+    PendingDiscardSummon,
+    PendingEnergyGather,
     PendingKOEnergyMove,
     Player,
     PlayerStatusState,
@@ -59,6 +68,11 @@ type GamePlayScreenProps = {
   selectedTrainerOwner: Player | null;
   selectedPokemonCell: string | null;
   selectedPokemon: PokemonInPlay | null;
+  inspectedPokemon: PokemonInPlay | null;
+  inspectedPokemonCell: string | null;
+  inspectedHandCard: { card: PokemonCard; owner: Player } | null;
+  player1SummonChoices: SummonChoices;
+  player2SummonChoices: SummonChoices;
   selectedAttackIndex: number | null;
   selectedAttachedTool: SelectedAttachedTool | null;
   player1InvocationCards: PokemonCard[];
@@ -72,6 +86,15 @@ type GamePlayScreenProps = {
     coinResult?: CoinSide[];
   } | null;
   onChooseDiscardAllEnergy: (discard: boolean) => void;
+  pendingOptionalDiscardChoice: {
+    pokemonName: string;
+    attackName: string;
+    energyType?: EnergyType;
+    amount: number;
+    discardAll?: boolean;
+    effectText?: string;
+  } | null;
+  onChooseOptionalDiscard: (accept: boolean) => void;
   pendingKOEnergyMove: PendingKOEnergyMove | null;
   pendingInvocationPlacement: PendingInvocationPlacement | null;
   readyCoinAttack: CoinAttackReference | null;
@@ -86,6 +109,11 @@ type GamePlayScreenProps = {
   onToolPress: (cellName: string, pokemon: PokemonInPlay) => void;
   onSelectKOEnergy: (energy: PendingKOEnergyMove['selectedEnergy']) => void;
   onSelectInvocation: (index: number) => void;
+  pendingDiscardSummon: PendingDiscardSummon | null;
+  discardSummonCandidates: DiscardSummonCandidate[];
+  onSelectDiscardSummon: (fromPlayer: Player, discardIndex: number) => void;
+  pendingEnergyGather: PendingEnergyGather | null;
+  onFinishEnergyGather: () => void;
   onSelectAttack: (index: number, message: string) => void;
   onAttack: () => void;
   onRetreat: () => void;
@@ -95,8 +123,14 @@ type GamePlayScreenProps = {
   onStartTrainerCoinFlip: (card: TrainerCard, player: Player, count: number) => void;
   onChooseCoinSide: (index: number, side: CoinSide) => void;
   onValidateCoinFlip: () => void;
+  canUseVictoriousTalent: boolean;
+  victoriousTalentName: string;
+  onActivateVictoriousTalent: () => void;
   onEndTurn: () => void;
   onRestartSameCards: () => void;
+  onForfeit: (player: Player) => void;
+  // En ligne : le joueur de cet écran (c'est lui qui peut abandonner).
+  localPlayer?: Player;
   onRestart: () => void;
   pendingOptionalAttackEffect: {
   pokemonName: string;
@@ -146,6 +180,11 @@ const dragonChoice = props.pendingDragonEnergyChoices[0] ?? null;
 const dragonPokemon = dragonChoice
   ? props.board[dragonChoice.cellName]
   : null;
+
+  // Carte Pokémon d'une main affichée : celle consultée chez l'adversaire,
+  // sinon celle sélectionnée dans sa propre main.
+  const handPreview = props.inspectedHandCard
+    ?? (props.selectedCard ? { card: props.selectedCard, owner: props.currentPlayer } : null);
 
   return (
     <ScrollView
@@ -229,10 +268,46 @@ const dragonPokemon = dragonChoice
                 onSelectIndex={props.onSelectInvocation}
               />
             )}
+            {props.pendingEnergyGather && (
+              <EnergyGatherPrompt
+                pending={props.pendingEnergyGather}
+                onFinish={props.onFinishEnergyGather}
+              />
+            )}
+            {props.pendingDiscardSummon && (
+              <DiscardSummonPrompt
+                pending={props.pendingDiscardSummon}
+                candidates={props.discardSummonCandidates}
+                onSelect={props.onSelectDiscardSummon}
+              />
+            )}
+            {/* Carte Pokémon d'une main : la sienne (sélectionnée) ou l'adverse (consultation) */}
+            {handPreview && (
+              <HandPokemonPreview
+                card={handPreview.card}
+                owner={handPreview.owner}
+                currentPlayer={props.currentPlayer}
+                summonChoices={
+                  handPreview.owner === 1
+                    ? props.player1SummonChoices
+                    : props.player2SummonChoices
+                }
+              />
+            )}
             <PokemonActions
-              pokemon={props.selectedPokemon}
-              cellName={props.selectedPokemonCell}
+              pokemon={props.selectedPokemon ?? props.inspectedPokemon}
+              cellName={props.selectedPokemon ? props.selectedPokemonCell : props.inspectedPokemonCell}
+              summonChoices={
+                (props.selectedPokemon ?? props.inspectedPokemon)?.owner === 2
+                  ? props.player2SummonChoices
+                  : props.player1SummonChoices
+              }
               board={props.board}
+              ownAttackBonuses={
+                (props.selectedPokemon ?? props.inspectedPokemon)?.owner === 2
+                  ? props.player2Status.attackBonusesThisTurn
+                  : props.player1Status.attackBonusesThisTurn
+              }
                 opponentPlayerPoisoned={
     props.selectedPokemon?.owner === 1
       ? props.player2Status.poisoned
@@ -258,6 +333,8 @@ onActivateTalent={props.onActivateTalent}
               round={props.round}
                             player1Discard={props.player1Discard}
               player2Discard={props.player2Discard}
+              player1Hand={props.player1Hand}
+              player2Hand={props.player2Hand}
               onSelectAttack={props.onSelectAttack}
               onAttack={props.onAttack}
               onRetreat={props.onRetreat}
@@ -280,6 +357,21 @@ onActivateTalent={props.onActivateTalent}
                 draft={props.coinDraft}
                 onChooseSide={props.onChooseCoinSide}
                 onValidate={props.onValidateCoinFlip}
+                canUseVictoriousTalent={props.canUseVictoriousTalent}
+                victoriousTalentName={props.victoriousTalentName}
+                onActivateVictoriousTalent={props.onActivateVictoriousTalent}
+              />
+            )}
+
+            {props.pendingOptionalDiscardChoice && (
+              <OptionalDiscardPrompt
+                pokemonName={props.pendingOptionalDiscardChoice.pokemonName}
+                attackName={props.pendingOptionalDiscardChoice.attackName}
+                energyType={props.pendingOptionalDiscardChoice.energyType}
+                amount={props.pendingOptionalDiscardChoice.amount}
+                discardAll={props.pendingOptionalDiscardChoice.discardAll}
+                effectText={props.pendingOptionalDiscardChoice.effectText}
+                onChoose={props.onChooseOptionalDiscard}
               />
             )}
 
@@ -342,6 +434,12 @@ onActivateTalent={props.onActivateTalent}
         <Pressable onPress={props.onEndTurn} style={styles.endTurnButton}>
           <Text style={styles.endTurnText}>FIN DU TOUR</Text>
         </Pressable>
+      )}
+      {!props.gameOver && (
+        <ForfeitButton
+          player={props.localPlayer ?? props.currentPlayer}
+          onForfeit={props.onForfeit}
+        />
       )}
       <Pressable onPress={props.onRestartSameCards} style={styles.restartButton}>
         <Text style={styles.restartButtonText}>🔄 RECOMMENCER AVEC LES MÊMES CARTES</Text>

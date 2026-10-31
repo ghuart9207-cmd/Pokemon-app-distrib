@@ -18,6 +18,8 @@ type UseGameTrainerActionsOptions = {
   currentPlayer: Player;
   player1Status: PlayerStatusState;
   player2Status: PlayerStatusState;
+  setPlayer1Status: SetState<PlayerStatusState>;
+  setPlayer2Status: SetState<PlayerStatusState>;
   player1Hand: GameCard[];
   player2Hand: GameCard[];
   setPlayer1Hand: SetState<GameCard[]>;
@@ -47,6 +49,8 @@ export function useGameTrainerActions({
   currentPlayer,
   player1Status,
   player2Status,
+  setPlayer1Status,
+  setPlayer2Status,
   player1Hand,
   player2Hand,
   setPlayer1Hand,
@@ -102,6 +106,7 @@ if (
           pokemon !== null &&
           pokemon.owner === currentPlayer &&
           pokemon.energies.includes('eau') &&
+          !pokemon.healBlockedEndPlayer &&
           pokemon.currentHp < getPokemonMaxHp(pokemon)
       );
 
@@ -145,6 +150,49 @@ if (
       return;
     }
 
+    // -----------------------------------------
+    // BONUS D'ATTAQUE PENDANT CE TOUR (ex : Cynthia)
+    // -----------------------------------------
+    if (card.effect === 'boostPokemonAttackThisTurn') {
+      if (card.category === 'supporter' && hasUsedSupporterThisTurn) {
+        setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');
+        return;
+      }
+
+      const bonus = {
+        pokemonName: card.boostPokemonName ?? '',
+        attackName: card.boostAttackName ?? '',
+        amount: card.boostAmount ?? 0,
+        sourceName: card.name,
+      };
+
+      const setStatus = currentPlayer === 1 ? setPlayer1Status : setPlayer2Status;
+      setStatus((status) => ({
+        ...status,
+        attackBonusesThisTurn: [...(status.attackBonusesThisTurn ?? []), bonus],
+      }));
+
+      if (currentPlayer === 1) {
+        setPlayer1Hand((hand) => hand.filter((handCard) => handCard.id !== card.id));
+        setPlayer1Discard((discard) => [...discard, card]);
+      } else {
+        setPlayer2Hand((hand) => hand.filter((handCard) => handCard.id !== card.id));
+        setPlayer2Discard((discard) => [...discard, card]);
+      }
+
+      if (card.category === 'supporter') {
+        setHasUsedSupporterThisTurn(true);
+      }
+      setSelectedTrainerCard(null);
+      setTrainerEffectActivated(false);
+      setSelectedPokemonCell(null);
+      setSelectedAttackIndex(null);
+      setMessage(
+        `${card.name} : pendant ce tour, l'attaque ${bonus.attackName} de tes ${bonus.pokemonName} inflige ${bonus.amount} dégâts supplémentaires.`
+      );
+      return;
+    }
+
     if (card.effect === 'attach2FireEndTurn') {
       if (hasUsedSupporterThisTurn) {
         setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');
@@ -177,9 +225,14 @@ if (
       }
 
       const opponent: Player = currentPlayer === 1 ? 2 : 1;
-      if (!playerCanSwitchHorizontally(board, opponent)) {
+      const opponentCanSwitch = playerCanSwitchHorizontally(board, opponent);
+      const currentPlayerCanSwitch = playerCanSwitchHorizontally(board, currentPlayer);
+
+      // Utilisable dès qu'au moins un des deux joueurs peut échanger
+      // (les Invocations ne comptent pas : une carte Dresseur ne peut pas les cibler).
+      if (!opponentCanSwitch && !currentPlayerCanSwitch) {
         setMessage(
-          `Le joueur ${opponent} n'a pas deux Pokémon pouvant être échangés sur une même ligne.`
+          'Aucun des deux joueurs ne possède deux Pokémon pouvant être échangés sur une même ligne (les Invocations ne comptent pas).'
         );
         return;
       }
@@ -187,13 +240,16 @@ if (
       setPendingBothPlayersSwitch({
         card,
         playedBy: currentPlayer,
-        choosingPlayer: opponent,
+        // L'adversaire d'abord si possible, sinon directement le joueur.
+        choosingPlayer: opponentCanSwitch ? opponent : currentPlayer,
         controlledBy: currentPlayer,
         firstCell: null,
       });
       setTrainerEffectActivated(true);
       setMessage(
-        `Joueur ${currentPlayer} : choisis le premier Pokémon du joueur ${opponent} que tu veux échanger.`
+        opponentCanSwitch
+          ? `Joueur ${currentPlayer} : choisis le premier Pokémon du joueur ${opponent} que tu veux échanger.`
+          : `Le joueur ${opponent} ne peut pas échanger. Joueur ${currentPlayer}, choisis ton premier Pokémon à échanger.`
       );
       return;
     }
