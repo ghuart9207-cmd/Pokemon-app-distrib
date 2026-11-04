@@ -108,6 +108,12 @@ export function PokemonActions({
         {pokemon.owner}
       </Text>
 
+      {!!pokemon.outgoingAttackReduction && pokemon.outgoingAttackReductionEndPlayer && (
+        <Text style={sharedStyles.actionInfo}>
+          🔻 Ses attaques infligent {pokemon.outgoingAttackReduction} dégâts de moins pendant son prochain tour.
+        </Text>
+      )}
+
       {pokemon.attackCoinCheck && (
         <Text style={sharedStyles.actionInfo}>
           🪙 S'il attaque pendant son prochain tour : {pokemon.attackCoinCheck.coinCount} pièces à lancer avant
@@ -137,6 +143,7 @@ export function PokemonActions({
   (pokemon.card.talent?.effect === 'attachEnergyOncePerTurn' ||
     pokemon.card.talent?.effect === 'moveDamageCounterOncePerTurn' ||
     pokemon.card.talent?.effect === 'healOwnPokemonOncePerTurn' ||
+    pokemon.card.talent?.effect === 'healAllOwnPokemonOncePerTurn' ||
     pokemon.card.talent?.effect === 'summonOncePerTurn' ||
     pokemon.card.talent?.effect === 'returnToolToHandOncePerTurn' ||
     pokemon.card.talent?.effect === 'switchWithBenchOncePerTurn' ||

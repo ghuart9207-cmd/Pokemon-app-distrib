@@ -78,18 +78,20 @@ export function createOnlineGame(game: GameApi, send: SendAction): GameApi {
     selectDiscardSummonCard: (fromPlayer: Player, discardIndex: number) =>
       send('discardSummonSelect', [fromPlayer, discardIndex]),
     finishEnergyGather: () => send('energyGatherDone', []),
+    selectEnergyGatherEnergy: (energy: Parameters<GameApi['selectEnergyGatherEnergy']>[0]) =>
+      send('energyGatherSelect', [energy]),
     forfeitGame: (player: Player) => send('forfeit', [player]),
+    undoTurn: () => send('undoTurn', []),
+    chooseDragonEnergy: (energy: Parameters<GameApi['chooseDragonEnergy']>[0]) =>
+      send('dragonEnergy', [energy]),
 
     // Nouvelle partie
     restartGame: () => send('restart', []),
     restartSameCards: () => send('restartSame', []),
 
     // Préparation des cartes et des invocations
-    toggleSetupCard: (card: GameCard) => send('setupToggle', [card.id]),
-    confirmSetupSelection: () => send('setupConfirm', []),
-    addInvocationSetupCard: (card: PokemonCard) => send('invAdd', [card.id]),
-    removeInvocationSetupCard: (index: number) => send('invRemove', [index]),
-    confirmInvocationSetup: () => send('invConfirm', []),
+    // Choix du deck : chacun choisit de son côté, en même temps (rien n'est envoyé).
+    // Le deck complet part en une fois à la fin (action 'setupSubmit', voir useOnlineGame).
   };
 }
 
@@ -104,7 +106,7 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
   const [first, second, third] = action.payload;
 
   switch (action.name) {
-    case 'cell':
+    case 'cell': {
       // Action « emballée » (voir TUNNELED_ACTIONS) : on applique la vraie action.
       if (first === TUNNEL_MARKER) {
         return applyAction(
@@ -112,7 +114,11 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
           game
         );
       }
+      // Choix réservé à un joueur précis (ex : Corde Sortie) : on ignore les clics de l'autre.
+      const owner = getCellPressOwner(game);
+      if (owner !== null && owner !== action.from) return;
       return game.handleCellPress(String(first));
+    }
     case 'hand':
       return game.handleHandCardPress(findCard(String(first), game), second as Player);
     case 'target':
@@ -171,15 +177,33 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
       return game.selectDiscardSummonCard(first as Player, Number(second));
     case 'energyGatherDone':
       return game.finishEnergyGather();
+    case 'energyGatherSelect':
+      return game.selectEnergyGatherEnergy(first as Parameters<GameApi['selectEnergyGatherEnergy']>[0]);
     case 'forfeit':
       // Seul le joueur lui-même peut abandonner : on utilise le siège de l'envoyeur.
       return game.forfeitGame(action.from);
 
+    case 'dragonEnergy': {
+      // Seul le propriétaire du Pokémon Dragon choisit son Énergie.
+      const pending = game.pendingDragonEnergyChoices[0];
+      if (!pending || pending.player !== action.from) return;
+      return game.chooseDragonEnergy(first as Parameters<GameApi['chooseDragonEnergy']>[0]);
+    }
+    case 'undoTurn':
+      // Seul le joueur dont c'est le tour peut annuler son tour.
+      if (action.from !== game.currentPlayer) return;
+      return game.undoTurn();
     case 'restart':
       return game.restartGame();
     case 'restartSame':
       return game.restartSameCards();
 
+    case 'setupSubmit': {
+      const payload = first as Parameters<GameApi['applyOnlineSetupSubmit']>[0];
+      // Chacun n'envoie que son propre deck.
+      if (!payload || payload.player !== action.from) return;
+      return game.applyOnlineSetupSubmit(payload);
+    }
     case 'setupToggle':
       return game.toggleSetupCard(findCard(String(first), game));
     case 'setupConfirm':
@@ -222,8 +246,20 @@ export function getActiveSeats(game: GameApi): Seat[] {
   addSeat(game.pendingOpponentActiveSwitch?.player);
   addSeat(game.pendingKOSurvival?.player);
   addSeat(game.pendingBothPlayersSwitch?.controlledBy);
+  addSeat(game.pendingDragonEnergyChoices[0]?.player);
 
   return [...seats];
+}
+
+/**
+ * Joueur qui doit cliquer sur le plateau pour le choix en cours, quand ce n'est
+ * pas forcément le joueur dont c'est le tour (sinon null : règles habituelles).
+ */
+export function getCellPressOwner(game: GameApi): Seat | null {
+  if (game.pendingBothPlayersSwitch) return game.pendingBothPlayersSwitch.controlledBy;
+  if (game.pendingOpponentActiveSwitch) return game.pendingOpponentActiveSwitch.player;
+  if (game.pendingKOEnergyMove) return game.pendingKOEnergyMove.player;
+  return null;
 }
 
 /** Gagnant d'une partie terminée : celui qui a subi le moins de dégâts (0 = égalité). */

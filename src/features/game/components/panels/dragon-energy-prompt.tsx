@@ -65,7 +65,8 @@ export function DragonEnergyPrompt({
             Choix restants : {pending?.remaining ?? 0}
           </Text>
 
-          {energyTypes?.map((energy) => (
+          {/* Un seul bouton par type, même si la carte indique 2 fois le même type. */}
+          {[...new Set(energyTypes ?? [])].map((energy) => (
             <Button
               key={energy}
               title={`${getTypeIcon(energy)} ${energy}`}

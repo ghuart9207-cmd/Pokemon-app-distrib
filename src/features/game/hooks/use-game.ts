@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 import { useGameState } from './state/use-game-state';
 import { useGameAttackResolution } from './use-game-attack-resolution';
 import { useGameAttackSelection } from './use-game-attack-selection';
@@ -168,6 +170,42 @@ if (
     setupPhase: setup.setupPhase,
   });
 
+  // -----------------------------------------
+  // ANNULER LE TOUR
+  // Au début de chaque tour, on garde une copie de tout l'état de la partie.
+  // « Annuler le tour » remet cette copie : toutes les actions du tour
+  // (celles du joueur ET de son adversaire pendant ce tour) sont effacées.
+  // -----------------------------------------
+  const turnSnapshotRef = useRef<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    if (setup.setupPhase !== 'battle') {
+      turnSnapshotRef.current = null;
+      return;
+    }
+
+    turnSnapshotRef.current = captureStateSnapshot(state);
+    // Une copie par tour : seulement quand le tour change (ou au début du combat).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.turnId, setup.setupPhase]);
+
+  function undoTurn() {
+    if (setup.setupPhase !== 'battle' || state.gameOver) return;
+
+    const snapshot = turnSnapshotRef.current;
+
+    if (!snapshot || snapshot.turnId !== state.turnId) {
+      state.setMessage("Impossible d'annuler ce tour.");
+      return;
+    }
+
+    restoreStateSnapshot(state, snapshot);
+    attackResolution.clearAttackPrompts();
+    state.setMessage(
+      `↩️ Joueur ${state.currentPlayer} annule son tour : tout revient comme au début du tour.`
+    );
+  }
+
   return {
     ...state,
     ...setup,
@@ -184,9 +222,40 @@ if (
     ...cellPress,
     ...screenActions,
     chooseDragonEnergy,
+    undoTurn,
     cardSeries,
   };
 }
 
 /** Tout ce que renvoie `useGame` : l'état de la partie et les actions du joueur. */
 export type GameApi = ReturnType<typeof useGame>;
+
+/**
+ * Copie de tout l'état de `useGameState` : chaque valeur qui a son setter
+ * (`board` / `setBoard`, `round` / `setRound`, …).
+ */
+function captureStateSnapshot(state: Record<string, unknown>): Record<string, unknown> {
+  const snapshot: Record<string, unknown> = {};
+
+  for (const key of Object.keys(state)) {
+    if (key.startsWith('set')) continue;
+
+    const setterName = `set${key[0].toUpperCase()}${key.slice(1)}`;
+    if (typeof state[setterName] === 'function') {
+      snapshot[key] = state[key];
+    }
+  }
+
+  return snapshot;
+}
+
+/** Remet l'état copié par `captureStateSnapshot`. */
+function restoreStateSnapshot(state: Record<string, unknown>, snapshot: Record<string, unknown>) {
+  for (const [key, value] of Object.entries(snapshot)) {
+    const setter = state[`set${key[0].toUpperCase()}${key.slice(1)}`];
+    if (typeof setter === 'function') {
+      // La fonction est passée telle quelle si la valeur en est une (cas improbable).
+      (setter as (next: unknown) => void)(typeof value === 'function' ? () => value : value);
+    }
+  }
+}

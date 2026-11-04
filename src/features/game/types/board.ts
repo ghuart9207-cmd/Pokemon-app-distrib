@@ -108,6 +108,11 @@ export type PokemonInPlay = {
   // `endPlayer`, si ce Pokémon attaque, il lance d'abord `coinCount` pièces
   // (avec SON compteur de pièces) ; un seul `failsOn` et l'attaque ne fait rien.
   attackCoinCheck?: { coinCount: number; failsOn: CoinSide; endPlayer: Player } | null;
+
+  // Effet 'reduceTargetAttackDamageNextTurn' : les attaques de ce Pokémon infligent
+  // `outgoingAttackReduction` dégâts de moins jusqu'à la fin du tour de `...EndPlayer`.
+  outgoingAttackReduction?: number;
+  outgoingAttackReductionEndPlayer?: Player | null;
   // Résultat du lancer de vérification pendant ce tour.
   attackCoinCheckResultTurnId?: number;
   attackCoinCheckFailed?: boolean;

@@ -6,7 +6,15 @@ import { aspicottcg } from './aspicot-tcg';
 import { coconforttcg } from './coconfort-tcg';
 import { dardargnanextcg } from './dardagnanex-tcg';
 import { noeunoeuftcg } from './noeunoeuf-tcg';
-
+import { papilusiontcg } from './papilusion-tcg';
+import { rafflesiaTCG } from './rafflesia-tcg';
+import { noadkokoextcg } from './noadkokoex-tcg';
+import { fragiladytcg } from './fragilady-tcg';
+import { dracaufeutcg } from './dracaufeu-tcg';
+import { dracaufeuextcg } from './dracaufeuex-tcg';
+import { feunardtcg } from './feunard-tcg';
+import { sulfuraextcg } from './sulfuraex-tcg';
+import { tortankextcg } from './tortankex-tcg';
 
 // =============================================================
 // CARTES POKÉMON TCG POCKET
@@ -24,10 +32,21 @@ export const POCKET_POKEMON_CARDS: PokemonCard[] = [
 bulbizarretcg,
 herbizarretcg,
 florizarreextcg,
+papilusiontcg,
+rafflesiaTCG,
+noeunoeuftcg,
+noadkokoextcg,
+fragiladytcg,
 aspicottcg,
 coconforttcg,
 dardargnanextcg,
-noeunoeuftcg,
+dracaufeutcg,
+dracaufeuextcg,
+feunardtcg,
+sulfuraextcg,
+tortankextcg,
+
+
 ];
 
 export const POCKET_TRAINER_CARDS: TrainerCard[] = [];

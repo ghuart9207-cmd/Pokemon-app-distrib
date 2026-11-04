@@ -14,6 +14,7 @@ import {
   getAllBenchBonusDamage,
   getSelfDamageCounterBonusDamage,
   getFlatBonusDamage,
+  getExtraEnergyBonusDamage,
   getOpponentTypeInPlayBonusDamage,
   getTargetTypeBonusDamage,
 } from './retaliation-rules';
@@ -115,7 +116,10 @@ export function getDamagePerAttachedEnergy(
     return 0;
   }
 
-  const energyCount = pokemon.energies.length;
+  // Avec `energyType`, seules les Énergies de ce type comptent.
+  const energyCount = effect.energyType
+    ? pokemon.energies.filter((energy) => energy === effect.energyType).length
+    : pokemon.energies.length;
 
   return energyCount * effect.amount;
 }
@@ -538,6 +542,9 @@ damage += getOpponentActiveEnergyBonusDamage(
 
     // X dégâts supplémentaires (si défausse facultative : montant si le joueur accepte).
     damage += getFlatBonusDamage(attack.effects);
+
+    // X dégâts si des Énergies en plus du coût sont attachées.
+    damage += getExtraEnergyBonusDamage(attack, pokemon);
 
     // X dégâts si l'adversaire a un Pokémon d'un certain type en jeu.
     damage += getOpponentTypeInPlayBonusDamage(attack.effects, board, pokemon.owner);

@@ -39,6 +39,15 @@ export function handleBenchEnergyAttachment(
     return true;
   }
 
+  // Effet qui donne des Énergies : seul un Pokémon de ce type peut les recevoir.
+  if (
+    pendingBenchEnergyAttachment.targetPokemonType &&
+    pokemon.card.type !== pendingBenchEnergyAttachment.targetPokemonType
+  ) {
+    setMessage(`Choisis un Pokémon de type ${pendingBenchEnergyAttachment.targetPokemonType}.`);
+    return true;
+  }
+
   const energyType = pendingBenchEnergyAttachment.energyType;
 
   const discardEnergies =
@@ -46,13 +55,14 @@ export function handleBenchEnergyAttachment(
       ? player1DiscardEnergies
       : player2DiscardEnergies;
 
-  const energyIndex = discardEnergies.findIndex(
-    (energy) => energy === energyType
-  );
+  // Sans type précis : la dernière Énergie défaussée.
+  const energyIndex = energyType
+    ? discardEnergies.findIndex((energy) => energy === energyType)
+    : discardEnergies.length - 1;
 
   if (energyIndex === -1) {
     setMessage(
-      `Il n'y a plus d'Énergie ${energyType} dans la défausse.`
+      `Il n'y a plus d'Énergie${energyType ? ` ${energyType}` : ''} dans la défausse.`
     );
 
     setPendingBenchEnergyAttachment(null);
@@ -79,7 +89,7 @@ export function handleBenchEnergyAttachment(
   }
 
   setMessage(
-    `🔥 Une Énergie Feu a été attachée à ${pokemon.card.name}.`
+    `Une Énergie ${recoveredEnergy} de la défausse a été attachée à ${pokemon.card.name}.`
   );
 
   setPendingBenchEnergyAttachment(null);

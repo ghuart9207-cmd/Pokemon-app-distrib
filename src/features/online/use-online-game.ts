@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { GameApi } from '@/features/game/hooks/use-game';
 
-import { TUNNEL_MARKER, applyAction, createOnlineGame, getActiveSeats, getWinner } from './game-actions';
+import {
+  TUNNEL_MARKER,
+  applyAction,
+  createOnlineGame,
+  getActiveSeats,
+  getCellPressOwner,
+  getWinner,
+} from './game-actions';
 import { useOnline } from './online-context';
 import type { ActionName, Seat } from './protocol';
 
@@ -23,7 +30,11 @@ const TUNNELED_ACTIONS = new Set<ActionName>([
   'optionalEffectChoice',
   'discardSummonSelect',
   'energyGatherDone',
+  'energyGatherSelect',
   'forfeit',
+  'undoTurn',
+  'dragonEnergy',
+  'setupSubmit',
 ]);
 
 /**
@@ -45,6 +56,28 @@ export function useOnlineGame(rawGame: GameApi, you: Seat) {
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reportedRef = useRef(false);
+
+  // -----------------------------------------
+  // CHOIX DES DECKS EN MÊME TEMPS
+  // Chaque joueur choisit son deck de son côté (rien n'est envoyé pendant le choix),
+  // puis le deck complet est envoyé en une seule action 'setupSubmit'.
+  // -----------------------------------------
+  useEffect(() => {
+    rawGame.setOnlineSetupSubmit((payload) => send('setupSubmit', [payload]));
+  });
+
+  useEffect(() => {
+    return () => rawGame.setOnlineSetupSubmit(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Le joueur 2 choisit directement ses cartes (pas besoin d'attendre le joueur 1).
+  useEffect(() => {
+    if (you === 2 && rawGame.setupPhase === 'player1' && !rawGame.invocationSetupPlayer) {
+      rawGame.setSetupPhase('player2');
+      rawGame.setMessage('Joueur 2 : choisis tes cartes. Ton adversaire choisit les siennes en même temps.');
+    }
+  }, [you, rawGame.setupPhase, rawGame.invocationSetupPlayer]);
 
   // Applique UNE action du journal par rendu, avec l'état le plus récent du jeu.
   useEffect(() => {
@@ -110,6 +143,14 @@ export function useOnlineGame(rawGame: GameApi, you: Seat) {
     if (isSynchronizing || isAwaitingEcho) {
       showNotice('Synchronisation en cours…');
       return;
+    }
+    // Clic sur le plateau pendant un choix réservé à l'adversaire (ex : Corde Sortie).
+    if (name === 'cell') {
+      const owner = getCellPressOwner(rawGame);
+      if (owner !== null && owner !== you) {
+        showNotice("C'est à ton adversaire de choisir.");
+        return;
+      }
     }
     if (TUNNELED_ACTIONS.has(name)) {
       sendAction('cell', [TUNNEL_MARKER, name, ...payload]);

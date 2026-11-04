@@ -108,6 +108,8 @@ type UseGameRestartOptions = {
   setPlayer1SetupCards: SetState<GameCard[]>;
   setPlayer2SetupCards: SetState<GameCard[]>;
   setSetupPhase: SetState<SetupPhase>;
+  // En ligne : decks déjà envoyés.
+  setSetupSubmitted?: SetState<Record<Player, boolean>>;
   setPlayer1Damage: SetState<number>;
   setPlayer2Damage: SetState<number>;
   setGameOver: SetState<boolean>;
@@ -195,6 +197,7 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setPlayer1SetupCards([]);
     options.setPlayer2SetupCards([]);
     options.setSetupPhase('player1');
+    options.setSetupSubmitted?.({ 1: false, 2: false });
     options.setMessage('Joueur 1 : choisis 8 Pokémon, 3 Objets et 2 Supporters.');
   }
 

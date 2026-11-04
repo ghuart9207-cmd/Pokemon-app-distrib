@@ -1,3 +1,5 @@
+import { Text, View } from 'react-native';
+
 import type { GameApi } from '@/features/game/hooks/use-game';
 import type { Player } from '@/features/game/types';
 import { useSetupLayout } from '@/features/game/hooks/use-setup-layout';
@@ -24,6 +26,24 @@ type GameViewProps = {
  */
 export function GameView({ game, localPlayer }: GameViewProps) {
   const { isTablet, setupPokemonPerRow } = useSetupLayout();
+
+  // En ligne : deck envoyé, on attend que l'adversaire ait fini le sien.
+  if (
+    localPlayer !== undefined &&
+    game.setupPhase !== 'battle' &&
+    game.setupSubmitted[localPlayer]
+  ) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ color: 'white', fontSize: 22, fontWeight: 'bold', textAlign: 'center' }}>
+          ✅ Ton deck est prêt !
+        </Text>
+        <Text style={{ color: '#cccccc', fontSize: 16, marginTop: 12, textAlign: 'center' }}>
+          En attente de ton adversaire, qui choisit encore ses cartes…
+        </Text>
+      </View>
+    );
+  }
 
   if (game.invocationSetupPlayer) {
     const setupPlayer = game.invocationSetupPlayer;
@@ -114,6 +134,7 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       selectedPokemonCell={game.selectedPokemonCell}
       selectedPokemon={game.selectedPokemon}
       onForfeit={game.forfeitGame}
+      onUndoTurn={game.undoTurn}
       localPlayer={localPlayer}
       inspectedPokemon={game.inspectedPokemon}
       inspectedPokemonCell={game.inspectedPokemonCell}
@@ -157,6 +178,7 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       onSelectDiscardSummon={game.selectDiscardSummonCard}
       pendingEnergyGather={game.pendingEnergyGather}
       onFinishEnergyGather={game.finishEnergyGather}
+      onSelectEnergyGatherEnergy={game.selectEnergyGatherEnergy}
       onSelectAttack={game.handleSelectAttack}
       // Actions du tour
       onAttack={game.tryAttackSelectedPokemon}

@@ -284,6 +284,37 @@ if (
       return;
     }
 
+    // Flo : soin sur un Pokémon qui a une Énergie d'un type précis.
+    if (card.effect === 'healPokemonWithEnergyType') {
+      if (hasUsedSupporterThisTurn) {
+        setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');
+        return;
+      }
+
+      const energyType = card.healEnergyType;
+      const hasTarget = Object.values(board).some(
+        (pokemon) =>
+          pokemon !== null &&
+          pokemon.owner === currentPlayer &&
+          !pokemon.isInvocation &&
+          (!energyType || pokemon.energies.includes(energyType)) &&
+          pokemon.currentHp < getPokemonMaxHp(pokemon)
+      );
+
+      if (!hasTarget) {
+        setMessage(
+          `Aucun de tes Pokémon blessés n'a d'Énergie ${energyType ?? ''} attachée.`
+        );
+        return;
+      }
+
+      setTrainerEffectActivated(true);
+      setMessage(
+        `Choisis l'un de tes Pokémon avec une Énergie ${energyType ?? ''} pour le soigner de ${card.healAmount ?? 80} PV.`
+      );
+      return;
+    }
+
     setTrainerEffectActivated(true);
     if (card.effect === 'heal30' || card.effect === 'heal20') {
       setMessage('Choisis un de tes Pokémon à soigner.');
@@ -291,6 +322,10 @@ if (
     }
     if (card.effect === 'toolHp40') {
       setMessage('Choisis un Pokémon de Niveau 1 auquel attacher cet Outil.');
+      return;
+    }
+    if (card.effect === 'toolRetreatMinusOneIgnoreConditions') {
+      setMessage('Choisis un de tes Pokémon auquel attacher cet Outil.');
       return;
     }
     if (card.effect === 'returnPokemonToHand') {

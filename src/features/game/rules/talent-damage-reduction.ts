@@ -31,10 +31,18 @@ export function getAttackerColumnDamageReduction(
   board: BoardState | null | undefined,
   attackerCell?: string | null
 ): number {
-  if (!attacker || !board) return 0;
+  if (!attacker) return 0;
+
+  // Effet d'attaque subi au tour précédent : ses attaques infligent X dégâts de moins.
+  const selfReduction =
+    attacker.outgoingAttackReduction && attacker.outgoingAttackReductionEndPlayer === attacker.owner
+      ? attacker.outgoingAttackReduction
+      : 0;
+
+  if (!board) return selfReduction;
 
   const cell = attackerCell ?? findPokemonCell(board, attacker);
-  if (!cell) return 0;
+  if (!cell) return selfReduction;
 
   const column = cell.slice(1);
 
@@ -52,7 +60,7 @@ export function getAttackerColumnDamageReduction(
     }
 
     return total + (other.card.talent.amount ?? DEFAULT_TALENT_REDUCTION);
-  }, 0);
+  }, selfReduction);
 }
 
 /**
@@ -103,4 +111,23 @@ function getTargetTalentReduction(
   }
 
   return 0;
+}
+
+/**
+ * Effet d'attaque 'reduceTargetAttackDamageNextTurn' : pendant le prochain tour
+ * de l'adversaire, les attaques du Pokémon touché infligent `amount` dégâts de moins.
+ * Renvoie les champs à ajouter au Pokémon touché (rien si l'effet est absent).
+ */
+export function getOutgoingReductionForTarget(
+  effects: { type: string; amount: number }[] | undefined,
+  target: PokemonInPlay
+): Partial<PokemonInPlay> {
+  const effect = effects?.find((candidate) => candidate.type === 'reduceTargetAttackDamageNextTurn');
+
+  if (!effect) return {};
+
+  return {
+    outgoingAttackReduction: effect.amount,
+    outgoingAttackReductionEndPlayer: target.owner,
+  };
 }

@@ -37,7 +37,11 @@ export function useGameRetreat({
       return;
     }
 
-    if (pokemon.asleep) {
+    // Outil : peut battre en retraite même Paralysé ou Endormi.
+    const ignoresConditions =
+      pokemon.attachedTool?.effect === 'toolRetreatMinusOneIgnoreConditions';
+
+    if (pokemon.asleep && !ignoresConditions) {
       setMessage(`${pokemon.card.name} est endormi et ne peut pas battre en retraite.`);
       return;
     }
@@ -62,7 +66,7 @@ export function useGameRetreat({
 }
 
 
-    if (pokemon.paralyzed) {
+    if (pokemon.paralyzed && !ignoresConditions) {
       setMessage(`${pokemon.card.name} est paralysé et ne peut pas battre en retraite.`);
       return;
     }
@@ -107,7 +111,8 @@ const retreatCost = getEffectiveRetreatCost(
   pokemon,
   round,
   turnId,
-  isTalentNegated(pokemon, board)
+  isTalentNegated(pokemon, board),
+  board
 );
 
    if (pokemon.energies.length < retreatCost) {

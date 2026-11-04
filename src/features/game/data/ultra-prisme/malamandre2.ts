@@ -37,7 +37,7 @@ export const malamandre2: PokemonCard = {
     },
     {
       name: 'Lance-Flammes',
-      damage: 90,
+      damage: 60,
       energyCost: 3,
 
       requiredEnergies: {
