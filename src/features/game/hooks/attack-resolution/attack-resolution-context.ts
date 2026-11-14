@@ -1,3 +1,4 @@
+import type { SummonChoices } from '@/features/game/rules';
 import type {
   Attack,
   BoardState,
@@ -10,13 +11,25 @@ import type {
   PendingPokemonSwitch,
   PendingSleepResolution,
   Player,
+  PlayerStatusState,
   PokemonInPlay,
   SetState,
+  PendingEnergyTransferToBench,
+  PendingAttackSummonPlacement,
+  PendingInvocationPlacement,
+  PendingDiscardSummon,
+  PendingOwnBenchDamage,
+  PendingCountersToActive,
+  PokemonCard,
 } from '@/features/game/types';
 
 export type AttackResolutionContext = {
   board: BoardState;
   currentPlayer: Player;
+  player1Status: PlayerStatusState;
+  player2Status: PlayerStatusState;
+  player1Hand: GameCard[];
+  player2Hand: GameCard[];
   player1Discard: GameCard[];
 player2Discard: GameCard[];
   player1DiscardEnergies: EnergyType[];
@@ -31,10 +44,20 @@ player2Discard: GameCard[];
   setPendingBenchEnergyAttachment: SetState<PendingBenchEnergyAttachment | null>;
   setPendingGeneratedBenchEnergy: SetState<PendingGeneratedBenchEnergy | null>;
   setPendingOpponentActiveSwitch: SetState<PendingOpponentActiveSwitch | null>;
+  setPendingEnergyTransferToBench: SetState<PendingEnergyTransferToBench | null>;
+  setPendingAttackSummonPlacement: SetState<PendingAttackSummonPlacement | null>;
+  setPendingInvocationPlacement: SetState<PendingInvocationPlacement | null>;
+  setPendingDiscardSummon: SetState<PendingDiscardSummon | null>;
+  setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
+  setPendingCountersToActive: SetState<PendingCountersToActive | null>;
+  player1SummonChoices: SummonChoices;
+  player2SummonChoices: SummonChoices;
   setPendingOpponentTarget: SetState<PendingOpponentTarget | null>;
   setPendingPokemonSwitch: SetState<PendingPokemonSwitch | null>;
   setPendingSleepResolution: SetState<PendingSleepResolution | null>;
   setPlayer1Damage: SetState<number>;
+  setPlayer1Status: SetState<PlayerStatusState>;
+  setPlayer2Status: SetState<PlayerStatusState>;
   setPlayer1Discard: SetState<GameCard[]>;
   setPlayer1DiscardEnergies: SetState<EnergyType[]>;
   setPlayer1Hand: SetState<GameCard[]>;
@@ -43,6 +66,7 @@ player2Discard: GameCard[];
   setPlayer2DiscardEnergies: SetState<EnergyType[]>;
   setPlayer2Hand: SetState<GameCard[]>;
   setPokemonPlacementLocks: SetState<Record<string, number>>;
+  setFreeReplacementTokens: SetState<Record<string, number>>;
   setSelectedAttackIndex: SetState<number | null>;
   setSelectedPokemonCell: SetState<string | null>;
   advanceAttackOrder: (cellName: string, player: Player) => void;

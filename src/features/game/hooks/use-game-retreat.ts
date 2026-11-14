@@ -1,9 +1,13 @@
 import type { BoardState, EnergyType, Player, SetState } from '@/features/game/types';
+import { getEffectiveRetreatCost } from '@/features/game/rules/retreat-cost-rules';
+import { isRetreatForbiddenThisRound, isTalentNegated } from '@/features/game/rules';
 
 type UseGameRetreatOptions = {
   board: BoardState;
   currentPlayer: Player;
   selectedPokemonCell: string | null;
+  round: number;
+  turnId: number;
   setMessage: SetState<string>;
   setBoard: SetState<BoardState>;
   setSelectedPokemonCell: SetState<string | null>;
@@ -14,6 +18,8 @@ type UseGameRetreatOptions = {
 export function useGameRetreat({
   board,
   currentPlayer,
+  round,
+  turnId,
   selectedPokemonCell,
   setMessage,
   setBoard,
@@ -40,6 +46,21 @@ export function useGameRetreat({
       setMessage("Ce Pokémon ne t'appartient pas.");
       return;
     }
+
+    // Règle : le joueur 1 ne peut pas battre en retraite pendant la manche 2.
+    if (isRetreatForbiddenThisRound(currentPlayer, round)) {
+      setMessage('Le joueur 1 ne peut faire battre en retraite aucun Pokémon pendant la manche 2.');
+      return;
+    }
+
+
+    if (pokemon.retreatBlockedUntilOwnTurnEnd) {
+  setMessage(
+    `${pokemon.card.name} ne peut pas battre en retraite pendant ce tour à cause de l'attaque adverse.`
+  );
+  return;
+}
+
 
     if (pokemon.paralyzed) {
       setMessage(`${pokemon.card.name} est paralysé et ne peut pas battre en retraite.`);
@@ -81,15 +102,28 @@ export function useGameRetreat({
       return;
     }
 
-    if (pokemon.energies.length < pokemon.card.retreatCost) {
+// Calcul du coût de retraite avec les Talents.
+const retreatCost = getEffectiveRetreatCost(
+  pokemon,
+  round,
+  turnId,
+  isTalentNegated(pokemon, board)
+);
+
+   if (pokemon.energies.length < retreatCost) {
       setMessage(
         `${pokemon.card.name} n'a pas assez d'Énergies pour battre en retraite.`
       );
       return;
     }
 
-    const discardedEnergies = pokemon.energies.slice(0, pokemon.card.retreatCost);
-    const remainingEnergies = pokemon.energies.slice(pokemon.card.retreatCost);
+    
+const discardedEnergies =
+  pokemon.energies.slice(0, retreatCost);
+
+const remainingEnergies =
+  pokemon.energies.slice(retreatCost);
+
 
     if (pokemon.owner === 1) {
       setPlayer1DiscardEnergies((previous) => [...previous, ...discardedEnergies]);

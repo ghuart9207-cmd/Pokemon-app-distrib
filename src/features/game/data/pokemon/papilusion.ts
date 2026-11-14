@@ -21,14 +21,21 @@ export const papilusion: PokemonCard = {
       },
 
       effects: [
+        // Soigne tous les dégâts de chacun de vos Pokémon.
         {
-          type: 'healAllOwnAndReturnSelf',
+          type: 'healAllOwnPokemon',
           amount: 0,
+        },
+        // Retourne dans la main (reposé comme pose normale du tour, avec ses 2 Énergies).
+        {
+          type: 'returnSelfToHand',
+          amount: 0,
+          returnToHandReplacement: 'normal',
         },
       ],
 
       effectText:
-        'Soignez tous les dégâts de chacun de vos Pokémon. Remettez ce Pokémon ainsi que les cartes Outils Pokémon lui étant attaché dans votre main.',
+        'Soignez tous les dégâts de chacun de vos Pokémon. Remettez ce Pokémon ainsi que les cartes Outils Pokémon lui étant attaché dans votre main, avec ses énergies.',
     },
 
     {

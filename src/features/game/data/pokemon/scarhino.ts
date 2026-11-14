@@ -48,7 +48,7 @@ export const scarhino: PokemonCard = {
       ],
 
       effectText:
-        'Votre adversaire échange son Pokémon actif avec l’un de ses Pokémon de banc.',
+        'Votre adversaire échange son Pokémon actif avec l’un de ses Pokémon de banc. (L’échange se fait horizontalement)',
     },
   ],
 };

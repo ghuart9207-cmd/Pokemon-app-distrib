@@ -21,20 +21,21 @@ export default function HomeScreen() {
     Math.min(TITLE_MAX_SIZE, Math.max(TITLE_MIN_SIZE, width * 0.09))
   );
 
+  // « Jouer » et « Jouer en ligne » mènent d'abord au choix de la série de cartes.
   function handlePlay() {
     if (player) {
-      router.push('/jeu');
+      router.push({ pathname: '/serie', params: { mode: 'local' } });
     } else {
-      // pas connecté : on passe par la connexion, puis on revient lancer le jeu
-      router.push({ pathname: '/connexion', params: { next: 'jeu' } });
+      // pas connecté : on passe par la connexion, puis on revient au choix de la série
+      router.push({ pathname: '/connexion', params: { next: 'serie-local' } });
     }
   }
 
   function handlePlayOnline() {
     if (player) {
-      router.push('/en-ligne');
+      router.push({ pathname: '/serie', params: { mode: 'en-ligne' } });
     } else {
-      router.push({ pathname: '/connexion', params: { next: 'en-ligne' } });
+      router.push({ pathname: '/connexion', params: { next: 'serie-en-ligne' } });
     }
   }
 

@@ -6,6 +6,14 @@ import type {
   PendingBothPlayersSwitch,
   PendingCoinReturnToHand,
   PendingGeneratedBenchEnergy,
+  PendingTalentEnergyAttachment,
+  PendingDamageCounterMove,
+  PendingTalentHeal,
+  PendingTalentToolReturn,
+  PendingDiscardSummon,
+  PendingOwnBenchDamage,
+  PendingEnergyGather,
+  PendingCountersToActive,
   PendingInvocationPlacement,
   PendingKOEnergyMove,
   PendingOpponentActiveSwitch,
@@ -14,8 +22,13 @@ import type {
   Player,
   PokemonCard,
   PokemonInPlay,
+  PlayerStatusState,
   SetState,
   TrainerCard,
+  PendingDragonEnergyChoice,
+  PendingEnergyTransferToBench,
+  PendingDiscardTalentPlacement,
+  PendingAttackSummonPlacement,
 } from '@/features/game/types';
 
 export type CellPressContext = {
@@ -24,17 +37,47 @@ export type CellPressContext = {
   gameOver: boolean;
   selectedCard: PokemonCard | null;
   selectedTrainerCard: TrainerCard | null;
+  player1Discard: GameCard[];
+  player2Discard: GameCard[];
+  pendingDiscardTalentPlacement: PendingDiscardTalentPlacement | null;
+  usedDiscardTalentKeys: string[];
+  setPendingDiscardTalentPlacement:
+  SetState<PendingDiscardTalentPlacement | null>;
+  setUsedDiscardTalentKeys: SetState<string[]>;
+  setOpenedDiscardPlayer: SetState<Player | null>;
   selectedAttachedTool: { card: TrainerCard; cellName: string } | null;
   pendingBenchEnergyAttachment: PendingBenchEnergyAttachment | null;
   pendingBothPlayersSwitch: PendingBothPlayersSwitch | null;
   pendingCoinReturnToHand: PendingCoinReturnToHand | null;
   pendingGeneratedBenchEnergy: PendingGeneratedBenchEnergy | null;
+  pendingTalentEnergyAttachment: PendingTalentEnergyAttachment | null;
+  pendingDamageCounterMove: PendingDamageCounterMove | null;
+  pendingTalentHeal: PendingTalentHeal | null;
+  pendingTalentToolReturn: PendingTalentToolReturn | null;
+  pendingDiscardSummon: PendingDiscardSummon | null;
+  pendingOwnBenchDamage: PendingOwnBenchDamage | null;
+  pendingEnergyGather: PendingEnergyGather | null;
+  pendingCountersToActive: PendingCountersToActive | null;
+  setPendingCountersToActive: SetState<PendingCountersToActive | null>;
+  setInspectedPokemonCell: SetState<string | null>;
+  setInspectedHandCard: SetState<{ card: PokemonCard; owner: Player } | null>;
+  setPendingEnergyGather: SetState<PendingEnergyGather | null>;
+  setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
+  setPendingDiscardSummon: SetState<PendingDiscardSummon | null>;
+  setPendingDamageCounterMove: SetState<PendingDamageCounterMove | null>;
+  setPendingTalentHeal: SetState<PendingTalentHeal | null>;
+  setPendingTalentToolReturn: SetState<PendingTalentToolReturn | null>;
   pendingInvocationPlacement: PendingInvocationPlacement | null;
   pendingKOEnergyMove: PendingKOEnergyMove | null;
+  pendingEnergyTransferToBench: PendingEnergyTransferToBench | null;
+  pendingAttackSummonPlacement: PendingAttackSummonPlacement | null;
+  setPendingAttackSummonPlacement: SetState<PendingAttackSummonPlacement | null>;
+  setPendingEnergyTransferToBench: SetState<PendingEnergyTransferToBench | null>;
   pendingOpponentActiveSwitch: PendingOpponentActiveSwitch | null;
   pendingOpponentTarget: PendingOpponentTarget | null;
   pendingPokemonSwitch: PendingPokemonSwitch | null;
   pokemonPlacementLocks: Record<string, number>;
+  freeReplacementTokens: Record<string, number>;
   hasAttackedThisTurn: boolean;
   hasPlacedThisTurn: boolean;
   hasUsedSupporterThisTurn: boolean;
@@ -51,6 +94,7 @@ export type CellPressContext = {
   setPendingBothPlayersSwitch: SetState<PendingBothPlayersSwitch | null>;
   setPendingCoinReturnToHand: SetState<PendingCoinReturnToHand | null>;
   setPendingGeneratedBenchEnergy: SetState<PendingGeneratedBenchEnergy | null>;
+  setPendingTalentEnergyAttachment: SetState<PendingTalentEnergyAttachment | null>;
   setPendingInvocationPlacement: SetState<PendingInvocationPlacement | null>;
   setPendingKOEnergyMove: SetState<PendingKOEnergyMove | null>;
   setPendingOpponentActiveSwitch: SetState<PendingOpponentActiveSwitch | null>;
@@ -64,7 +108,12 @@ export type CellPressContext = {
   setPlayer2DiscardEnergies: SetState<EnergyType[]>;
   setPlayer1Hand: SetState<GameCard[]>;
   setPlayer2Hand: SetState<GameCard[]>;
+  setPendingDragonEnergyChoices:
+  SetState<PendingDragonEnergyChoice[]>;
   setPokemonPlacementLocks: SetState<Record<string, number>>;
+  setPlayer1Status: SetState<PlayerStatusState>;
+  setPlayer2Status: SetState<PlayerStatusState>;
+  setFreeReplacementTokens: SetState<Record<string, number>>;
   setSelectedAttachedTool: SetState<{ card: TrainerCard; cellName: string } | null>;
   setSelectedAttackIndex: SetState<number | null>;
   setSelectedCard: SetState<PokemonCard | null>;

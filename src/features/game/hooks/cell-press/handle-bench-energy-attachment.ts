@@ -1,3 +1,4 @@
+
 import type { CellPressContext } from './cell-press-context';
 
 /** Choix du Pokémon de banc auquel attacher l'Énergie d'une attaque. */
@@ -45,28 +46,28 @@ export function handleBenchEnergyAttachment(
       ? player1DiscardEnergies
       : player2DiscardEnergies;
 
-  const energyIndex = discardEnergies.findIndex((energy) => energy === energyType);
+  const energyIndex = discardEnergies.findIndex(
+    (energy) => energy === energyType
+  );
 
   if (energyIndex === -1) {
-    setMessage(`Il n'y a plus d'Énergie ${energyType} dans la défausse.`);
+    setMessage(
+      `Il n'y a plus d'Énergie ${energyType} dans la défausse.`
+    );
 
     setPendingBenchEnergyAttachment(null);
-
     return true;
   }
 
   const newDiscard = [...discardEnergies];
-
   const recoveredEnergy = newDiscard[energyIndex];
 
   newDiscard.splice(energyIndex, 1);
 
   setBoard((previousBoard) => ({
     ...previousBoard,
-
     [cellName]: {
       ...pokemon,
-
       energies: [...pokemon.energies, recoveredEnergy],
     },
   }));
@@ -77,9 +78,12 @@ export function handleBenchEnergyAttachment(
     setPlayer2DiscardEnergies(newDiscard);
   }
 
-  setMessage(`🔥 Une Énergie Feu a été attachée à ${pokemon.card.name}.`);
+  setMessage(
+    `🔥 Une Énergie Feu a été attachée à ${pokemon.card.name}.`
+  );
 
   setPendingBenchEnergyAttachment(null);
 
   return true;
 }
+

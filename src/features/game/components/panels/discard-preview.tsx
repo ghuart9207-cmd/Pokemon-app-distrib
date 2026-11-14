@@ -5,14 +5,37 @@ import { TrainerHandCard } from '@/features/game/components/cards/trainer-hand-c
 import { isPokemonCard } from '@/features/game/rules';
 import type { GameCard, Player } from '@/features/game/types';
 import { styles } from './discard-preview.styles';
+import { sharedStyles } from '@/features/game/styles/shared-styles';
+import { useState } from 'react';
 
 type DiscardPreviewProps = {
+  onCardPress: (card: GameCard, index: number, player: Player) => void;
   player: Player;
   cards: GameCard[];
   onClose: () => void;
 };
 
-export function DiscardPreview({ player, cards, onClose }: DiscardPreviewProps) {
+export function DiscardPreview({ player, cards, onClose, onCardPress, }: DiscardPreviewProps) {
+  const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
+
+const selectedCard =
+  selectedCardIndex !== null ? cards[selectedCardIndex] : null;
+
+const canActivateSelectedCard =
+  selectedCard !== null &&
+  isPokemonCard(selectedCard) &&
+  selectedCard.talent?.effect === 'recoverFromDiscardOncePerGame';
+
+function handleActivateSelectedCard() {
+  if (selectedCardIndex === null || !canActivateSelectedCard || !selectedCard) {
+    return;
+  }
+
+  const index = selectedCardIndex;
+
+  setSelectedCardIndex(null);
+  onCardPress(selectedCard, index, player);
+}
   return (
     <View style={styles.discardPreviewOverlay}>
       <View style={styles.discardPreviewHeader}>
@@ -45,9 +68,22 @@ export function DiscardPreview({ player, cards, onClose }: DiscardPreviewProps) 
                         style={styles.discardPreviewCard}
                       >
                         {isPokemonCard(card) ? (
-                          <View style={styles.discardPreviewPokemonSize}>
-                            <PokemonHandCard card={card} />
-                          </View>
+                          <Pressable
+  onPress={() => {
+  if (
+    card.talent?.effect === 'recoverFromDiscardOncePerGame'
+  ) {
+    setSelectedCardIndex(columnIndex * 2 + rowIndex);
+  } else {
+    setSelectedCardIndex(null);
+  }
+}}
+    
+>
+  <View style={styles.discardPreviewPokemonSize}>
+    <PokemonHandCard card={card} />
+  </View>
+</Pressable>
                         ) : (
                           <TrainerHandCard
                             card={card}
@@ -63,7 +99,28 @@ export function DiscardPreview({ player, cards, onClose }: DiscardPreviewProps) 
             ))}
           </View>
         </ScrollView>
+        
       )}
+      {canActivateSelectedCard && selectedCard && (
+  <View style={sharedStyles.actionBox}>
+    <Text style={sharedStyles.actionTitle}>
+      {selectedCard.name}
+    </Text>
+
+    <Text style={sharedStyles.actionInfo}>
+      {selectedCard.talent?.description}
+    </Text>
+
+    <Pressable
+      onPress={handleActivateSelectedCard}
+      style={sharedStyles.attackButton}
+    >
+      <Text style={sharedStyles.attackButtonText}>
+        ▶ ACTIVER
+      </Text>
+    </Pressable>
+  </View>
+)}
     </View>
   );
 }

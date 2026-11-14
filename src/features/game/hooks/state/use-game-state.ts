@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { STARTING_HANDS } from '@/features/game/data';
 import { createEmptyBoard, createNormalPlayerStatus } from '@/features/game/rules';
+import type { SummonChoices } from '@/features/game/rules';
 import type {
   AttackPath,
   BoardState,
@@ -11,11 +12,20 @@ import type {
   CoinSide,
   EnergyType,
   GameCard,
+  PendingEnergyTransferToBench,
   PendingBenchEnergyAttachment,
   PendingBothPlayersSwitch,
   PendingCoinFlip,
   PendingCoinReturnToHand,
   PendingGeneratedBenchEnergy,
+  PendingTalentEnergyAttachment,
+  PendingDamageCounterMove,
+  PendingTalentHeal,
+  PendingTalentToolReturn,
+  PendingDiscardSummon,
+  PendingOwnBenchDamage,
+  PendingEnergyGather,
+  PendingCountersToActive,
   PendingInvocationPlacement,
   PendingKOEnergyMove,
   PendingKOSurvival,
@@ -28,6 +38,9 @@ import type {
   PokemonCard,
   SelectedAttachedTool,
   TrainerCard,
+  PendingDragonEnergyChoice,
+  PendingDiscardTalentPlacement,
+  PendingAttackSummonPlacement,
 } from '@/features/game/types';
 
 /**
@@ -41,6 +54,8 @@ export function useGameState() {
   const [round, setRound] = useState(1);
   const [turnId, setTurnId] = useState(1);
   const [gameOver, setGameOver] = useState(false);
+  // Joueur qui a abandonné (la partie est alors terminée).
+  const [forfeitedPlayer, setForfeitedPlayer] = useState<Player | null>(null);
   const [message, setMessage] = useState('Tour du joueur 1 : sélectionne Pikachu.');
 
   // --- actions déjà effectuées pendant le tour --------------
@@ -50,6 +65,14 @@ export function useGameState() {
   const [trainerEffectActivated, setTrainerEffectActivated] = useState(false);
   const [remainingAttackPaths, setRemainingAttackPaths] = useState<AttackPath[]>([]);
   const [pokemonPlacementLocks, setPokemonPlacementLocks] = useState<
+    Record<string, number>
+  >({});
+
+  // Pokémon renvoyés en main par Margie ou Super Rappel :
+  // clé `${joueur}-${idCarte}` -> nombre de reposes gratuites disponibles.
+  // Une repose gratuite ne compte pas comme la pose du tour,
+  // mais le Pokémon arrive sans Énergie.
+  const [freeReplacementTokens, setFreeReplacementTokens] = useState<
     Record<string, number>
   >({});
 
@@ -64,6 +87,12 @@ export function useGameState() {
   const [selectedAttachedTool, setSelectedAttachedTool] =
     useState<SelectedAttachedTool | null>(null);
   const [openedDiscardPlayer, setOpenedDiscardPlayer] = useState<Player | null>(null);
+  // Talent de récupération depuis la défausse.
+  const [pendingDiscardTalentPlacement, setPendingDiscardTalentPlacement,] = 
+    useState<PendingDiscardTalentPlacement | null>(null);
+
+// Les identifiants des Talents déjà utilisés pendant cette partie.
+  const [usedDiscardTalentKeys, setUsedDiscardTalentKeys] = useState<string[]>([]);
 
   // --- mains, défausses, dégâts et statuts des joueurs ------
   const [player1Hand, setPlayer1Hand] = useState<GameCard[]>(STARTING_HANDS[1]);
@@ -83,6 +112,9 @@ export function useGameState() {
 
   // --- pièces (pile ou face) --------------------------------
   const [pendingCoinFlip, setPendingCoinFlip] = useState<PendingCoinFlip | null>(null);
+  // Tour (turnId) pendant lequel un Talent Victorieux a été utilisé :
+  // un seul Talent Victorieux par tour.
+  const [victoriousUsedTurnId, setVictoriousUsedTurnId] = useState<number | null>(null);
   const [coinDraft, setCoinDraft] = useState<(CoinSide | null)[]>([]);
   const [pendingAttackAfterCoin, setPendingAttackAfterCoin] =
     useState<CoinAttackReference | null>(null);
@@ -104,8 +136,42 @@ export function useGameState() {
     useState<PendingBothPlayersSwitch | null>(null);
   const [pendingCoinReturnToHand, setPendingCoinReturnToHand] =
     useState<PendingCoinReturnToHand | null>(null);
+  const [pendingDragonEnergyChoices,setPendingDragonEnergyChoices,] = 
+    useState<PendingDragonEnergyChoice[]>([]);
   const [pendingGeneratedBenchEnergy, setPendingGeneratedBenchEnergy] =
     useState<PendingGeneratedBenchEnergy | null>(null);
+  const [pendingEnergyTransferToBench,setPendingEnergyTransferToBench,] = 
+    useState<PendingEnergyTransferToBench | null>(null);
+  const [pendingAttackSummonPlacement, setPendingAttackSummonPlacement] =
+    useState<PendingAttackSummonPlacement | null>(null);
+  const [pendingTalentEnergyAttachment, setPendingTalentEnergyAttachment] =
+    useState<PendingTalentEnergyAttachment | null>(null);
+  const [pendingTalentHeal, setPendingTalentHeal] = useState<PendingTalentHeal | null>(null);
+  const [pendingTalentToolReturn, setPendingTalentToolReturn] =
+    useState<PendingTalentToolReturn | null>(null);
+  const [pendingDamageCounterMove, setPendingDamageCounterMove] =
+    useState<PendingDamageCounterMove | null>(null);
+  const [pendingDiscardSummon, setPendingDiscardSummon] =
+    useState<PendingDiscardSummon | null>(null);
+  const [pendingOwnBenchDamage, setPendingOwnBenchDamage] =
+    useState<PendingOwnBenchDamage | null>(null);
+  const [pendingEnergyGather, setPendingEnergyGather] =
+    useState<PendingEnergyGather | null>(null);
+  const [pendingCountersToActive, setPendingCountersToActive] =
+    useState<PendingCountersToActive | null>(null);
+  // Invocation choisie à la préparation pour chaque Pokémon qui invoque
+  // (clé = id de la carte qui invoque, ex : 'plumeline-001').
+  const [player1SummonChoices, setPlayer1SummonChoices] = useState<SummonChoices>({});
+  const [player2SummonChoices, setPlayer2SummonChoices] = useState<SummonChoices>({});
+
+  // Consultation (sans pouvoir l'utiliser) d'un Pokémon adverse sur le plateau
+  // ou d'une carte Pokémon dans une main.
+  const [inspectedPokemonCell, setInspectedPokemonCell] = useState<string | null>(null);
+  const [inspectedHandCard, setInspectedHandCard] = useState<{
+    card: PokemonCard;
+    owner: Player;
+  } | null>(null);
+
   const [pendingInvocationPlacement, setPendingInvocationPlacement] =
     useState<PendingInvocationPlacement | null>(null);
   const [pendingKOEnergyMove, setPendingKOEnergyMove] =
@@ -133,6 +199,8 @@ export function useGameState() {
     setTurnId,
     gameOver,
     setGameOver,
+    forfeitedPlayer,
+    setForfeitedPlayer,
     message,
     setMessage,
     hasPlacedThisTurn,
@@ -147,6 +215,8 @@ export function useGameState() {
     setRemainingAttackPaths,
     pokemonPlacementLocks,
     setPokemonPlacementLocks,
+    freeReplacementTokens,
+    setFreeReplacementTokens,
     selectedCard,
     setSelectedCard,
     selectedTrainerCard,
@@ -182,6 +252,8 @@ export function useGameState() {
     player2Status,
     setPlayer2Status,
     pendingCoinFlip,
+    victoriousUsedTurnId,
+    setVictoriousUsedTurnId,
     setPendingCoinFlip,
     coinDraft,
     setCoinDraft,
@@ -203,8 +275,36 @@ export function useGameState() {
     setPendingCoinReturnToHand,
     pendingGeneratedBenchEnergy,
     setPendingGeneratedBenchEnergy,
+    pendingEnergyTransferToBench,
+    setPendingEnergyTransferToBench,
+    pendingAttackSummonPlacement,
+    setPendingAttackSummonPlacement,
+    pendingTalentEnergyAttachment,
+    setPendingTalentEnergyAttachment,
+    pendingDamageCounterMove,
+    setPendingDamageCounterMove,
+    pendingTalentHeal,
+    setPendingTalentHeal,
+    pendingTalentToolReturn,
+    setPendingTalentToolReturn,
+    pendingDiscardSummon,
+    setPendingDiscardSummon,
+    pendingOwnBenchDamage,
+    setPendingOwnBenchDamage,
+    pendingEnergyGather,
+    setPendingEnergyGather,
+    pendingCountersToActive,
+    setPendingCountersToActive,
     pendingInvocationPlacement,
     setPendingInvocationPlacement,
+    player1SummonChoices,
+    setPlayer1SummonChoices,
+    player2SummonChoices,
+    setPlayer2SummonChoices,
+    inspectedPokemonCell,
+    setInspectedPokemonCell,
+    inspectedHandCard,
+    setInspectedHandCard,
     pendingKOEnergyMove,
     setPendingKOEnergyMove,
     pendingKOSurvival,
@@ -217,6 +317,12 @@ export function useGameState() {
     setPendingPokemonSwitch,
     pendingSleepResolution,
     setPendingSleepResolution,
+    pendingDragonEnergyChoices,
+    setPendingDragonEnergyChoices,
+    pendingDiscardTalentPlacement,
+    setPendingDiscardTalentPlacement,
+    usedDiscardTalentKeys,
+    setUsedDiscardTalentKeys,
   };
 }
 

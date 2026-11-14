@@ -1,6 +1,7 @@
 
-import { getPokemonMaxHp } from '@/features/game/rules';
+import { addFreeReplacementToken, getPokemonMaxHp } from '@/features/game/rules';
 import type { TrainerTargetEffectContext } from './trainer-effect-context';
+import { getFreeReplacementMessage } from './free-replacement-message';
 
 /** Supporter (Margie) : ramène un de ses Pokémon blessés du plateau dans sa main. */
 export function returnPokemonToHand(context: TrainerTargetEffectContext): void {
@@ -20,6 +21,7 @@ export function returnPokemonToHand(context: TrainerTargetEffectContext): void {
     setPlayer2Discard,
     setPlayer2Hand,
     setPokemonPlacementLocks,
+    setFreeReplacementTokens,
     setSelectedAttachedTool,
     setSelectedAttackIndex,
     setSelectedPokemonCell,
@@ -80,6 +82,16 @@ export function returnPokemonToHand(context: TrainerTargetEffectContext): void {
     }));
   }
 
+  // Mode de repose défini par la carte.
+  const replacementMode = selectedTrainerCard.returnToHandReplacement ?? 'normal';
+
+  // Repose gratuite (en plus de la pose du tour), sans Énergie.
+  if (replacementMode === 'free') {
+    setFreeReplacementTokens((previous) =>
+      addFreeReplacementToken(previous, target.owner, target.card.id)
+    );
+  }
+
   // -----------------------------
   // REMET LE POKÉMON EN MAIN
   // -----------------------------
@@ -131,10 +143,6 @@ export function returnPokemonToHand(context: TrainerTargetEffectContext): void {
       (target.attachedTool
         ? ` ${target.attachedTool.name} retourne également dans la main.`
         : '') +
-      (target.card.stage === 'niveau1'
-        ? ` ${target.card.name} ne peut pas être reposé pendant ce tour.`
-        : target.card.stage === 'niveau2'
-          ? ` ${target.card.name} ne peut être reposé ni pendant ce tour ni pendant le prochain tour de ce joueur.`
-          : '')
+      getFreeReplacementMessage(target.card.name, target.card.stage, replacementMode)
   );
 }

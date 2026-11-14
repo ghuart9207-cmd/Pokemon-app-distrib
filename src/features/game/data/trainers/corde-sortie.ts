@@ -5,7 +5,7 @@ export const cordeSortie: TrainerCard = {
   name: 'Corde Sortie',
   category: 'objet',
   description:
-    "Chaque joueur échange l'un de ses Pokémon avec un autre de ses Pokémon de banc. L'adversaire effectue son échange en premier.",
+    "Chaque joueur échange l'un de ses Pokémon avec un autre de ses Pokémon de banc. L'adversaire effectue son échange en premier. (Les échanges se font horizontalement)",
 
   effect: 'bothPlayersSwitch',
 

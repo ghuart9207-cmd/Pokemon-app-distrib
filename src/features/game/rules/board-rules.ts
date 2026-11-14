@@ -5,6 +5,7 @@ import type {
   PokemonCard,
   PokemonInPlay,
 } from '@/features/game/types';
+import { isTalentNegatedAt } from './talent-negation';
 
 export function getPassiveEnergyLimit(card: PokemonCard): number {
   if (card.attacks.length === 0) {
@@ -14,20 +15,29 @@ export function getPassiveEnergyLimit(card: PokemonCard): number {
   return Math.max(...card.attacks.map((attack) => attack.energyCost));
 }
 
-export function canPlacePokemon(card: PokemonCard, round: number) {
-  if (card.stage === 'base') {
-    return true;
-  }
+/**
+ * Manche à partir de laquelle un Pokémon peut être posé depuis la main.
+ * Le joueur 2 (qui joue en second) a un tour d'avance :
+ * - Joueur 1 : Niveau 1 / Méga-EX dès la manche 2, Niveau 2 dès la manche 3 ;
+ * - Joueur 2 : Niveau 1 / Méga-EX dès la manche 1, Niveau 2 dès la manche 2.
+ */
+export function getFirstPlayableRound(card: PokemonCard, player: Player = 1): number {
+  const head = player === 2 ? 1 : 0;
 
-  if (card.stage === 'niveau1' || card.stage === 'mega_ex') {
-    return round >= 2;
-  }
+  if (card.stage === 'base') return 1;
+  if (card.stage === 'niveau1' || card.stage === 'mega_ex') return 2 - head;
+  if (card.stage === 'niveau2') return 3 - head;
 
-  if (card.stage === 'niveau2') {
-    return round >= 3;
-  }
+  return Infinity;
+}
 
-  return false;
+export function canPlacePokemon(card: PokemonCard, round: number, player: Player = 1) {
+  return round >= getFirstPlayableRound(card, player);
+}
+
+/** Le joueur 1 ne peut faire battre en retraite aucun Pokémon pendant la manche 2. */
+export function isRetreatForbiddenThisRound(player: Player, round: number): boolean {
+  return player === 1 && round === 2;
 }
 
 export function isPokemonCard(card: GameCard): card is PokemonCard {
@@ -72,8 +82,12 @@ export function getOpponentPlacementDamage(
   board: BoardState,
   placingPlayer: Player
 ): number {
-  return Object.values(board).reduce((total, pokemon) => {
-    if (!pokemon || pokemon.owner === placingPlayer) {
+  return Object.entries(board).reduce((total, [cell, pokemon]) => {
+    if (
+      !pokemon ||
+      pokemon.owner === placingPlayer ||
+      isTalentNegatedAt(board, cell, pokemon.owner, pokemon.card)
+    ) {
       return total;
     }
 
@@ -85,4 +99,23 @@ export function getOpponentPlacementDamage(
 
     return total;
   }, 0);
+}
+
+/** Clé d'un Pokémon pour les blocages de repose et les reposes gratuites. */
+export function getPokemonPlacementKey(player: Player, cardId: string): string {
+  return `${player}-${cardId}`;
+}
+
+/**
+ * Un Pokémon renvoyé en main (Margie, Super Rappel) gagne une repose gratuite :
+ * elle s'ajoute à la pose normale du tour, mais le Pokémon arrive sans Énergie.
+ */
+export function addFreeReplacementToken(
+  tokens: Record<string, number>,
+  player: Player,
+  cardId: string
+): Record<string, number> {
+  const key = getPokemonPlacementKey(player, cardId);
+
+  return { ...tokens, [key]: (tokens[key] ?? 0) + 1 };
 }

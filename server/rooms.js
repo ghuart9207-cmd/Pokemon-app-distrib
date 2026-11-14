@@ -9,6 +9,17 @@ const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 5;
 const IDLE_ROOM_TTL_MS = 30 * 60 * 1000;
 
+// Séries de cartes : elles ne se mélangent pas, les deux joueurs doivent avoir la même.
+const SERIES_LABELS = {
+  'soleil-lune': 'Pokémon Soleil et Lune',
+  'tcg-pocket': 'Pokémon TCG Pocket',
+};
+const DEFAULT_SERIES = 'soleil-lune';
+
+function toSeries(value) {
+  return Object.prototype.hasOwnProperty.call(SERIES_LABELS, value) ? value : DEFAULT_SERIES;
+}
+
 class RoomError extends Error {
   constructor(code, message) {
     super(message);
@@ -52,11 +63,12 @@ function createRoomManager() {
     room.lastActivity = Date.now();
   }
 
-  function createRoom(player) {
+  function createRoom(player, series) {
     leaveRoom(player.id);
 
     const room = {
       code: generateCode(),
+      series: toSeries(series),
       seats: { 1: makeSeat(player), 2: null },
       log: [],
       createdAt: Date.now(),
@@ -69,7 +81,7 @@ function createRoomManager() {
     return { room, seat: 1 };
   }
 
-  function joinRoom(rawCode, player) {
+  function joinRoom(rawCode, player, series) {
     const room = rooms.get(
       String(rawCode || '')
         .trim()
@@ -91,6 +103,15 @@ function createRoomManager() {
     }
 
     if (room.seats[2]) throw new RoomError('FULL', 'Cette partie est déjà complète.');
+
+    // Nouveau joueur : il doit avoir choisi la même série que l'hôte.
+    // (Un joueur qui revient dans sa partie n'est pas concerné : voir plus haut.)
+    if (series !== undefined && toSeries(series) !== room.series) {
+      throw new RoomError(
+        'WRONG_SERIES',
+        `Cette partie se joue avec ${SERIES_LABELS[room.series]}. Choisis la même série pour la rejoindre.`
+      );
+    }
 
     leaveRoom(player.id);
     room.seats[2] = makeSeat(player);

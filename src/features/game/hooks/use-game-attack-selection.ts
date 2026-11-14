@@ -1,4 +1,11 @@
-import { getPokemonMaxHp } from '@/features/game/rules';
+import {
+  getAttackCoinCount,
+  getPendingAttackCoinCheck,
+  getPokemonMaxHp,
+  hasFailedAttackCoinCheck,
+  isTalentNegated,
+} from '@/features/game/rules';
+import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
 import type {
   BoardState,
   CoinAttackReference,
@@ -6,6 +13,7 @@ import type {
   Player,
   PokemonInPlay,
   SetState,
+  GameCard,
 } from '@/features/game/types';
 
 type UseGameAttackSelectionOptions = {
@@ -14,6 +22,8 @@ type UseGameAttackSelectionOptions = {
   selectedAttackIndex: number | null;
   readyCoinAttack: CoinAttackReference | null;
   turnId: number;
+  player1Discard: GameCard[];
+  player2Discard: GameCard[];
   player1Damage: number;
   player2Damage: number;
   canAttackInCurrentOrder: (cellName: string) => boolean;
@@ -33,6 +43,8 @@ export function useGameAttackSelection({
   turnId,
   player1Damage,
   player2Damage,
+  player1Discard,
+  player2Discard,
   canAttackInCurrentOrder,
   getBaseAttackBlocker,
   setMessage,
@@ -63,6 +75,18 @@ export function useGameAttackSelection({
       return;
     }
 
+    
+
+
+    
+if (pokemon.blockedAllAttacksTurnId === turnId) {
+  setMessage(
+    `${pokemon.card.name} ne peut pas attaquer pendant ce tour à cause de son attaque précédente.`
+  );
+  return;
+}
+
+
     const baseAttackBlocker = getBaseAttackBlocker(selectedPokemonCell);
     if (baseAttackBlocker) {
       setMessage(
@@ -76,7 +100,14 @@ export function useGameAttackSelection({
       return;
     }
 
-    const attack = pokemon.card.attacks[selectedAttackIndex];
+    const discardForAttackList =
+  pokemon.owner === 1 ? player1Discard : player2Discard;
+
+const attack = getAvailablePokemonAttacks(
+  pokemon,
+  discardForAttackList,
+  isTalentNegated(pokemon, board)
+)[selectedAttackIndex]?.attack;
     if (attack?.targetMode === 'damagedOpponentOrPlayer') {
       const opponent: Player = pokemon.owner === 1 ? 2 : 1;
       const hasDamagedOpponentPokemon = Object.values(board).some(
@@ -107,6 +138,34 @@ export function useGameAttackSelection({
       return;
     }
 
+    // -----------------------------------------
+    // LANCER DE PIÈCES IMPOSÉ PAR L'ADVERSAIRE AVANT D'ATTAQUER
+    // (ses propres pièces : son compteur personnel s'applique)
+    // -----------------------------------------
+    const coinCheck = getPendingAttackCoinCheck(pokemon, turnId);
+
+    if (coinCheck) {
+      setReadyCoinAttack(null);
+      setPendingAttackAfterCoin({
+        cellName: selectedPokemonCell,
+        attackIndex: selectedAttackIndex,
+        isCoinCheck: true,
+      });
+      startPokemonCoinFlip(selectedPokemonCell, coinCheck.coinCount);
+      setMessage(
+        `${pokemon.card.name} doit lancer ${coinCheck.coinCount} pièces avant d'attaquer : au moins un ${coinCheck.failsOn === 'pile' ? 'PILE' : 'FACE'} et son attaque ne fait rien.`
+      );
+      return;
+    }
+
+    // Lancer de vérification raté : l'attaque ne fait rien (sans lancer ses pièces).
+    if (hasFailedAttackCoinCheck(pokemon, turnId)) {
+      setReadyCoinAttack(null);
+      setPendingAttackAfterCoin(null);
+      attackSelectedPokemon();
+      return;
+    }
+
     if (
       readyCoinAttack &&
       readyCoinAttack.cellName === selectedPokemonCell &&
@@ -118,12 +177,15 @@ export function useGameAttackSelection({
       return;
     }
 
-    if (attack.coinCount && attack.coinCount > 0) {
+    // Nombre de pièces : fixe, ou une par Énergie d'un type attachée.
+    const coinCount = getAttackCoinCount(attack, pokemon);
+
+    if (coinCount > 0) {
       setPendingAttackAfterCoin({
         cellName: selectedPokemonCell,
         attackIndex: selectedAttackIndex,
       });
-      startPokemonCoinFlip(selectedPokemonCell, attack.coinCount);
+      startPokemonCoinFlip(selectedPokemonCell, coinCount);
       return;
     }
 

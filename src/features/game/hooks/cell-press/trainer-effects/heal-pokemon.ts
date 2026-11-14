@@ -1,4 +1,4 @@
-import { getPokemonMaxHp } from '@/features/game/rules';
+import { getPokemonMaxHp, isHealBlocked } from '@/features/game/rules';
 import type { TrainerTargetEffectContext } from './trainer-effect-context';
 
 /** Soin : Potion (Objet, +30 PV) ou Supporter (+20 PV) sur un de ses Pokémon. */
@@ -25,6 +25,12 @@ export function healPokemon(context: TrainerTargetEffectContext): void {
   // Supporter peut être utilisé par tour
   if (selectedTrainerCard.category === 'supporter' && hasUsedSupporterThisTurn) {
     setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');
+    return;
+  }
+
+  // Soin interdit par une attaque adverse : la carte reste dans la main.
+  if (isHealBlocked(target)) {
+    setMessage(`${target.card.name} ne peut pas être soigné pendant ce tour.`);
     return;
   }
 

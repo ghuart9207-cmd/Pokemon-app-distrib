@@ -5,6 +5,7 @@ import {
   getKOPenalty,
   isAllCoinSide,
   isPokemonCard,
+  isTalentNegated,
   resolveCoinFlip,
   saveCoinResult,
 } from '@/features/game/rules';
@@ -28,6 +29,9 @@ import type {
 type UseGameCoinFlowOptions = {
   board: BoardState;
   currentPlayer: Player;
+  turnId: number;
+  victoriousUsedTurnId: number | null;
+  setVictoriousUsedTurnId: SetState<number | null>;
   hasAttackedThisTurn: boolean;
   pendingCoinFlip: PendingCoinFlip | null;
   coinDraft: (CoinSide | null)[];
@@ -67,6 +71,9 @@ type UseGameCoinFlowOptions = {
 export function useGameCoinFlow({
   board,
   currentPlayer,
+  turnId,
+  victoriousUsedTurnId,
+  setVictoriousUsedTurnId,
   hasAttackedThisTurn,
   pendingCoinFlip,
   coinDraft,
@@ -158,6 +165,69 @@ export function useGameCoinFlow({
         : resolution.result
           ? [...resolution.result]
           : []
+    );
+  }
+
+  // =====================================
+  // TALENT VICTORIEUX
+  // =====================================
+  // Une fois par tour, après un lancer de pièces IMPOSÉ pour une attaque,
+  // le joueur peut « relancer » : les pièces sont inversées (PILE <-> FACE).
+  // Un seul Talent Victorieux par tour, même avec plusieurs Pokémon qui l'ont.
+
+  const victoriousPokemon = pendingCoinFlip
+    ? Object.entries(board).find(
+        ([cell, pokemon]) =>
+          pokemon !== null &&
+          !isTalentNegated(pokemon, board, cell) &&
+          pokemon.owner === pendingCoinFlip.player &&
+          pokemon.card.talent?.effect === 'invertImposedAttackCoinFlipOncePerTurn'
+      )?.[1] ?? null
+    : null;
+
+  const canUseVictoriousTalent = Boolean(
+    pendingCoinFlip &&
+      victoriousPokemon &&
+      // seulement quand le résultat est imposé (pas de choix)
+      !pendingCoinFlip.resolution.choiceAllowed &&
+      pendingCoinFlip.resolution.result &&
+      // seulement pour un lancer d'attaque, pendant son propre tour
+      pendingCoinFlip.sourceType === 'pokemon' &&
+      pendingAttackAfterCoin?.cellName === pendingCoinFlip.sourceKey &&
+      pendingCoinFlip.player === currentPlayer &&
+      // une seule fois par lancer et par tour
+      !pendingCoinFlip.victoriousUsed &&
+      victoriousUsedTurnId !== turnId
+  );
+
+  const victoriousTalentName = victoriousPokemon?.card.talent?.name ?? 'Victorieux';
+
+  function activateVictoriousTalent() {
+    if (!canUseVictoriousTalent || !pendingCoinFlip?.resolution.result) {
+      return;
+    }
+
+    const previousResult = pendingCoinFlip.resolution.result;
+    const invertedResult: CoinSide[] = previousResult.map((side) =>
+      side === 'face' ? 'pile' : 'face'
+    );
+
+    const toText = (result: CoinSide[]) =>
+      result.map((side) => (side === 'face' ? 'FACE' : 'PILE')).join(' / ');
+
+    setPendingCoinFlip({
+      ...pendingCoinFlip,
+      victoriousUsed: true,
+      resolution: {
+        ...pendingCoinFlip.resolution,
+        result: invertedResult,
+      },
+    });
+    setCoinDraft([...invertedResult]);
+    setVictoriousUsedTurnId(turnId);
+
+    setMessage(
+      `✨ Talent ${victoriousTalentName} de ${victoriousPokemon?.card.name ?? 'ton Pokémon'} : nouveau lancer ! ${toText(previousResult)} → ${toText(invertedResult)}. Valide le lancer pour continuer.`
     );
   }
 
@@ -362,6 +432,7 @@ export function useGameCoinFlow({
       if (result === 'face') {
         setPendingCoinReturnToHand({
           player: pendingCoinFlip.player,
+          returnToHandReplacement: superRappel.returnToHandReplacement,
         });
 
         setMessage('🪙 FACE ! Choisis l’un de tes Pokémon à remettre dans ta main.');
@@ -380,6 +451,36 @@ export function useGameCoinFlow({
       .join(' / ');
 
     if (
+      pendingAttackAfterCoin?.isCoinCheck &&
+      pendingAttackAfterCoin.cellName === pendingCoinFlip.sourceKey
+    ) {
+      // Lancer de vérification imposé par l'adversaire.
+      const checkedCell = pendingCoinFlip.sourceKey;
+      const checkedPokemon = board[checkedCell];
+      const failsOn = checkedPokemon?.attackCoinCheck?.failsOn ?? 'pile';
+      const failed = finalResult.includes(failsOn);
+
+      setBoard((previousBoard) => {
+        const current = previousBoard[checkedCell];
+        if (!current) return previousBoard;
+
+        return {
+          ...previousBoard,
+          [checkedCell]: {
+            ...current,
+            attackCoinCheckResultTurnId: turnId,
+            attackCoinCheckFailed: failed,
+          },
+        };
+      });
+
+      setPendingAttackAfterCoin(null);
+      setMessage(
+        failed
+          ? `🪙 ${pendingCoinFlip.sourceName} : ${resultText}. Raté : son attaque ne fera rien. Appuie sur Attaquer pour terminer.`
+          : `🪙 ${pendingCoinFlip.sourceName} : ${resultText}. Réussi ! Appuie de nouveau sur Attaquer.`
+      );
+    } else if (
       pendingAttackAfterCoin &&
       pendingAttackAfterCoin.cellName === pendingCoinFlip.sourceKey
     ) {
@@ -536,6 +637,9 @@ export function useGameCoinFlow({
   }
 
   return {
+    canUseVictoriousTalent,
+    victoriousTalentName,
+    activateVictoriousTalent,
     chooseCoinSide,
     validatePendingCoinFlip,
     getTrainerHistoryKey,

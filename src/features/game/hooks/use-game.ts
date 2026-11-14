@@ -14,6 +14,10 @@ import { useGameSetup } from './use-game-setup';
 import { useGameTargeting } from './use-game-targeting';
 import { useGameTrainerActions } from './use-game-trainer-actions';
 import { useGameTurn } from './use-game-turn';
+import {getPassiveEnergyLimit,canAttachEnergyFromSource,} from '@/features/game/rules';
+import type { CardSeries, EnergyType } from '@/features/game/types';
+import { CARD_SERIES, DEFAULT_CARD_SERIES } from '@/features/game/data';
+
 
 /**
  * Assemble tous les hooks de la partie.
@@ -21,11 +25,104 @@ import { useGameTurn } from './use-game-turn';
  * Chaque hook reçoit l'état partagé (`state`) plus les fonctions produites par les hooks
  * précédents ; l'ordre des appels suit donc les dépendances entre eux.
  */
-export function useGame() {
+export function useGame(series: CardSeries = DEFAULT_CARD_SERIES) {
   const state = useGameState();
 
+  // Série de cartes de la partie : les deux joueurs choisissent
+  // uniquement parmi les cartes de cette série.
+  const cardSeries = CARD_SERIES[series];
+
+function chooseDragonEnergy(energyType: EnergyType) {
+  const pending = state.pendingDragonEnergyChoices[0];
+
+  if (!pending) return;
+
+  const pokemon = state.board[pending.cellName];
+
+  // Si le Pokémon a disparu, abandonner ce choix.
+  if (!pokemon || pokemon.owner !== pending.player) {
+    state.setPendingDragonEnergyChoices(
+      (previous) => previous.slice(1)
+    );
+    return;
+  }
+
+  // Vérifie si le Pokémon Dragon peut recevoir
+  // une énergie considérée comme venant de la main.
+  if (!canAttachEnergyFromSource(pokemon, 'hand')) {
+    state.setMessage(
+      `${pokemon.card.name} ne peut pas recevoir d'Énergie à cause de l'attaque adverse.`
+    );
+
+    // Supprime ce choix devenu interdit.
+    state.setPendingDragonEnergyChoices(
+      (previous) => previous.slice(1)
+    );
+
+    return;
+  }
+
+  const allowedTypes = pokemon.card.dragonEnergyTypes;
+
+  // Vérifier que l'énergie choisie fait partie
+  // des deux types autorisés pour ce Dragon.
+  if (!allowedTypes?.includes(energyType)) {
+    return;
+  }
+
+  const passiveEnergyLimit =
+    getPassiveEnergyLimit(pokemon.card);
+
+  if (pokemon.energies.length < passiveEnergyLimit) {
+    state.setBoard((previousBoard) => {
+      const currentPokemon = previousBoard[pending.cellName];
+
+      
+if (
+  !currentPokemon ||
+  currentPokemon.owner !== pending.player ||
+  !canAttachEnergyFromSource(currentPokemon, 'hand') ||
+  currentPokemon.energies.length >=
+    getPassiveEnergyLimit(currentPokemon.card)
+) {
+  return previousBoard;
+}
+
+
+      return {
+        ...previousBoard,
+        [pending.cellName]: {
+          ...currentPokemon,
+          energies: [
+            ...currentPokemon.energies,
+            energyType,
+          ],
+        },
+      };
+    });
+
+    state.setMessage(
+      `${pokemon.card.name} reçoit une Énergie ${energyType}.`
+    );
+  }
+
+  // Passer au choix suivant ou terminer.
+  state.setPendingDragonEnergyChoices((previous) => {
+    const [current, ...rest] = previous;
+
+    if (!current) return previous;
+
+    return current.remaining > 1
+      ? [
+          { ...current, remaining: current.remaining - 1 },
+          ...rest,
+        ]
+      : rest;
+  });
+}
+
   // Préparation de la partie
-  const setup = useGameSetup(state);
+  const setup = useGameSetup({ ...state, cardSeries });
 
   // Règles de déplacement, de ciblage et de sélection
   const movement = useGameMovement(state);
@@ -65,7 +162,11 @@ export function useGame() {
   });
 
   // Handlers de l'écran de jeu
-  const screenActions = useGameScreenActions({ ...state, ...turn });
+  const screenActions = useGameScreenActions({
+    ...state,
+    ...turn,
+    setupPhase: setup.setupPhase,
+  });
 
   return {
     ...state,
@@ -76,11 +177,14 @@ export function useGame() {
     ...trainerActions,
     ...invocation,
     ...attackSelection,
+    ...attackResolution,
     ...retreat,
     ...turn,
     ...restart,
     ...cellPress,
     ...screenActions,
+    chooseDragonEnergy,
+    cardSeries,
   };
 }
 

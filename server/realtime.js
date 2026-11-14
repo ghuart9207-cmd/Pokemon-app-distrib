@@ -3,15 +3,15 @@
  *
  * Client -> serveur
  *   { type: 'auth', token }
- *   { type: 'create_room' }
- *   { type: 'join_room', code }
+ *   { type: 'create_room', series }       series : 'soleil-lune' ou 'tcg-pocket'
+ *   { type: 'join_room', code, series }   refusé si la série n'est pas celle de l'hôte
  *   { type: 'leave_room' }
  *   { type: 'action', name, payload }     une action de jeu (clic, attaque, fin de tour…)
  *   { type: 'game_over', winner }         winner : 1, 2 ou 0 (égalité)
  *
  * Serveur -> client
  *   { type: 'authed', player }
- *   { type: 'room_joined', code, you, players, log }
+ *   { type: 'room_joined', code, series, you, players, log }
  *   { type: 'room_update', players }
  *   { type: 'action', seq, from, name, payload }   envoyée aux DEUX joueurs, dans le même ordre
  *   { type: 'match_recorded' }
@@ -44,6 +44,16 @@ const ACTION_NAMES = new Set([
   'trainerCoin',
   'coinSide',
   'validateCoin',
+  'victorious',
+  'talent',
+  'optionalDiscard',
+  'discardAllChoice',
+  'optionalBonusChoice',
+  'ownBenchTarget',
+  'optionalEffectChoice',
+  'discardSummonSelect',
+  'energyGatherDone',
+  'forfeit',
   'restart',
   'restartSame',
   'setupToggle',
@@ -133,14 +143,15 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
           case 'join_room': {
             const result =
               msg.type === 'create_room'
-                ? manager.createRoom(session.player)
-                : manager.joinRoom(msg.code, session.player);
+                ? manager.createRoom(session.player, msg.series)
+                : manager.joinRoom(msg.code, session.player, msg.series);
             const { room, seat } = result;
             bindSeat(room, seat, socket);
             session.code = room.code;
             send(socket, {
               type: 'room_joined',
               code: room.code,
+              series: room.series,
               you: seat,
               players: manager.playersInfo(room),
               log: room.log,

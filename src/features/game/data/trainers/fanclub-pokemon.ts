@@ -7,7 +7,7 @@ export const fanclubPokemon: TrainerCard = {
 
   category: 'supporter',
 
-  description: 'Invoquez 2 Pokémon de Base ayant 60 PV ou moins sur votre banc.',
+  description: 'Invoquez 2 Pokémon de Base ayant 60 PV ou moins sur votre banc. Comme ce sont des Invocations, ils arrivent sans Énergie et ne peuvent pas être ciblé par les cartes Dresseur.',
 
   effect: 'summonTwoBase60',
 

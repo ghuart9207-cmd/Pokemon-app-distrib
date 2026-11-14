@@ -1,9 +1,14 @@
 import type { Player, PlayerStatusState, PokemonInPlay } from '@/features/game/types';
+import { canAttachEnergyFromSource } from
+  './energy-attachment-rules';
 
 export function resolvePokemonEndOfTurn(
   pokemon: PokemonInPlay,
   currentPlayer: Player,
-  playerReceivingEnergy: Player
+  playerReceivingEnergy: Player,
+  poisonDamageBonus = 0,
+  // Dégâts de brûlure sur les Pokémon ADVERSES (talent : 60 au lieu de 20).
+  opponentBurnDamage = 20
 ): PokemonInPlay {
   let updatedPokemon = pokemon;
 
@@ -12,7 +17,12 @@ export function resolvePokemonEndOfTurn(
       0,
       ...updatedPokemon.card.attacks.map((attack) => attack.energyCost)
     );
-    const canReceivePassiveEnergy = updatedPokemon.energies.length < passiveEnergyLimit;
+    
+const canReceivePassiveEnergy =
+  updatedPokemon.card.type !== 'dragon' &&
+  updatedPokemon.energies.length < passiveEnergyLimit &&
+  canAttachEnergyFromSource(updatedPokemon, 'hand');
+
 
     updatedPokemon = {
       ...updatedPokemon,
@@ -23,12 +33,20 @@ export function resolvePokemonEndOfTurn(
     };
   }
 
-  if (updatedPokemon.poisoned && updatedPokemon.poisonSourcePlayer === currentPlayer) {
-    updatedPokemon = {
-      ...updatedPokemon,
-      currentHp: updatedPokemon.currentHp - 10,
-    };
-  }
+  if (
+  updatedPokemon.poisoned &&
+  updatedPokemon.poisonSourcePlayer === currentPlayer
+) {
+  const poisonDamage =
+    updatedPokemon.owner !== currentPlayer
+      ? 10 + poisonDamageBonus
+      : 10;
+
+  updatedPokemon = {
+    ...updatedPokemon,
+    currentHp: updatedPokemon.currentHp - poisonDamage,
+  };
+}
 
   if (
     updatedPokemon.burned &&
@@ -38,7 +56,9 @@ export function resolvePokemonEndOfTurn(
     const remaining = updatedPokemon.burnTriggersRemaining - 1;
     updatedPokemon = {
       ...updatedPokemon,
-      currentHp: updatedPokemon.currentHp - 20,
+      currentHp:
+        updatedPokemon.currentHp -
+        (updatedPokemon.owner !== currentPlayer ? opponentBurnDamage : 20),
       burnTriggersRemaining: remaining,
       burned: remaining > 0,
       burnSourcePlayer: remaining === 0 ? null : updatedPokemon.burnSourcePlayer,
@@ -87,8 +107,18 @@ export function resolvePokemonEndOfTurn(
           extraDamageNextTurn: 0,
           extraDamageNextTurnSourcePlayer: null,
           extraDamageNextTurnReady: false,
+          extraDamageNextTurnEnergyType: undefined,
         }
       : { ...updatedPokemon, extraDamageNextTurnReady: true };
+  }
+
+  // Le contre-coup expire à la fin du tour adverse.
+  if (updatedPokemon.retaliationEndPlayer === currentPlayer) {
+    updatedPokemon = {
+      ...updatedPokemon,
+      retaliationDamage: 0,
+      retaliationEndPlayer: null,
+    };
   }
 
   if (updatedPokemon.attackDamageReductionEndPlayer === currentPlayer) {
@@ -117,26 +147,81 @@ export function resolvePokemonEndOfTurn(
   };
 }
 
+// Fin de l'interdiction de soin.
+if (updatedPokemon.healBlockedEndPlayer === currentPlayer) {
+  updatedPokemon = { ...updatedPokemon, healBlockedEndPlayer: null };
+}
+
+// Fin du lancer de pièces imposé avant d'attaquer.
+if (updatedPokemon.attackCoinCheck && updatedPokemon.attackCoinCheck.endPlayer === currentPlayer) {
+  updatedPokemon = { ...updatedPokemon, attackCoinCheck: null };
+}
+
+// Fin de la protection contre les dégâts des attaques.
+if (updatedPokemon.preventAttackDamage && updatedPokemon.preventAttackDamageEndPlayer === currentPlayer) {
+  updatedPokemon = {
+    ...updatedPokemon,
+    preventAttackDamage: false,
+    preventAttackDamageEndPlayer: null,
+  };
+}
+
+if (
+  updatedPokemon.temporaryAttackDamageProtection
+    ?.expiresAfterPlayerTurn === currentPlayer
+) {
+  updatedPokemon = {
+    ...updatedPokemon,
+    temporaryAttackDamageProtection: undefined,
+  };
+}
+
+// Fin de l'interdiction de retraite
+// à la fin du tour du Pokémon concerné.
+if (
+  updatedPokemon.owner === currentPlayer &&
+  updatedPokemon.retreatBlockedUntilOwnTurnEnd
+) {
+  updatedPokemon = {
+    ...updatedPokemon,
+    retreatBlockedUntilOwnTurnEnd: false,
+  };
+}
+
+// L'interdiction disparaît à la fin
+// du tour du propriétaire du Pokémon.
+if (
+  updatedPokemon.owner === currentPlayer &&
+  updatedPokemon.blockedHandEnergyUntilOwnTurnEnd
+) {
+  updatedPokemon = {
+    ...updatedPokemon,
+    blockedHandEnergyUntilOwnTurnEnd: false,
+  };
+}
+
   return updatedPokemon;
 }
 
 export function resolvePlayerEndOfTurnStatus(
   status: PlayerStatusState,
-  currentPlayer: Player
+  currentPlayer: Player,
+  poisonDamageBonus = 0,
+  burnDamage = 20
 ): { status: PlayerStatusState; damage: number } {
   let nextStatus = status;
   let damage = 0;
 
   if (status.poisoned && status.poisonSourcePlayer === currentPlayer) {
-    damage += 10;
-  }
+  damage += 10 + poisonDamageBonus;
+}
 
   if (
     status.burned &&
     status.burnSourcePlayer === currentPlayer &&
     status.burnTriggersRemaining > 0
   ) {
-    damage += 20;
+    damage += burnDamage;
     const remaining = status.burnTriggersRemaining - 1;
     nextStatus = {
       ...status,
@@ -166,5 +251,6 @@ export function advancePlayerExtraDamage(
     extraDamageNextTurn: 0,
     extraDamageNextTurnSourcePlayer: null,
     extraDamageNextTurnReady: false,
+    
   };
 }
