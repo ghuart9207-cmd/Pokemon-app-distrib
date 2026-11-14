@@ -4,16 +4,6 @@ Jeu de cartes Pokémon au tour par tour, joué sur un **plateau de 16 cases**. C
 
 🎮 **Démo en ligne : [pokemon-app-distrib.vercel.app](https://pokemon-app-distrib.vercel.app)**
 
-<!-- TODO : ajouter 2 ou 3 captures d'écran (écran de préparation, plateau, combat) -->
-<!-- ![Aperçu du plateau](docs/screenshots/plateau.png) -->
-<img width="1267" height="627" alt="image" src="https://github.com/user-attachments/assets/a0efc94c-cbf9-4ad0-9148-36a67a0d029f" />
-<img width="1817" height="845" alt="image" src="https://github.com/user-attachments/assets/22c3b58c-5a80-4c02-9e09-f812f7711339" />
-
-Plateau dézoomé :
-<img width="612" height="775" alt="image" src="https://github.com/user-attachments/assets/1c440082-b3ce-432e-81ca-eaf8b328bc9e" />
-
-
-
 ---
 
 ## Sommaire
