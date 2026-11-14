@@ -10,6 +10,7 @@ import { useEffect } from 'react';
 import { AuthProvider } from '@/features/auth/auth-context';
 import { OnlineProvider } from '@/features/online/online-context';
 import { COLORS, FONTS } from '@/features/ui/theme';
+import Head from 'expo-router/head'; // à côté des autres imports
 
 SplashScreen.preventAutoHideAsync();
 
@@ -29,6 +30,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
+      <Head>
+        <title>Pokemon Version Vincent</title>
+      </Head>
       <OnlineProvider>
         <Stack
           screenOptions={{
