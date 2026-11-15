@@ -7,4 +7,6 @@ export * from './margie';
 export * from './nephie';
 export * from './potion';
 export * from './relais';
+export * from './skateboard-evasion';
 export * from './super-rappel';
+export * from './flo';

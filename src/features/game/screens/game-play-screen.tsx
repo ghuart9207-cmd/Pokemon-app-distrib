@@ -9,6 +9,7 @@ import { DiscardSummonPrompt } from '@/features/game/components/panels/discard-s
 import { EnergyGatherPrompt } from '@/features/game/components/panels/energy-gather-prompt';
 import { HandPokemonPreview } from '@/features/game/components/panels/hand-pokemon-preview';
 import { ForfeitButton } from '@/features/game/components/panels/forfeit-button';
+import { UndoTurnButton } from '@/features/game/components/panels/undo-turn-button';
 import type { SummonChoices } from '@/features/game/rules';
 import type { DiscardSummonCandidate } from '@/features/game/rules';
 import { KOEnergyPrompt } from '@/features/game/components/panels/ko-energy-prompt';
@@ -114,6 +115,7 @@ type GamePlayScreenProps = {
   onSelectDiscardSummon: (fromPlayer: Player, discardIndex: number) => void;
   pendingEnergyGather: PendingEnergyGather | null;
   onFinishEnergyGather: () => void;
+  onSelectEnergyGatherEnergy: (energy: EnergyType) => void;
   onSelectAttack: (index: number, message: string) => void;
   onAttack: () => void;
   onRetreat: () => void;
@@ -129,6 +131,7 @@ type GamePlayScreenProps = {
   onEndTurn: () => void;
   onRestartSameCards: () => void;
   onForfeit: (player: Player) => void;
+  onUndoTurn: () => void;
   // En ligne : le joueur de cet écran (c'est lui qui peut abandonner).
   localPlayer?: Player;
   onRestart: () => void;
@@ -192,9 +195,15 @@ const dragonPokemon = dragonChoice
       contentContainerStyle={sharedStyles.container}
     >
       
+{/* En ligne : seul le propriétaire du Pokémon Dragon choisit l'Énergie. */}
 <DragonEnergyPrompt
   pokemon={dragonPokemon}
-  pending={dragonChoice}
+  pending={
+    dragonChoice &&
+    (props.localPlayer === undefined || props.localPlayer === dragonChoice.player)
+      ? dragonChoice
+      : null
+  }
   onChoose={props.onChooseDragonEnergy}
 />
       <Text style={sharedStyles.title}>Pokémon Plateau</Text>
@@ -227,6 +236,11 @@ const dragonPokemon = dragonChoice
         energies={props.player1DiscardEnergies}
         onToggle={props.onToggleDiscard}
       />
+
+      {/* Message, côté joueur 1 : sous sa défausse, au-dessus du plateau. */}
+      <View style={sharedStyles.messageBox}>
+        <Text style={sharedStyles.message}>{props.message}</Text>
+      </View>
 
       <ScrollView
         horizontal
@@ -272,6 +286,7 @@ const dragonPokemon = dragonChoice
               <EnergyGatherPrompt
                 pending={props.pendingEnergyGather}
                 onFinish={props.onFinishEnergyGather}
+                onSelectEnergy={props.onSelectEnergyGatherEnergy}
               />
             )}
             {props.pendingDiscardSummon && (
@@ -406,6 +421,11 @@ onActivateTalent={props.onActivateTalent}
         </View>
       </ScrollView>
 
+      {/* Message, côté joueur 2 : sous le plateau, au-dessus de sa zone. */}
+      <View style={sharedStyles.messageBox}>
+        <Text style={sharedStyles.message}>{props.message}</Text>
+      </View>
+
       <Text style={styles.info}>Pose : C1 à C4 • Retraite : C → D</Text>
       <PlayerHandArea
         player={2}
@@ -427,14 +447,16 @@ onActivateTalent={props.onActivateTalent}
         onToggle={props.onToggleDiscard}
       />
 
-      <View style={sharedStyles.messageBox}>
-        <Text style={sharedStyles.message}>{props.message}</Text>
-      </View>
       {!props.gameOver && (
         <Pressable onPress={props.onEndTurn} style={styles.endTurnButton}>
           <Text style={styles.endTurnText}>FIN DU TOUR</Text>
         </Pressable>
       )}
+      {/* Seul le joueur dont c'est le tour peut annuler (en ligne : sur son appareil). */}
+      {!props.gameOver &&
+        (props.localPlayer === undefined || props.localPlayer === props.currentPlayer) && (
+          <UndoTurnButton player={props.currentPlayer} onUndo={props.onUndoTurn} />
+        )}
       {!props.gameOver && (
         <ForfeitButton
           player={props.localPlayer ?? props.currentPlayer}

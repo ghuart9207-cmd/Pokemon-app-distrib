@@ -33,6 +33,13 @@ import { necrozmacouchantgx } from './necrozmacouchantgx.ts';
 import { magearna } from './magearna';
 import { spododo2 } from './spododo2';
 import { lampignon2 } from './lampignon2';
+import { dialgagx } from './dialgagx';
+import { palkiagx } from './palkiagx';
+import { laporeille } from './laporeille';
+import { chaglam } from './chaglam';
+import { shaymin } from './shaymin';
+import { silvalliegx } from './silvalliegx';
+
 
 // =============================================================
 // EXTENSION « ULTRA PRISME » (série Soleil et Lune)
@@ -79,6 +86,12 @@ magearna,
 spododo2,
 lampignon2,
 carchacrok,
+dialgagx,
+palkiagx,
+laporeille,
+chaglam,
+shaymin,
+silvalliegx,
 draieul,
 ];
 

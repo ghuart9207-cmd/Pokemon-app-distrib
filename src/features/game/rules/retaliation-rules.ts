@@ -1,4 +1,4 @@
-import type { AttackEffect, BoardState, PokemonInPlay } from '@/features/game/types';
+import type { Attack, AttackEffect, BoardState, PokemonInPlay } from '@/features/game/types';
 import { getPokemonMaxHp } from './board-rules';
 import { isTalentNegated } from './talent-negation';
 
@@ -177,6 +177,39 @@ export function getOpponentTypeInPlayBonusDamage(
       );
 
       return hasType ? total + effect.amount : total;
+    }, 0);
+}
+
+/**
+ * Effet 'bonusDamageIfExtraEnergy' : `amount` dégâts supplémentaires si au moins
+ * `extraEnergyCount` Énergies `energyType` sont attachées EN PLUS du coût de l'attaque.
+ * Le coût incolore est payé d'abord avec les Énergies des autres types.
+ */
+export function getExtraEnergyBonusDamage(attack: Attack, attacker: PokemonInPlay): number {
+  return (attack.effects ?? [])
+    .filter((effect) => effect.type === 'bonusDamageIfExtraEnergy' && effect.energyType)
+    .reduce((total, effect) => {
+      const energyType = effect.energyType!;
+      const required = attack.requiredEnergies ?? {};
+
+      const typedCount = attacker.energies.filter((energy) => energy === energyType).length;
+      const requiredOfType = required[energyType] ?? 0;
+
+      // Coût restant (incolore) après les Énergies de types précis.
+      const requiredTyped = Object.values(required).reduce((sum, value) => sum + (value ?? 0), 0);
+      const colorlessCost = Math.max(0, attack.energyCost - requiredTyped);
+
+      // Énergies d'autres types disponibles pour le coût incolore
+      // (après avoir payé leurs propres exigences).
+      const otherAvailable = attacker.energies.filter((energy) => energy !== energyType).length -
+        Object.entries(required)
+          .filter(([type]) => type !== energyType)
+          .reduce((sum, [, value]) => sum + (value ?? 0), 0);
+
+      const colorlessPaidWithType = Math.max(0, colorlessCost - Math.max(0, otherAvailable));
+      const extra = typedCount - requiredOfType - colorlessPaidWithType;
+
+      return extra >= (effect.extraEnergyCount ?? 2) ? total + effect.amount : total;
     }, 0);
 }
 

@@ -8,8 +8,9 @@ import {
   isPokemonCard,
   isTalentNegated,
 } from '@/features/game/rules';
-import type { AttackEffect } from '@/features/game/types';
+import type { AttackEffect, EnergyType } from '@/features/game/types';
 import { applyKOEnergyMove } from './cell-press/apply-ko-energy-move';
+import { selectEnergyGatherType } from './cell-press/handle-energy-gather';
 
 type GameScreenActionsOptions = Pick<
   GameState,
@@ -509,6 +510,71 @@ if (!hasFreeBoardSpace) {
     }
 
     // -----------------------------------------
+    // TALENT : SOIGNER X DÉGÂTS À CHACUN DE SES POKÉMON
+    // (une seule fois pendant votre tour, sans choix de cible)
+    // -----------------------------------------
+    if (talent?.type === 'activated' && talent.effect === 'healAllOwnPokemonOncePerTurn') {
+      if (selectedPokemon.owner !== currentPlayer) {
+        setMessage('Tu ne peux utiliser que tes propres Talents.');
+        return;
+      }
+
+      if (selectedPokemon.lastUsedTalentTurnId === turnId) {
+        setMessage('Ce Pokémon a déjà utilisé son Talent pendant ce tour.');
+        return;
+      }
+
+      const amount = talent.amount ?? 20;
+      const healedNames: string[] = [];
+
+      for (const pokemon of Object.values(board)) {
+        if (
+          pokemon !== null &&
+          pokemon.owner === currentPlayer &&
+          !isHealBlocked(pokemon) &&
+          pokemon.currentHp < getPokemonMaxHp(pokemon)
+        ) {
+          const healed = Math.min(amount, getPokemonMaxHp(pokemon) - pokemon.currentHp);
+          healedNames.push(`${pokemon.card.name} (+${healed})`);
+        }
+      }
+
+      if (healedNames.length === 0) {
+        setMessage(`Aucun de tes Pokémon n'a de dégâts à soigner : ${talent.name} est inutile.`);
+        return;
+      }
+
+      const talentCell = selectedPokemonCell;
+
+      setBoard((previousBoard) => {
+        const nextBoard = { ...previousBoard };
+
+        for (const [cell, pokemon] of Object.entries(previousBoard)) {
+          if (
+            pokemon !== null &&
+            pokemon.owner === currentPlayer &&
+            !isHealBlocked(pokemon)
+          ) {
+            nextBoard[cell] = {
+              ...pokemon,
+              currentHp: Math.min(pokemon.currentHp + amount, getPokemonMaxHp(pokemon)),
+            };
+          }
+        }
+
+        const talentOwner = nextBoard[talentCell];
+        if (talentOwner) {
+          nextBoard[talentCell] = { ...talentOwner, lastUsedTalentTurnId: turnId };
+        }
+
+        return nextBoard;
+      });
+
+      setMessage(`${talent.name} : ${healedNames.join(', ')}.`);
+      return;
+    }
+
+    // -----------------------------------------
     // TALENT : SOIGNER X DÉGÂTS À L'UN DE SES POKÉMON
     // (une seule fois pendant votre tour, avant ou après l'attaque)
     // -----------------------------------------
@@ -690,6 +756,12 @@ if (!hasFreeBoardSpace) {
 
     setPendingEnergyGather(null);
 
+    // Effet d'attaque : simple fin, pas d'échange.
+    if (pending.fromAttack) {
+      setMessage(`${pending.talentName} : fin de l'effet (${pending.moved} Énergie(s) déplacée(s)).`);
+      return;
+    }
+
     const receiver = board[pending.targetCell];
 
     if (!receiver || pending.moved === 0) {
@@ -716,6 +788,16 @@ if (!hasFreeBoardSpace) {
     setPendingPokemonSwitch({ player: currentPlayer, attackerCell: pending.targetCell });
     setMessage(
       `${pending.talentName} : ${pending.moved} Énergie(s) déplacée(s). Choisis maintenant un de tes Pokémon de la ligne ${row} avec qui ${receiver.card.name} échange sa place.`
+    );
+  }
+
+  /** Choix du type d'Énergie à déplacer (Pokémon qui en a plusieurs). */
+  function selectEnergyGatherEnergy(energy: EnergyType) {
+    if (!pendingEnergyGather || pendingEnergyGather.player !== currentPlayer) return;
+
+    selectEnergyGatherType(
+      { board, pendingEnergyGather, setPendingEnergyGather, setBoard, setMessage },
+      energy
     );
   }
 
@@ -765,6 +847,7 @@ if (!hasFreeBoardSpace) {
     discardSummonCandidates,
     selectDiscardSummonCard,
     finishEnergyGather,
+    selectEnergyGatherEnergy,
     forfeitGame,
   };
 }

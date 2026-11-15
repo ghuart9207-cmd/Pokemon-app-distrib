@@ -28,6 +28,17 @@ export function healPokemon(context: TrainerTargetEffectContext): void {
     return;
   }
 
+  // Flo : le Pokémon doit avoir une Énergie du bon type attachée.
+  const requiredEnergy =
+    selectedTrainerCard.effect === 'healPokemonWithEnergyType'
+      ? selectedTrainerCard.healEnergyType
+      : undefined;
+
+  if (requiredEnergy && !target.energies.includes(requiredEnergy)) {
+    setMessage(`${target.card.name} n'a pas d'Énergie ${requiredEnergy} attachée.`);
+    return;
+  }
+
   // Soin interdit par une attaque adverse : la carte reste dans la main.
   if (isHealBlocked(target)) {
     setMessage(`${target.card.name} ne peut pas être soigné pendant ce tour.`);
@@ -43,7 +54,12 @@ export function healPokemon(context: TrainerTargetEffectContext): void {
     return;
   }
 
-  const healAmount = selectedTrainerCard.effect === 'heal30' ? 30 : 20;
+  const healAmount =
+    selectedTrainerCard.effect === 'healPokemonWithEnergyType'
+      ? (selectedTrainerCard.healAmount ?? 80)
+      : selectedTrainerCard.effect === 'heal30'
+        ? 30
+        : 20;
 
   const healedHp = Math.min(target.currentHp + healAmount, targetMaxHp);
 

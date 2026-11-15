@@ -1,4 +1,4 @@
-import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, doesTalentBurnAttacker, burnAttackingPokemon, getCoinCheckForTarget, doesToolAttackerShieldPreventDamage, } from '@/features/game/rules';
+import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, doesTalentBurnAttacker, burnAttackingPokemon, getCoinCheckForTarget, doesToolAttackerShieldPreventDamage, getOutgoingReductionForTarget, } from '@/features/game/rules';
 import type {
   Attack,
   AttackEffect,
@@ -780,6 +780,9 @@ applyDiscardBothActiveAttachmentsEffect();
 
     // S'il attaque pendant son prochain tour : lancer de pièces avant.
     attackCoinCheck: getCoinCheckForTarget(attackEffectsPrevented ? undefined : resolvedAttack.effects, target) ?? target.attackCoinCheck,
+
+    // Ses attaques infligent X dégâts de moins pendant son prochain tour.
+    ...getOutgoingReductionForTarget(attackEffectsPrevented ? undefined : resolvedAttack.effects, target),
   };
 
 

@@ -4,6 +4,7 @@ import {
   getPokemonMaxHp,
   getRetaliationDamage,
   getCoinCheckForTarget,
+  getOutgoingReductionForTarget,
   doesToolAttackerShieldPreventDamage,
   doesTalentBurnAttacker,
   burnAttackingPokemon,
@@ -313,6 +314,12 @@ attackCoinCheck:
   (target.preventAllAttackDamageAndEffects !== true
     ? getCoinCheckForTarget(pendingOpponentTarget.effects, target)
     : null) ?? target.attackCoinCheck,
+
+// Ses attaques infligent X dégâts de moins pendant son prochain tour.
+...getOutgoingReductionForTarget(
+  target.preventAllAttackDamageAndEffects !== true ? pendingOpponentTarget.effects : undefined,
+  target
+),
     },
     pendingOpponentTarget.effects,
     target.preventAllAttackDamageAndEffects === true

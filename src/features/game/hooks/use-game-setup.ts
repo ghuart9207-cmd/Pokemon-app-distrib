@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import {
   canPlacePokemon,
@@ -88,6 +88,18 @@ function getSetupCounts(cards: GameCard[]) {
   return { pokemonCount, gxExCount, objectCount, supporterCount };
 }
 
+/**
+ * En ligne : deck complet d'un joueur, envoyé en une seule fois quand il a fini
+ * (les deux joueurs choisissent en même temps, chacun de son côté).
+ */
+export type OnlineSetupPayload = {
+  player: Player;
+  cardIds: string[];
+  invocationCardIds: string[];
+  // Pokémon qui invoque -> ids des Pokémon choisis.
+  summonChoiceIds: Record<string, string[]>;
+};
+
 /** Étape du choix des Invocations : Fan Club (2) ou Invocation d'un Pokémon qui invoque (1). */
 export type InvocationSetupKind = 'supporter' | 'summonChoice';
 
@@ -116,6 +128,13 @@ export function useGameSetup({
     null
   );
   const [summonChoiceDraft, setSummonChoiceDraft] = useState<PokemonCard[]>([]);
+
+  // En ligne : joueurs qui ont déjà envoyé leur deck, et fonction d'envoi.
+  const [setupSubmitted, setSetupSubmitted] = useState<Record<Player, boolean>>({
+    1: false,
+    2: false,
+  });
+  const onlineSetupSubmitRef = useRef<((payload: OnlineSetupPayload) => void) | null>(null);
 
   // Deck pour lequel le joueur a déjà vu les conseils :
   // un 2ᵉ clic sur VALIDER garde ce deck quand même.
@@ -244,7 +263,7 @@ export function useGameSetup({
       return;
     }
 
-    finishPlayerSetup(player);
+    finishPlayerSetup(player, { cards, invocationCards: [], choices: {} });
   }
 
   function startSupporterInvocationSetup(player: Player) {
@@ -308,11 +327,37 @@ export function useGameSetup({
   }
 
   /** Préparation du joueur terminée : au tour du joueur 2, ou début de la partie. */
-  function finishPlayerSetup(player: Player) {
+  function finishPlayerSetup(
+    player: Player,
+    // Valeurs à jour (les états React ne le sont qu'au rendu suivant).
+    final?: { cards?: GameCard[]; invocationCards?: PokemonCard[]; choices?: SummonChoices }
+  ) {
     setInvocationSetupPlayer(null);
     setInvocationSetupKind('supporter');
     setInvocationSetupSummoner(null);
     setSummonChoiceDraft([]);
+
+    // En ligne : on envoie tout le deck d'un coup, sans passer au joueur suivant.
+    if (onlineSetupSubmitRef.current) {
+      const cards = final?.cards ?? getSetupDeck(player);
+      const invocationCards =
+        final?.invocationCards ?? (player === 1 ? player1InvocationCards : player2InvocationCards);
+      const choices = final?.choices ?? getSummonChoices(player);
+
+      onlineSetupSubmitRef.current({
+        player,
+        cardIds: cards.map((card) => card.id),
+        invocationCardIds: invocationCards.map((card) => card.id),
+        summonChoiceIds: Object.fromEntries(
+          Object.entries(choices).map(([summonerId, chosen]) => [
+            summonerId,
+            chosen.map((card) => card.id),
+          ])
+        ),
+      });
+      setMessage('Deck envoyé ! En attente de ton adversaire…');
+      return;
+    }
 
     if (player === 1) {
       setSetupPhase('player2');
@@ -427,7 +472,7 @@ export function useGameSetup({
         return;
       }
 
-      finishPlayerSetup(player);
+      finishPlayerSetup(player, { choices: nextChoices });
       return;
     }
 
@@ -448,7 +493,72 @@ export function useGameSetup({
     finishPlayerSetup(player);
   }
 
+  // -----------------------------------------
+  // EN LIGNE : CHOIX DES DECKS EN MÊME TEMPS
+  // -----------------------------------------
+
+  /** Fonction d'envoi du deck (en ligne), ou null en local. */
+  function setOnlineSetupSubmit(submit: ((payload: OnlineSetupPayload) => void) | null) {
+    onlineSetupSubmitRef.current = submit;
+  }
+
+  /** Deck d'un joueur reçu (appliqué sur les deux écrans, dans le même ordre). */
+  function applyOnlineSetupSubmit(payload: OnlineSetupPayload) {
+    const findPokemon = (id: string) => cardSeries.pokemon.find((card) => card.id === id);
+    const findCard = (id: string): GameCard | undefined =>
+      findPokemon(id) ?? cardSeries.trainers.find((card) => card.id === id);
+
+    const cards = payload.cardIds
+      .map(findCard)
+      .filter((card): card is GameCard => card !== undefined);
+    const invocationCards = payload.invocationCardIds
+      .map(findPokemon)
+      .filter((card): card is PokemonCard => card !== undefined);
+    const choices: SummonChoices = Object.fromEntries(
+      Object.entries(payload.summonChoiceIds).map(([summonerId, ids]) => [
+        summonerId,
+        ids.map(findPokemon).filter((card): card is PokemonCard => card !== undefined),
+      ])
+    );
+
+    if (payload.player === 1) {
+      setPlayer1SetupCards(cards);
+      setPlayer1Hand([...cards]);
+      setPlayer1InvocationCards(invocationCards);
+    } else {
+      setPlayer2SetupCards(cards);
+      setPlayer2Hand([...cards]);
+      setPlayer2InvocationCards(invocationCards);
+    }
+    setSummonChoicesFor(payload.player, choices);
+
+    const otherPlayer: Player = payload.player === 1 ? 2 : 1;
+
+    if (!setupSubmitted[otherPlayer]) {
+      setSetupSubmitted({ ...setupSubmitted, [payload.player]: true });
+      setMessage(`Le joueur ${payload.player} a fini de choisir son deck.`);
+      return;
+    }
+
+    // Les deux decks sont prêts : la partie commence.
+    setSetupSubmitted({ 1: false, 2: false });
+    setInvocationSetupPlayer(null);
+    setInvocationSetupKind('supporter');
+    setInvocationSetupSummoner(null);
+    setSummonChoiceDraft([]);
+    setSetupPhase('battle');
+    setCurrentPlayer(1);
+    setRound(1);
+    setMessage(
+      'Les deux joueurs ont choisi leurs cartes. Début de la partie : tour du joueur 1.'
+    );
+  }
+
   return {
+    setOnlineSetupSubmit,
+    applyOnlineSetupSubmit,
+    setupSubmitted,
+    setSetupSubmitted,
     addInvocationSetupCard,
     confirmInvocationSetup,
     confirmSetupSelection,

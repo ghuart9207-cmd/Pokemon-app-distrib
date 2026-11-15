@@ -18,14 +18,9 @@ export function startBenchEnergyAttachment(
     selectedPokemonCell: string;
   }
 ): void {
-  const {
-    board,
-    setBoard,
-    setMessage,
-    setPendingGeneratedBenchEnergy,
-    setSelectedAttackIndex,
-    setSelectedPokemonCell,
-  } = context;
+  // Appelé APRÈS les dégâts de l'attaque : on ne touche plus au plateau,
+  // on demande seulement au joueur de choisir le Pokémon qui reçoit l'Énergie.
+  const { board, setMessage, setPendingGeneratedBenchEnergy } = context;
   const {
     attachEnergyToBenchEffect,
     attack,
@@ -34,16 +29,16 @@ export function startBenchEnergyAttachment(
     newBoard,
     selectedPokemonCell,
   } = locals;
+  const targetPokemonType = attachEnergyToBenchEffect.targetPokemonType;
   const hasBenchPokemon = Object.entries(board).some(
     ([cellName, pokemon]) =>
       pokemon !== null &&
       pokemon.owner === attacker.owner &&
-      cellName !== selectedPokemonCell
+      cellName !== selectedPokemonCell &&
+      (!targetPokemonType || pokemon.card.type === targetPokemonType)
   );
 
   if (hasBenchPokemon) {
-    setBoard(newBoard);
-
     setPendingGeneratedBenchEnergy({
       player: attacker.owner,
 
@@ -52,22 +47,21 @@ export function startBenchEnergyAttachment(
       energyType: energyType,
 
       amount: attachEnergyToBenchEffect.amount,
+
+      targetPokemonType,
+
+      // Une par FACE : à répartir entre ses Pokémon de banc, un clic par Énergie.
+      oneByOne: attachEnergyToBenchEffect.perCoinFace === true,
     });
 
-    setSelectedPokemonCell(null);
-    setSelectedAttackIndex(null);
-
     setMessage(
-      `Choisis l’un de tes Pokémon de banc pour lui attacher une Énergie ${energyType}.`
+      attachEnergyToBenchEffect.perCoinFace
+        ? `${attachEnergyToBenchEffect.amount} Énergie(s) ${energyType} à attacher : clique sur tes Pokémon de banc${targetPokemonType ? ` de type ${targetPokemonType}` : ''}, une Énergie par clic.`
+        : `Choisis l’un de tes Pokémon de banc${targetPokemonType ? ` de type ${targetPokemonType}` : ''} pour lui attacher une Énergie ${energyType}.`
     );
 
     return;
   }
-
-  setBoard(newBoard);
-
-  setSelectedPokemonCell(null);
-  setSelectedAttackIndex(null);
 
   setMessage(
     `${attacker.card.name} utilise ${attack.name}, mais aucun Pokémon de banc ne peut recevoir l'Énergie.`

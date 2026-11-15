@@ -35,6 +35,17 @@ export function handleEnergyTransferToBench(
     return true;
   }
 
+
+  // Effet qui donne des Énergies : seul un Pokémon de ce type peut les recevoir.
+  if (
+    pendingEnergyTransferToBench.targetPokemonType &&
+    target.card.type !== pendingEnergyTransferToBench.targetPokemonType
+  ) {
+    setMessage(`Choisis un Pokémon de type ${pendingEnergyTransferToBench.targetPokemonType}.`);
+    return true;
+  }
+
+
   const source = board[pendingEnergyTransferToBench.attackerCell];
 
   if (!source || source.energies.length === 0) {

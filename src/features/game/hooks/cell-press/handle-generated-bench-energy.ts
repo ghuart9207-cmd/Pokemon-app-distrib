@@ -39,6 +39,15 @@ export function handleGeneratedBenchEnergy(
     return true;
   }
 
+  // Effet qui donne des Énergies : seul un Pokémon de ce type peut les recevoir.
+  if (
+    pendingGeneratedBenchEnergy.targetPokemonType &&
+    pokemon.card.type !== pendingGeneratedBenchEnergy.targetPokemonType
+  ) {
+    setMessage(`Choisis un Pokémon de type ${pendingGeneratedBenchEnergy.targetPokemonType}.`);
+    return true;
+  }
+
   const energyType = pendingGeneratedBenchEnergy.energyType;
 
   const amount = pendingGeneratedBenchEnergy.amount;
@@ -141,6 +150,9 @@ if (moveFromAttacker) {
     return true;
   }
 
+  // Une par clic (ex : une Énergie par côté FACE) ou toutes d'un coup.
+  const attachedNow = pendingGeneratedBenchEnergy.oneByOne ? 1 : amount;
+
   setBoard((previousBoard) => {
     const currentPokemon = previousBoard[cellName];
 
@@ -158,12 +170,22 @@ if (
       [cellName]: {
         ...currentPokemon,
 
-        energies: [...currentPokemon.energies, ...Array(amount).fill(energyType)],
+        energies: [...currentPokemon.energies, ...Array(attachedNow).fill(energyType)],
       },
     };
   });
 
-  setMessage(`${pokemon.card.name} reçoit ${amount} Énergie ${energyType}.`);
+  const remaining = amount - attachedNow;
+
+  if (pendingGeneratedBenchEnergy.oneByOne && remaining > 0) {
+    setPendingGeneratedBenchEnergy({ ...pendingGeneratedBenchEnergy, amount: remaining });
+    setMessage(
+      `${pokemon.card.name} reçoit 1 Énergie ${energyType}. Encore ${remaining} à attacher : clique sur un de tes Pokémon de banc.`
+    );
+    return true;
+  }
+
+  setMessage(`${pokemon.card.name} reçoit ${attachedNow} Énergie ${energyType}.`);
 
   setPendingGeneratedBenchEnergy(null);
 

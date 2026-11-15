@@ -1,4 +1,5 @@
 import type { CellPressContext } from './cell-press-context';
+import { attachSimpleTool } from './trainer-effects/attach-simple-tool';
 import { attachHpTool } from './trainer-effects/attach-hp-tool';
 import { attachKOEnergyTool } from './trainer-effects/attach-ko-energy-tool';
 import { attachTwoFireEnergiesAndEndTurn } from './trainer-effects/attach-two-fire-energies';
@@ -86,7 +87,8 @@ if (!trainerEffectActivated) {
 
   if (
     selectedTrainerCard.effect === 'heal30' ||
-    selectedTrainerCard.effect === 'heal20'
+    selectedTrainerCard.effect === 'heal20' ||
+    selectedTrainerCard.effect === 'healPokemonWithEnergyType'
   ) {
     healPokemon(targetContext);
 
@@ -112,6 +114,12 @@ if (!trainerEffectActivated) {
 
   if (selectedTrainerCard.effect === 'toolHp40') {
     attachHpTool(targetContext);
+
+    return true;
+  }
+
+  if (selectedTrainerCard.effect === 'toolRetreatMinusOneIgnoreConditions') {
+    attachSimpleTool(targetContext);
 
     return true;
   }

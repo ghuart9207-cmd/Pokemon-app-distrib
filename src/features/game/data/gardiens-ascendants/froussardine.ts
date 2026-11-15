@@ -2,7 +2,7 @@ import type { PokemonCard } from '@/features/game/types';
 
 export const froussardine: PokemonCard = {
   id: 'froussardine-001',          // unique dans tout le jeu
-  name: 'Froussardine GX',
+  name: 'Froussardine',
   stage: 'base',                // 'base' | 'niveau1' | 'niveau2' | 'mega_ex'
   variant: 'normal',            // 'normal' | 'ex' | 'gx'
   type: 'eau',                  // electrique, feu, eau, plante, psy, combat,

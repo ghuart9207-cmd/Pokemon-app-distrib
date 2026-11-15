@@ -20,9 +20,11 @@ export type PokemonTalent = {
     | 'preventDamageToTypeFromToolAttackers'
     | 'invertImposedAttackCoinFlipOncePerTurn'
     | 'freeRetreatOnFirstTurn'
+    | 'freeRetreatForOwnBasePokemon'
     | 'attachEnergyOncePerTurn'
     | 'moveDamageCounterOncePerTurn'
     | 'healOwnPokemonOncePerTurn'
+    | 'healAllOwnPokemonOncePerTurn'
     | 'summonOncePerTurn'
     | 'returnToolToHandOncePerTurn'
     | 'switchWithBenchOncePerTurn'
@@ -115,6 +117,9 @@ export type AttackEffect = {
     | 'moveCountersFromOwnToOpponentActive'
     | 'damagePerSelfDamageCounter'
     | 'bonusDamage'
+    | 'bonusDamageIfExtraEnergy'
+    | 'reduceTargetAttackDamageNextTurn'
+    | 'gatherEnergyFromBench'
     | 'bonusDamageIfOpponentHasTypeInPlay'
     | 'swapDamageCountersWithOpponentActive'
     | 'knockOutIfOpponentActiveIsBase'
@@ -160,6 +165,19 @@ export type AttackEffect = {
 
   pokemonType?: EnergyType;
   targetAllPokemon?: boolean;
+
+  // Effets qui donnent des Énergies à un autre Pokémon (attachEnergyToBench,
+  // recoverEnergyToBench, moveOwnEnergyToBench, transferAllEnergiesToBench) :
+  // seul un Pokémon de ce type peut les recevoir (facultatif).
+  targetPokemonType?: EnergyType;
+
+  // Effet 'attachEnergyToBench' : `amount` Énergie(s) pour CHAQUE côté FACE
+  // des pièces de l'attaque (`coinCount`), à répartir entre ses Pokémon de banc.
+  perCoinFace?: boolean;
+
+  // Effet 'bonusDamageIfExtraEnergy' : nombre d'Énergies `energyType`
+  // à avoir EN PLUS du coût de l'attaque (2 par défaut).
+  extraEnergyCount?: number;
 
   attackName?: string;
 
@@ -286,7 +304,9 @@ export type TrainerCard = {
     | 'moveEnergyOnKO'
     | 'coinReturnPokemonToHand'
     | 'summonTwoBase60'
-    | 'boostPokemonAttackThisTurn';
+    | 'boostPokemonAttackThisTurn'
+    | 'toolRetreatMinusOneIgnoreConditions'
+    | 'healPokemonWithEnergyType';
 
   coinCount?: number;
 
@@ -297,6 +317,14 @@ export type TrainerCard = {
   boostPokemonName?: string;
   boostAttackName?: string;
   boostAmount?: number;
+
+  // Outil 'toolRetreatMinusOneIgnoreConditions' : réduction du coût de retraite (1 par défaut).
+  retreatCostReduction?: number;
+
+  // Effet 'healPokemonWithEnergyType' (ex : Flo) : soin de `healAmount` PV
+  // sur l'un de vos Pokémon auquel une Énergie `healEnergyType` est attachée.
+  healAmount?: number;
+  healEnergyType?: EnergyType;
 
   // Cartes qui renvoient un Pokémon en main : mode de repose.
   // Par défaut : 'normal'.

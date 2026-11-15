@@ -18,6 +18,7 @@ import {
   getAllBenchBonusDamage,
   getSelfDamageCounterBonusDamage,
   getFlatBonusDamage,
+  getExtraEnergyBonusDamage,
   getOpponentTypeInPlayBonusDamage,
   getConditionPresenceBonus,
   isTalentNegated,
@@ -91,6 +92,8 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     effectType: AttackEffect['type'];
     player: Player;
     attackerCell: string;
+    // Transfert d'Énergies : seul un Pokémon de ce type peut les recevoir.
+    targetPokemonType?: EnergyType;
     // Question posée AVANT l'attaque (effets avec optional: true) :
     // les choix déjà faits, pour relancer l'attaque avec la réponse.
     beforeAttack?: {
@@ -134,6 +137,7 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     setPendingDiscardSummon,
     setPendingOwnBenchDamage,
     setPendingCountersToActive,
+    setPendingEnergyGather,
     player1SummonChoices,
     player2SummonChoices,
     setPendingPokemonSwitch,
@@ -514,7 +518,7 @@ if (optionalBonusDamageEffect && useOptionalBonusDamage === true) {
     );
 
     const benchEnergyEffect = resolvedAttack.effects?.find(
-      (effect) => effect.type === 'recoverEnergyToBench' && effect.energyType
+      (effect) => effect.type === 'recoverEnergyToBench'
     );
 
     // --------------------------------
@@ -566,10 +570,10 @@ const discardCardBonus =
   (effect) => effect.type === 'damagePerAttachedEnergy'
 );
 
+// Dégâts de base + X par Énergie attachée (comme l'affichage du panneau).
 let totalDamage =
-  (hasDamagePerAttachedEnergy
-    ? getDamagePerAttachedEnergy(attacker, resolvedAttack)
-    : calculateCoinDamage(attack, coinResult)) +
+  calculateCoinDamage(attack, coinResult) +
+  (hasDamagePerAttachedEnergy ? getDamagePerAttachedEnergy(attacker, resolvedAttack) : 0) +
   switchedRecentlyBonus +
   everyTwoRoundsBonus +
   discardCardBonus;
@@ -666,19 +670,22 @@ const attackForDamage: Attack =
       }
     }
 
-    if (benchEnergyEffect && benchEnergyEffect.energyType) {
+    if (benchEnergyEffect) {
       const discardEnergies =
         attacker.owner === 1 ? player1DiscardEnergies : player2DiscardEnergies;
 
+      // Sans `energyType` : n'importe quelle Énergie de la défausse.
       const hasRequiredEnergy = discardEnergies.some(
-        (energy) => energy === benchEnergyEffect.energyType
+        (energy) => !benchEnergyEffect.energyType || energy === benchEnergyEffect.energyType
       );
 
       const hasBenchPokemon = Object.entries(board).some(
         ([cellName, pokemon]) =>
           pokemon !== null &&
           pokemon.owner === attacker.owner &&
-          cellName !== selectedPokemonCell
+          cellName !== selectedPokemonCell &&
+          (!benchEnergyEffect.targetPokemonType ||
+            pokemon.card.type === benchEnergyEffect.targetPokemonType)
       );
 
       if (hasRequiredEnergy && hasBenchPokemon) {
@@ -687,10 +694,11 @@ const attackForDamage: Attack =
           attackerCell: selectedPokemonCell,
           energyType: benchEnergyEffect.energyType,
           amount: benchEnergyEffect.amount,
+          targetPokemonType: benchEnergyEffect.targetPokemonType,
         });
 
         setMessage(
-          `Choisis un Pokémon de banc auquel attacher une Énergie ${benchEnergyEffect.energyType}.`
+          `Choisis un Pokémon de banc auquel attacher une Énergie${benchEnergyEffect.energyType ? ` ${benchEnergyEffect.energyType}` : ''} de ta défausse.`
         );
       }
     }
@@ -838,6 +846,9 @@ if (attack.fixedDamage === undefined) {
 
   // X dégâts supplémentaires (retirés si la défausse facultative est refusée).
   totalDamage += getFlatBonusDamage(resolvedAttack.effects);
+
+  // X dégâts si des Énergies en plus du coût sont attachées.
+  totalDamage += getExtraEnergyBonusDamage(resolvedAttack, attacker);
 
   // X dégâts si l'adversaire a un Pokémon d'un certain type en jeu.
   totalDamage += getOpponentTypeInPlayBonusDamage(resolvedAttack.effects, board, attacker.owner);
@@ -1435,93 +1446,77 @@ const damageForThisPokemon =
 
 
     // =====================================
-    // TRANSFÉRER UNE ÉNERGIE DE L'ATTAQUANT
-    // VERS UN POKÉMON DE BANC
+    // TRANSFÉRER UNE ÉNERGIE DE L'ATTAQUANT VERS UN POKÉMON DE BANC
+    // ATTACHER UNE ÉNERGIE CRÉÉE À UN POKÉMON DE BANC
+    // Demandés APRÈS les dégâts de l'attaque (comme les autres effets à choix).
     // =====================================
 
     const moveEnergyToBenchEffect = resolvedAttack.effects?.find(
-      (effect) =>
-        effect.type === 'moveOwnEnergyToBench' &&
-        effect.energyType
+      (effect) => effect.type === 'moveOwnEnergyToBench' && effect.energyType
     );
-
-    if (
-      moveEnergyToBenchEffect &&
-      moveEnergyToBenchEffect.energyType
-    ) {
-      const energyType = moveEnergyToBenchEffect.energyType;
-      const amount = moveEnergyToBenchEffect.amount;
-
-      const currentAttacker = newBoard[selectedPokemonCell];
-
-      const availableEnergyCount =
-        currentAttacker?.energies.filter(
-          (energy) => energy === energyType
-        ).length ?? 0;
-
-      const hasBenchPokemon = Object.entries(newBoard).some(
-        ([cellName, pokemon]) =>
-          pokemon !== null &&
-          pokemon.owner === attacker.owner &&
-          cellName !== selectedPokemonCell
-      );
-
-      if (hasBenchPokemon && availableEnergyCount >= amount) {
-        setBoard(newBoard);
-
-        options.setPendingGeneratedBenchEnergy({
-          player: attacker.owner,
-          attackerCell: selectedPokemonCell,
-          energyType,
-          amount,
-          moveFromAttacker: true,
-        });
-
-        setSelectedPokemonCell(null);
-        setSelectedAttackIndex(null);
-
-        setMessage(
-          `Choisis un Pokémon de banc pour recevoir ${amount} Énergie ${energyType} de ${attacker.card.name}.`
-        );
-
-        return;
-      }
-
-      setBoard(newBoard);
-      setSelectedPokemonCell(null);
-      setSelectedAttackIndex(null);
-
-      setMessage(
-        !hasBenchPokemon
-          ? `${attacker.card.name} utilise ${attack.name}, mais aucun Pokémon de banc n'est disponible.`
-          : `${attacker.card.name} utilise ${attack.name}, mais ne possède pas assez d'Énergies ${energyType} à transférer.`
-      );
-
-      return;
-    }
-
-
-    // =====================================
-    // ATTACHER UNE ÉNERGIE CRÉÉE
-    // À UN POKÉMON DE BANC
-    // =====================================
 
     const attachEnergyToBenchEffect = resolvedAttack.effects?.find(
       (effect) => effect.type === 'attachEnergyToBench' && effect.energyType
     );
 
-    if (attachEnergyToBenchEffect && attachEnergyToBenchEffect.energyType) {
-      startBenchEnergyAttachment(options, {
-        attachEnergyToBenchEffect,
-        attack,
-        attacker,
-        energyType: attachEnergyToBenchEffect.energyType,
-        newBoard,
-        selectedPokemonCell,
-      });
+    const requestBenchEnergyEffects = () => {
+      // --- Déplacer des Énergies de l'attaquant ---
+      if (moveEnergyToBenchEffect?.energyType) {
+        const energyType = moveEnergyToBenchEffect.energyType;
+        const amount = moveEnergyToBenchEffect.amount;
+        const currentAttacker = newBoard[selectedPokemonCell];
 
-      return;
-    }
+        const availableEnergyCount =
+          currentAttacker?.energies.filter((energy) => energy === energyType).length ?? 0;
+
+        const hasBenchPokemon = Object.entries(newBoard).some(
+          ([cellName, pokemon]) =>
+            pokemon !== null &&
+            pokemon.owner === attacker.owner &&
+            cellName !== selectedPokemonCell &&
+            (!moveEnergyToBenchEffect.targetPokemonType ||
+              pokemon.card.type === moveEnergyToBenchEffect.targetPokemonType)
+        );
+
+        if (hasBenchPokemon && availableEnergyCount >= amount) {
+          options.setPendingGeneratedBenchEnergy({
+            player: attacker.owner,
+            attackerCell: selectedPokemonCell,
+            energyType,
+            amount,
+            moveFromAttacker: true,
+            targetPokemonType: moveEnergyToBenchEffect.targetPokemonType,
+          });
+
+          setMessage(
+            `Choisis un Pokémon de banc pour recevoir ${amount} Énergie ${energyType} de ${attacker.card.name}.`
+          );
+        }
+        return;
+      }
+
+      // --- Attacher des Énergies créées ---
+      if (attachEnergyToBenchEffect?.energyType) {
+        // « Pour chaque côté FACE, attachez une Énergie… »
+        const faceCount = (coinResult ?? []).filter((side) => side === 'face').length;
+
+        if (attachEnergyToBenchEffect.perCoinFace && faceCount === 0) {
+          setMessage(`${attacker.card.name} utilise ${attack.name} : aucun côté FACE, aucune Énergie attachée.`);
+          return;
+        }
+
+        startBenchEnergyAttachment(options, {
+          attachEnergyToBenchEffect: attachEnergyToBenchEffect.perCoinFace
+            ? { ...attachEnergyToBenchEffect, amount: faceCount * attachEnergyToBenchEffect.amount }
+            : attachEnergyToBenchEffect,
+          attack,
+          attacker,
+          energyType: attachEnergyToBenchEffect.energyType,
+          newBoard,
+          selectedPokemonCell,
+        });
+      }
+    };
 
     // --------------------------------
     // CIBLE LIBRE : N'IMPORTE QUEL
@@ -1569,7 +1564,9 @@ const requestEnergyTransferToBench = () => {
     ([cellName, pokemon]) =>
       pokemon !== null &&
       pokemon.owner === attacker.owner &&
-      cellName !== selectedPokemonCell
+      cellName !== selectedPokemonCell &&
+      (!transferAllEnergiesEffect.targetPokemonType ||
+        pokemon.card.type === transferAllEnergiesEffect.targetPokemonType)
   );
 
   if (!hasBenchPokemon) {
@@ -1587,6 +1584,7 @@ const requestEnergyTransferToBench = () => {
       effectType: 'transferAllEnergiesToBench',
       player: attacker.owner,
       attackerCell: selectedPokemonCell,
+      targetPokemonType: transferAllEnergiesEffect.targetPokemonType,
     });
 
     setMessage(message);
@@ -1597,6 +1595,7 @@ const requestEnergyTransferToBench = () => {
   setPendingEnergyTransferToBench({
     player: attacker.owner,
     attackerCell: selectedPokemonCell,
+    targetPokemonType: transferAllEnergiesEffect.targetPokemonType,
   });
 
   setMessage(
@@ -1790,6 +1789,48 @@ const requestOwnBenchDamage = () => {
 };
 
 // -----------------------------------------
+// DÉPLACER AUTANT D'ÉNERGIES QU'ON VEUT DE SES POKÉMON DE BANC
+// VERS L'ATTAQUANT (une par clic, bouton « Fin de l'effet »)
+// -----------------------------------------
+
+const gatherFromBenchEffect = resolvedAttack.effects?.find(
+  (effect) => effect.type === 'gatherEnergyFromBench'
+);
+
+const requestGatherEnergyFromBench = () => {
+  if (!gatherFromBenchEffect) return;
+
+  const attackerNow = newBoard[selectedPokemonCell];
+  if (!attackerNow) return;
+
+  const hasEnergyOnBench = Object.entries(newBoard).some(
+    ([cell, pokemon]) =>
+      cell !== selectedPokemonCell &&
+      pokemon !== null &&
+      pokemon.owner === attacker.owner &&
+      pokemon.energies.some(
+        (energy) => !gatherFromBenchEffect.energyType || energy === gatherFromBenchEffect.energyType
+      )
+  );
+
+  if (!hasEnergyOnBench) return;
+
+  setPendingEnergyGather({
+    player: attacker.owner,
+    targetCell: selectedPokemonCell,
+    energyType: gatherFromBenchEffect.energyType,
+    moved: 0,
+    talentName: attack.name,
+    turnId,
+    fromAttack: true,
+  });
+
+  setMessage(
+    `${attack.name} : clique sur tes Pokémon de banc pour déplacer leurs Énergies vers ${attacker.card.name} (une par clic), puis appuie sur « Fin de l'effet ».`
+  );
+};
+
+// -----------------------------------------
 // DÉPLACER DES MARQUEURS DE 2 DE SES POKÉMON
 // VERS LE POKÉMON ACTIF ADVERSE (ou le joueur adverse)
 // -----------------------------------------
@@ -1863,6 +1904,8 @@ requestPoolSummon();
 requestDiscardSummon();
 requestOwnBenchDamage();
 requestCountersToActive();
+requestGatherEnergyFromBench();
+requestBenchEnergyEffects();
 
       return;
     }
@@ -2010,6 +2053,8 @@ const directSpecialConditionBonus =
     requestDiscardSummon();
     requestOwnBenchDamage();
     requestCountersToActive();
+    requestGatherEnergyFromBench();
+requestBenchEnergyEffects();
   }
 
 function resolveOptionalAttackEffectChoice(accepted: boolean) {
@@ -2045,6 +2090,7 @@ function resolveOptionalAttackEffectChoice(accepted: boolean) {
     setPendingEnergyTransferToBench({
       player: pending.player,
       attackerCell: pending.attackerCell,
+      targetPokemonType: pending.targetPokemonType,
     });
 
     setMessage(
@@ -2138,8 +2184,17 @@ function resolveOptionalOwnBenchDamageTarget(cellName: string) {
 );
   }
 
+  /** Ferme toutes les questions d'attaque en cours (ex : annulation du tour). */
+  function clearAttackPrompts() {
+    setPendingDiscardAllEnergyChoice(null);
+    setPendingOptionalBonusDamageChoice(null);
+    setPendingOptionalAttackEffect(null);
+    setPendingOptionalDiscardChoice(null);
+  }
+
   return {
     attackSelectedPokemon,
+    clearAttackPrompts,
     pendingDiscardAllEnergyChoice,
     resolveDiscardAllEnergyChoice,
     pendingOptionalBonusDamageChoice,

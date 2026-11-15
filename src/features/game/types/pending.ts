@@ -18,6 +18,12 @@ export type PendingGeneratedBenchEnergy = {
   // Si true, on déplace les énergies
   // de l'attaquant vers le Pokémon de banc.
   moveFromAttacker?: boolean;
+
+  // Seul un Pokémon de ce type peut recevoir l'Énergie.
+  targetPokemonType?: EnergyType;
+
+  // Énergies à répartir une par une (un clic = 1 Énergie), ex : une par FACE.
+  oneByOne?: boolean;
 };
 
 export type PendingTalentEnergyAttachment = {
@@ -103,7 +109,10 @@ export type PendingBothPlayersSwitch = {
 export type PendingBenchEnergyAttachment = {
   player: Player;
   attackerCell: string;
-  energyType: EnergyType;
+  // Absent : n'importe quelle Énergie de la défausse (la dernière défaussée).
+  energyType?: EnergyType;
+  // Seul un Pokémon de ce type peut recevoir l'Énergie.
+  targetPokemonType?: EnergyType;
   amount: number;
 };
 
@@ -162,6 +171,8 @@ export type PendingDragonEnergyChoice = {
 export type PendingEnergyTransferToBench = {
   player: Player;
   attackerCell: string;
+  // Seul un Pokémon de ce type peut recevoir les Énergies.
+  targetPokemonType?: EnergyType;
 };
 
 /** Invocation créée par une attaque (ex : Division de Tadmorv d'Alola). */
@@ -237,10 +248,17 @@ export type PendingEnergyGather = {
   player: Player;
   // Case du Pokémon qui vient d'être posé (il reçoit les Énergies).
   targetCell: string;
-  energyType: EnergyType;
+  // Type des Énergies à déplacer (absent : n'importe quel type).
+  energyType?: EnergyType;
   moved: number;
+  // Nom affiché (Talent ou attaque).
   talentName: string;
   turnId: number;
+  // Effet d'attaque 'gatherEnergyFromBench' : pas d'échange à la fin.
+  fromAttack?: boolean;
+  // Pokémon cliqué qui a plusieurs types d'Énergies : choix en attente.
+  sourceCell?: string | null;
+  choiceTypes?: EnergyType[];
 };
 
 /** Déplacer des marqueurs de ses Pokémon vers le Pokémon actif adverse. */

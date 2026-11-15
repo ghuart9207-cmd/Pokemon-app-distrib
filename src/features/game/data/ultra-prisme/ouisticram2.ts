@@ -18,7 +18,7 @@ export const ouisticram2: PokemonCard = {
       energyCost: 1,
     coinCount: 3, damagePerFace: 10,
  effectText:
-        'Lancez 4 pièces. Cette attaque inflige 50 dégâts pour chaque côté Face.',
+        'Lancez 4 pièces. Cette attaque inflige 10 dégâts pour chaque côté Face.',
     },
   ],
 };

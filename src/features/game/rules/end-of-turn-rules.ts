@@ -152,6 +152,15 @@ if (updatedPokemon.healBlockedEndPlayer === currentPlayer) {
   updatedPokemon = { ...updatedPokemon, healBlockedEndPlayer: null };
 }
 
+// Fin de la réduction des dégâts infligés par ce Pokémon.
+if (updatedPokemon.outgoingAttackReductionEndPlayer === currentPlayer) {
+  updatedPokemon = {
+    ...updatedPokemon,
+    outgoingAttackReduction: 0,
+    outgoingAttackReductionEndPlayer: null,
+  };
+}
+
 // Fin du lancer de pièces imposé avant d'attaquer.
 if (updatedPokemon.attackCoinCheck && updatedPokemon.attackCoinCheck.endPlayer === currentPlayer) {
   updatedPokemon = { ...updatedPokemon, attackCoinCheck: null };
