@@ -554,7 +554,84 @@ export function useGameSetup({
     );
   }
 
+  // -----------------------------------------
+  // DECKS ENREGISTRÉS
+  // -----------------------------------------
+
+  function resolveDeck(deck: {
+    cardIds: string[];
+    invocationCardIds: string[];
+    summonChoiceIds: Record<string, string[]>;
+  }) {
+    const findPokemon = (id: string) => cardSeries.pokemon.find((card) => card.id === id);
+    const findCard = (id: string): GameCard | undefined =>
+      findPokemon(id) ?? cardSeries.trainers.find((card) => card.id === id);
+
+    return {
+      cards: deck.cardIds
+        .map(findCard)
+        .filter((card): card is GameCard => card !== undefined),
+      invocationCards: deck.invocationCardIds
+        .map(findPokemon)
+        .filter((card): card is PokemonCard => card !== undefined),
+      choices: Object.fromEntries(
+        Object.entries(deck.summonChoiceIds).map(([summonerId, ids]) => [
+          summonerId,
+          ids.map(findPokemon).filter((card): card is PokemonCard => card !== undefined),
+        ])
+      ) as SummonChoices,
+    };
+  }
+
+  /** Coche les cartes d'un deck enregistré (pour le modifier). */
+  function loadSetupDeck(cardIds: string[]) {
+    const { cards } = resolveDeck({ cardIds, invocationCardIds: [], summonChoiceIds: {} });
+    const player: Player = setupPhase === 'player2' ? 2 : 1;
+
+    if (player === 1) {
+      setPlayer1SetupCards(cards);
+    } else {
+      setPlayer2SetupCards(cards);
+    }
+  }
+
+  /**
+   * Joue avec un deck enregistré : ses cartes et ses Invocations deviennent
+   * celles du joueur qui choisit, et sa préparation est terminée.
+   */
+  function applySavedDeck(deck: {
+    cardIds: string[];
+    invocationCardIds: string[];
+    summonChoiceIds: Record<string, string[]>;
+  }) {
+    if (setupPhase === 'battle' || invocationSetupPlayer) return;
+
+    const player: Player = setupPhase === 'player1' ? 1 : 2;
+    const { cards, invocationCards, choices } = resolveDeck(deck);
+
+    if (cards.length === 0) {
+      setMessage("Ce deck ne contient aucune carte de cette série.");
+      return;
+    }
+
+    if (player === 1) {
+      setPlayer1SetupCards(cards);
+      setPlayer1Hand([...cards]);
+      setPlayer1InvocationCards(invocationCards);
+    } else {
+      setPlayer2SetupCards(cards);
+      setPlayer2Hand([...cards]);
+      setPlayer2InvocationCards(invocationCards);
+    }
+    setSummonChoicesFor(player, choices);
+    setSetupWarningKey(null);
+
+    finishPlayerSetup(player, { cards, invocationCards, choices });
+  }
+
   return {
+    loadSetupDeck,
+    applySavedDeck,
     setOnlineSetupSubmit,
     applyOnlineSetupSubmit,
     setupSubmitted,

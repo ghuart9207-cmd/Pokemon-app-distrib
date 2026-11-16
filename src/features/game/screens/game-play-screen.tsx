@@ -427,6 +427,13 @@ onActivateTalent={props.onActivateTalent}
       </View>
 
       <Text style={styles.info}>Pose : C1 à C4 • Retraite : C → D</Text>
+      {/* Défausse du joueur 2 : juste sous « Pose : C1 à C4 », de son côté. */}
+      <DiscardPanel
+        player={2}
+        cards={props.player2Discard}
+        energies={props.player2DiscardEnergies}
+        onToggle={props.onToggleDiscard}
+      />
       <PlayerHandArea
         player={2}
         hand={props.player2Hand}
@@ -439,12 +446,6 @@ onActivateTalent={props.onActivateTalent}
         selectable={props.canSelectPlayerTarget(2)}
         onTargetPress={props.onTargetPress}
         onHandCardPress={props.onHandCardPress}
-      />
-      <DiscardPanel
-        player={2}
-        cards={props.player2Discard}
-        energies={props.player2DiscardEnergies}
-        onToggle={props.onToggleDiscard}
       />
 
       {!props.gameOver && (

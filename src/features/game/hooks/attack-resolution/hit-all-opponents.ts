@@ -101,7 +101,7 @@ export function hitAllOpponents(
       continue;
     }
 
-    retaliationTotal += getRetaliationDamage(pokemon, attacker, damage);
+    retaliationTotal += getRetaliationDamage(pokemon, attacker, damage, boardBefore, cell);
     if (doesTalentBurnAttacker(pokemon, cell, boardBefore, attacker, damage)) {
       burnsAttacker = true;
     }

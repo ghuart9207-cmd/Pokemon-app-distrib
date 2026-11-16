@@ -12,8 +12,9 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingBottom: 48,
-    gap: 48,
+    paddingBottom: 24,
+    // un peu moins d'espace : place pour le bouton Decks et la liste des joueurs
+    gap: 28,
   },
   title: {
     maxWidth: 900,

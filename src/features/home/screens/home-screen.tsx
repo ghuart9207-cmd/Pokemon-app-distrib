@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/auth-context';
 
 import { AccountBar } from '../components/account-bar';
+import { OnlinePlayers } from '../components/online-players';
 import { styles } from './home-screen.styles';
 
 const TITLE_MIN_SIZE = 44;
@@ -28,6 +29,14 @@ export default function HomeScreen() {
     } else {
       // pas connecté : on passe par la connexion, puis on revient au choix de la série
       router.push({ pathname: '/connexion', params: { next: 'serie-local' } });
+    }
+  }
+
+  function handleDecks() {
+    if (player) {
+      router.push('/decks');
+    } else {
+      router.push({ pathname: '/connexion', params: { next: 'decks' } });
     }
   }
 
@@ -76,7 +85,20 @@ export default function HomeScreen() {
           >
             <Text style={styles.onlineText}>Jouer en ligne</Text>
           </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.onlineButton,
+              pressed && styles.onlineButtonPressed,
+            ]}
+            onPress={handleDecks}
+            accessibilityRole="button"
+          >
+            <Text style={styles.onlineText}>📚 Decks</Text>
+          </Pressable>
         </View>
+
+        <OnlinePlayers />
       </View>
     </SafeAreaView>
   );

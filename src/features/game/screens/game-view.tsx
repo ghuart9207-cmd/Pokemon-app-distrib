@@ -9,6 +9,8 @@ import {
   getSummonChoiceCount,
   isValidAttackInvocation,
 } from '@/features/game/rules';
+import { DeckPicker } from '@/features/decks/components/deck-picker';
+
 import { CardSetupScreen } from './card-setup-screen';
 import { GamePlayScreen } from './game-play-screen';
 import { InvocationSetupScreen } from './invocation-setup-screen';
@@ -17,6 +19,8 @@ type GameViewProps = {
   game: GameApi;
   // En ligne : le joueur de cet écran (1 ou 2). En local : non défini.
   localPlayer?: Player;
+  // Création / modification d'un deck : pas de bouton « Decks », titre adapté.
+  deckEditorTitle?: string;
 };
 
 /**
@@ -24,7 +28,7 @@ type GameViewProps = {
  * Il ne contient aucune logique : tout vient de `game`, ce qui permet de lui donner
  * soit le jeu local (GameScreen), soit un jeu synchronisé en ligne.
  */
-export function GameView({ game, localPlayer }: GameViewProps) {
+export function GameView({ game, localPlayer, deckEditorTitle }: GameViewProps) {
   const { isTablet, setupPokemonPerRow } = useSetupLayout();
 
   // En ligne : deck envoyé, on attend que l'adversaire ait fini le sien.
@@ -97,6 +101,12 @@ export function GameView({ game, localPlayer }: GameViewProps) {
         getSetupCounts={game.getSetupCounts}
         onToggleCard={game.toggleSetupCard}
         onConfirm={game.confirmSetupSelection}
+        titleOverride={deckEditorTitle}
+        headerRight={
+          deckEditorTitle ? undefined : (
+            <DeckPicker series={game.cardSeries.id} onUseDeck={game.applySavedDeck} />
+          )
+        }
       />
     );
   }

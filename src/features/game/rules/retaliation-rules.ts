@@ -14,19 +14,39 @@ import { isTalentNegated } from './talent-negation';
 export function getRetaliationDamage(
   damagedPokemon: PokemonInPlay,
   attacker: PokemonInPlay | null | undefined,
-  damageDealt: number
+  damageDealt: number,
+  // Facultatifs : nécessaires pour le Talent (savoir si le Pokémon est actif).
+  board?: BoardState,
+  damagedCell?: string
 ): number {
-  if (
-    !attacker ||
-    damageDealt <= 0 ||
-    attacker.owner === damagedPokemon.owner ||
-    !damagedPokemon.retaliationDamage ||
-    damagedPokemon.retaliationEndPlayer !== attacker.owner
-  ) {
+  // Pas d'attaquant, pas de dégâts, ou attaque de son propre camp : rien.
+  if (!attacker || damageDealt <= 0 || attacker.owner === damagedPokemon.owner) {
     return 0;
   }
 
-  return damagedPokemon.retaliationDamage;
+  let total = 0;
+
+  // 1) Effet d'attaque (déjà existant) : contre-coup pendant le prochain tour adverse.
+  if (
+    damagedPokemon.retaliationDamage &&
+    damagedPokemon.retaliationEndPlayer === attacker.owner
+  ) {
+    total += damagedPokemon.retaliationDamage;
+  }
+
+  // 2) Talent : si ce Pokémon est ACTIF, l'attaquant subit X dégâts.
+  const talent = damagedPokemon.card.talent;
+  if (
+    talent?.effect === 'damageAttackerWhenDamagedWhileActive' &&
+    board &&
+    damagedCell &&
+    isActivePokemonCell(board, damagedCell) &&
+    !isTalentNegated(damagedPokemon, board, damagedCell)
+  ) {
+    total += talent.amount ?? 20;
+  }
+
+  return total;
 }
 
 /**

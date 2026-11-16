@@ -15,6 +15,7 @@
  *   { type: 'room_update', players }
  *   { type: 'action', seq, from, name, payload }   envoyée aux DEUX joueurs, dans le même ordre
  *   { type: 'match_recorded' }
+ *   { type: 'presence', players }   joueurs connectés : [{ id, pseudo, inGame }]
  *   { type: 'error', code, message }
  *
  * Le serveur ne connaît pas les règles : il ordonne les actions et les retransmet.
@@ -84,6 +85,48 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
     }
   }
 
+  // ---------------------------------------------
+  // JOUEURS CONNECTÉS (présence)
+  // playerId -> { pseudo, sessions } ; une session par connexion ouverte.
+  // ---------------------------------------------
+  const presence = new Map();
+
+  function presenceList() {
+    return [...presence.entries()]
+      .map(([id, entry]) => ({
+        id,
+        pseudo: entry.pseudo,
+        // en partie si l'une de ses connexions est dans un salon
+        inGame: [...entry.sessions].some((s) => s.code !== null),
+      }))
+      .sort((a, b) => a.pseudo.localeCompare(b.pseudo));
+  }
+
+  function broadcastPresence() {
+    const message = { type: 'presence', players: presenceList() };
+    for (const client of wss.clients) {
+      if (client.authed) send(client, message);
+    }
+  }
+
+  function addPresence(session) {
+    const id = session.player.id;
+    const entry = presence.get(id) || { pseudo: session.player.pseudo, sessions: new Set() };
+    entry.pseudo = session.player.pseudo;
+    entry.sessions.add(session);
+    presence.set(id, entry);
+    broadcastPresence();
+  }
+
+  function removePresence(session) {
+    if (!session.player) return;
+    const entry = presence.get(session.player.id);
+    if (!entry) return;
+    entry.sessions.delete(session);
+    if (entry.sessions.size === 0) presence.delete(session.player.id);
+    broadcastPresence();
+  }
+
   function bindSeat(room, seat, socket) {
     const previous = room.seats[seat].socket;
     room.seats[seat].socket = socket;
@@ -127,12 +170,17 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
             sendError(socket, 'UNAUTHORIZED', 'Session expirée, reconnecte-toi.');
             return socket.close(4001, 'Non autorisé');
           }
+          // déjà identifié sur cette connexion : on retire l'ancienne présence
+          if (session.player) removePresence(session);
           session.player = player;
+          socket.authed = true;
           clearTimeout(authTimer);
-          return send(socket, {
+          send(socket, {
             type: 'authed',
             player: { id: player.id, pseudo: player.pseudo },
           });
+          addPresence(session);
+          return;
         }
 
         if (!session.player)
@@ -158,12 +206,14 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
             });
             // l'autre joueur est prévenu (arrivée, retour)
             broadcast(room, { type: 'room_update', players: manager.playersInfo(room) });
+            broadcastPresence();
             return;
           }
 
           case 'leave_room': {
             const room = manager.leaveRoom(session.player.id);
             session.code = null;
+            broadcastPresence();
             if (room && !room.closed)
               broadcast(room, {
                 type: 'room_update',
@@ -239,6 +289,7 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
 
     socket.on('close', () => {
       clearTimeout(authTimer);
+      removePresence(session);
       if (!session.player || !session.code) return;
       const room = manager.getRoom(session.code);
       if (!room) return;

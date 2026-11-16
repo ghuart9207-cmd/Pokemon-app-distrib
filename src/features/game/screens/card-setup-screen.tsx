@@ -27,6 +27,10 @@ type CardSetupScreenProps = {
   getSetupCounts: (cards: GameCard[]) => SetupCounts;
   onToggleCard: (card: GameCard) => void;
   onConfirm: () => void;
+  /** Élément affiché en haut à droite (ex : bouton « Decks »). */
+  headerRight?: ReactNode;
+  /** Titre à la place de « Composition de la main du joueur X » (ex : création de deck). */
+  titleOverride?: string;
 };
 
 // Identifiant du panneau Dresseurs (pour le replier comme les autres).
@@ -43,6 +47,8 @@ export function CardSetupScreen({
   getSetupCounts,
   onToggleCard,
   onConfirm,
+  headerRight,
+  titleOverride,
 }: CardSetupScreenProps) {
   const setupPlayer: Player = setupPhase === 'player1' ? 1 : 2;
   const setupCards = setupPhase === 'player1' ? player1SetupCards : player2SetupCards;
@@ -72,11 +78,13 @@ export function CardSetupScreen({
       style={sharedStyles.screen}
       contentContainerStyle={sharedStyles.container}
     >
+      {headerRight && <View style={{ alignSelf: 'stretch', alignItems: 'flex-end' }}>{headerRight}</View>}
+
       <Text style={sharedStyles.title}>Pokémon Plateau</Text>
 
       <View style={sharedStyles.actionBox}>
         <Text style={sharedStyles.actionTitle}>
-          Composition de la main du joueur {setupPlayer}
+          {titleOverride ?? `Composition de la main du joueur ${setupPlayer}`}
         </Text>
         <Text style={sharedStyles.actionInfo}>Série : {cardSeries.label}</Text>
         {cardSeries.pokemon.length === 0 && (
