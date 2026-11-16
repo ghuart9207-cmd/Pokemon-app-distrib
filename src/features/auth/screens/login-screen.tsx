@@ -92,7 +92,15 @@ export default function LoginScreen() {
           params: { mode: next === 'serie-en-ligne' ? 'en-ligne' : 'local' },
         });
       } else {
-        router.replace(next === 'jeu' ? '/jeu' : next === 'en-ligne' ? '/en-ligne' : '/');
+        router.replace(
+          next === 'jeu'
+            ? '/jeu'
+            : next === 'en-ligne'
+              ? '/en-ligne'
+              : next === 'decks'
+                ? '/decks'
+                : '/'
+        );
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Une erreur est survenue.');

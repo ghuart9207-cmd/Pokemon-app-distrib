@@ -29,6 +29,7 @@ export type PokemonTalent = {
     | 'returnToolToHandOncePerTurn'
     | 'switchWithBenchOncePerTurn'
     | 'burnAttackerWhenDamagedWhileActive'
+    | 'damageAttackerWhenDamagedWhileActive'
     | 'negateOpponentGxExTalents'
     | 'swapWithCardFromHand'
     | 'gatherEnergyOnPlayThenSwitch'

@@ -13,7 +13,13 @@ import { WS_URL } from '@/features/auth/config';
 import { toCardSeries } from '@/features/game/data';
 import type { CardSeries } from '@/features/game/types';
 
-import type { ActionName, OnlineAction, RoomState, ServerMessage } from './protocol';
+import type {
+  ActionName,
+  OnlineAction,
+  OnlinePlayer,
+  RoomState,
+  ServerMessage,
+} from './protocol';
 
 type ConnectionStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
 
@@ -37,13 +43,25 @@ type OnlineContextValue = {
   /** Annonce la fin de la partie (winner : 1, 2 ou 0 pour une égalité). */
   reportGameOver: (winner: 0 | 1 | 2) => void;
   clearError: () => void;
+  /** Joueurs connectés au serveur (null : pas encore reçu, ou ancien serveur). */
+  onlinePlayers: OnlinePlayer[] | null;
+  /**
+   * État de la liste des joueurs :
+   * connecting (connexion en cours), unreachable (serveur injoignable),
+   * unsupported (serveur pas à jour : il n'envoie pas la liste), ok.
+   */
+  presenceStatus: PresenceStatus;
 };
+
+export type PresenceStatus = 'connecting' | 'unreachable' | 'unsupported' | 'ok';
 
 const OnlineContext = createContext<OnlineContextValue | null>(null);
 
 const CONNECT_TIMEOUT_MS = 8000;
 const ECHO_TIMEOUT_MS = 3000;
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 5000, 5000, 5000];
+// Hors partie : on reste connecté pour voir les joueurs en ligne (nouvel essai toutes les 15 s).
+const PRESENCE_RETRY_MS = 15000;
 
 type PendingRequest = { resolve: () => void; reject: (error: Error) => void };
 
@@ -60,6 +78,11 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
   const [log, setLog] = useState<OnlineAction[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isAwaitingEcho, setIsAwaitingEcho] = useState(false);
+  const [onlinePlayers, setOnlinePlayers] = useState<OnlinePlayer[] | null>(null);
+  const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>('connecting');
+  const presenceCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const presenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tokenRef = useRef(token);
 
   const socketRef = useRef<WebSocket | null>(null);
   const logRef = useRef<OnlineAction[]>([]);
@@ -74,7 +97,26 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refreshPlayerRef.current = refreshPlayer;
+    tokenRef.current = token;
   });
+
+  /** Connexion « présence » : pour voir les joueurs connectés depuis le menu. */
+  function connectForPresence() {
+    if (presenceTimerRef.current) clearTimeout(presenceTimerRef.current);
+    presenceTimerRef.current = null;
+    if (!tokenRef.current) return;
+
+    openSocket().catch(() => {
+      // serveur injoignable : on réessaie plus tard, sans message d'erreur
+      setPresenceStatus('unreachable');
+      schedulePresenceRetry();
+    });
+  }
+
+  function schedulePresenceRetry() {
+    if (presenceTimerRef.current) clearTimeout(presenceTimerRef.current);
+    presenceTimerRef.current = setTimeout(connectForPresence, PRESENCE_RETRY_MS);
+  }
 
   function clearEchoWait() {
     if (echoTimerRef.current) clearTimeout(echoTimerRef.current);
@@ -103,6 +145,11 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
       case 'authed':
         authWaiterRef.current?.resolve();
         authWaiterRef.current = null;
+        // Un serveur à jour envoie la liste des joueurs juste après : sinon, il est ancien.
+        if (presenceCheckTimerRef.current) clearTimeout(presenceCheckTimerRef.current);
+        presenceCheckTimerRef.current = setTimeout(() => {
+          setPresenceStatus((current) => (current === 'ok' ? current : 'unsupported'));
+        }, 3000);
         break;
 
       case 'room_joined': {
@@ -122,6 +169,11 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
         requestRef.current = null;
         break;
       }
+
+      case 'presence':
+        setOnlinePlayers(message.players);
+        setPresenceStatus('ok');
+        break;
 
       case 'room_update':
         if (roomRef.current) {
@@ -233,6 +285,10 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
 
         if (intentionalCloseRef.current || !roomCodeRef.current) {
           setStatus('idle');
+          setOnlinePlayers(null);
+          setPresenceStatus((current) => (current === 'unsupported' ? current : 'unreachable'));
+          // hors partie : on se reconnecte un peu plus tard pour la liste des joueurs
+          if (!intentionalCloseRef.current && tokenRef.current) schedulePresenceRetry();
           return;
         }
         scheduleReconnect(0);
@@ -315,9 +371,16 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     sendRaw({ type: 'game_over', winner });
   }
 
+  // Connecté à un compte : on ouvre la connexion tout de suite (liste des joueurs en ligne).
+  useEffect(() => {
+    if (token) connectForPresence();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
   // Déconnexion du compte ou fermeture de l'application : on coupe la connexion temps réel.
   useEffect(() => {
     return () => {
+      if (presenceTimerRef.current) clearTimeout(presenceTimerRef.current);
       intentionalCloseRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (echoTimerRef.current) clearTimeout(echoTimerRef.current);
@@ -330,6 +393,8 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
 
     intentionalCloseRef.current = true;
     if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    if (presenceTimerRef.current) clearTimeout(presenceTimerRef.current);
+    setOnlinePlayers(null);
     socketRef.current?.close();
     socketRef.current = null;
     roomCodeRef.current = null;
@@ -354,6 +419,8 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
         sendAction,
         reportGameOver,
         clearError: () => setError(null),
+        onlinePlayers,
+        presenceStatus,
       }}
     >
       {children}

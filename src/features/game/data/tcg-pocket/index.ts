@@ -15,6 +15,7 @@ import { dracaufeuextcg } from './dracaufeuex-tcg';
 import { feunardtcg } from './feunard-tcg';
 import { sulfuraextcg } from './sulfuraex-tcg';
 import { tortankextcg } from './tortankex-tcg';
+import { tartardtcg } from './tartard-tcg';
 
 // =============================================================
 // CARTES POKÉMON TCG POCKET
@@ -45,6 +46,7 @@ dracaufeuextcg,
 feunardtcg,
 sulfuraextcg,
 tortankextcg,
+tartardtcg,
 
 
 ];

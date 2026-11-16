@@ -1,7 +1,7 @@
 import type { PokemonCard } from '@/features/game/types';
 
 export const tortankextcg: PokemonCard = {
-  id: 'tortankex-001',
+  id: 'tortankextcg-001',
   name: 'Tortank EX',
   stage: 'niveau2',
   variant: 'ex',

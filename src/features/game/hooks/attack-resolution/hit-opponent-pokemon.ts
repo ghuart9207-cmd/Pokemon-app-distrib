@@ -445,7 +445,7 @@ const targetProtectionMessage =
     : (swappedTargetHp ?? hpAfterAttackDamage);
 
   // Contre-coup éventuel de la cible (et des Pokémon de banc touchés).
-  let retaliationTotal = getRetaliationDamage(target, attacker, damageToTarget);
+  let retaliationTotal = getRetaliationDamage(target, attacker, damageToTarget, board, targetCell);
 
   // --------------------------------
   // DÉGÂTS AUX POKÉMON DE BANC

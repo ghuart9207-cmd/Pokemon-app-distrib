@@ -53,6 +53,17 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="deck-editor"
+            options={{
+              headerShown: true,
+              title: 'Deck',
+              headerBackTitle: 'Decks',
+              headerStyle: { backgroundColor: COLORS.background },
+              headerTintColor: COLORS.yellow,
+              headerTitleStyle: { fontFamily: FONTS.title },
+            }}
+          />
+          <Stack.Screen
             name="partie"
             options={{
               headerShown: true,

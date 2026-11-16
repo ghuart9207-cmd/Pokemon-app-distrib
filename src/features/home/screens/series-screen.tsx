@@ -16,8 +16,16 @@ export default function SeriesScreen() {
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isOnline = mode === 'en-ligne';
+  // Création d'un deck : la série choisie ouvre l'écran de composition du deck.
+  const isDeck = mode === 'deck';
 
   function handleChoose(series: CardSeries) {
+    if (isDeck) {
+      // replace : après l'enregistrement, « retour » ramène à la liste des decks
+      router.replace({ pathname: '/deck-editor', params: { serie: series } });
+      return;
+    }
+
     router.push({
       pathname: isOnline ? '/en-ligne' : '/jeu',
       params: { serie: series },
@@ -28,7 +36,7 @@ export default function SeriesScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.heading} accessibilityRole="header">
-          {isOnline ? 'Jouer en ligne' : 'Jouer'}
+          {isDeck ? 'Nouveau deck' : isOnline ? 'Jouer en ligne' : 'Jouer'}
         </Text>
         <Text style={styles.text}>Choisis la série de cartes</Text>
 

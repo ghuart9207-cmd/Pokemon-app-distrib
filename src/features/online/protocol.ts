@@ -82,4 +82,12 @@ export type ServerMessage =
   | { type: 'room_update'; players: [RoomPlayer | null, RoomPlayer | null] }
   | ({ type: 'action' } & OnlineAction)
   | { type: 'match_recorded' }
+  | { type: 'presence'; players: OnlinePlayer[] }
   | { type: 'error'; code: string; message: string };
+
+/** Joueur connecté au serveur (liste affichée dans le menu). */
+export type OnlinePlayer = {
+  id: number;
+  pseudo: string;
+  inGame: boolean;
+};

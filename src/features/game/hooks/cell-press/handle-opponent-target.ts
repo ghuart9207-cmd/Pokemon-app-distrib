@@ -138,7 +138,7 @@ const pendingDamage = protectedFromDamage
   // --------------------------------
   // CONTRE-COUP : MARQUEURS SUR L'ATTAQUANT
   // --------------------------------
-  const retaliation = getRetaliationDamage(target, pendingAttacker, pendingDamage);
+  const retaliation = getRetaliationDamage(target, pendingAttacker, pendingDamage, board, cellName);
 
   /** Applique le contre-coup sur la copie du plateau et renvoie le texte à afficher. */
   const burnsAttacker = doesTalentBurnAttacker(target, cellName, board, pendingAttacker, pendingDamage);
