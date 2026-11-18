@@ -3,6 +3,7 @@ import type {
   AttackEffect,
   PokemonInPlay,
 } from '@/features/game/types';
+import { isScriptPrevented } from './script-modifiers';
 
 // Origine de l'énergie selon les règles de notre jeu.
 export type EnergyAttachmentSource =
@@ -19,6 +20,11 @@ export function canAttachEnergyFromSource(
     source === 'hand' &&
     pokemon.blockedHandEnergyUntilOwnTurnEnd === true
   ) {
+    return false;
+  }
+
+  // Code des cartes : « ne peut plus recevoir d'Énergie de la main ».
+  if (source === 'hand' && isScriptPrevented(pokemon, 'energy')) {
     return false;
   }
 

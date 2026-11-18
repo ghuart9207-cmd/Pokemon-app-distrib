@@ -3,6 +3,7 @@ import { Button, Pressable, Text, View } from 'react-native';
 import { PokemonHandCard } from '@/features/game/components/cards/pokemon-hand-card';
 import type { Player, PokemonInPlay, TrainerCard } from '@/features/game/types';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
+import { isGenericTrainerEffect } from '@/features/game/hooks/cell-press/trainer-effects/generic-trainer-effect';
 
 type TrainerActionsProps = {
   card: TrainerCard | null;
@@ -68,6 +69,8 @@ export function TrainerActions({
 
       {owner === currentPlayer &&
         card.effect !== 'coinReturnPokemonToHand' &&
+        // carte « à réglages » avec pièce : on commence par le bouton de la pièce
+        !(isGenericTrainerEffect(card) && card.coinCount) &&
         !trainerEffectActivated &&
         !coinFlipPending && (
           <Pressable

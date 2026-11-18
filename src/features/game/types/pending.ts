@@ -190,6 +190,12 @@ export type PendingAttackSummonPlacement = {
   attackName: string;
 };
 
+/** Carte Dresseur « à réglages » après un lancer de pièce réussi : Pokémon à choisir. */
+export type PendingTrainerEffect = {
+  card: TrainerCard;
+  player: Player;
+};
+
 /** Talent « placez un Outil attaché à l'un de vos Pokémon dans votre main » en cours. */
 export type PendingTalentToolReturn = {
   player: Player;

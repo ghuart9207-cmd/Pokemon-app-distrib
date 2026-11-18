@@ -3,7 +3,7 @@ import type { PokemonCard } from '@/features/game/types';
 export const tentacruel: PokemonCard = {
   id: 'tentacruel-001',
   name: 'Tentacruel',
-  stage: 'base',
+  stage: 'niveau1',
   variant: 'normal',
   type: 'eau',
   maxHp: 110,

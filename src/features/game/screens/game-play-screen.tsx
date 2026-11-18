@@ -23,7 +23,9 @@ import { DiscardAllEnergyPrompt } from '@/features/game/components/panels/discar
 import { OptionalDiscardPrompt } from '@/features/game/components/panels/optional-discard-prompt';
 import { OptionalBonusDamagePrompt } from '@/features/game/components/panels/optional-bonus-damage-prompt';
 import { OptionalAttackEffectPrompt } from '@/features/game/components/panels/optional-attack-effect-prompt';
+import { ScriptPrompt } from '@/features/game/components/panels/script-prompt';
 import type {
+  PendingScript,
     BoardState,
     CoinAttackReference,
     CoinSide,
@@ -135,6 +137,11 @@ type GamePlayScreenProps = {
   // En ligne : le joueur de cet écran (c'est lui qui peut abandonner).
   localPlayer?: Player;
   onRestart: () => void;
+  pendingScript: PendingScript | null;
+  onAnswerScriptOptional: (accept: boolean) => void;
+  scriptCardChoices: GameCard[];
+  scriptAttackChoices: string[];
+  onAnswerScriptCard: (index: number) => void;
   pendingOptionalAttackEffect: {
   pokemonName: string;
   message: string;
@@ -417,6 +424,18 @@ onActivateTalent={props.onActivateTalent}
     onChoose={props.onChooseOptionalAttackEffect}
   />
 )}
+
+{/* Code des cartes : OUI / NON ou choix de cible (en ligne : seulement chez le bon joueur). */}
+{props.pendingScript &&
+  (props.localPlayer === undefined || props.localPlayer === props.pendingScript.player) && (
+    <ScriptPrompt
+      pending={props.pendingScript}
+      onAnswer={props.onAnswerScriptOptional}
+      cardChoices={props.scriptCardChoices}
+      attackChoices={props.scriptAttackChoices}
+      onChooseCard={props.onAnswerScriptCard}
+    />
+  )}
           </View>
         </View>
       </ScrollView>

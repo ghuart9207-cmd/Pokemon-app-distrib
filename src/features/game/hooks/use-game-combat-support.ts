@@ -1,6 +1,7 @@
 import {
   doesToolAttackerShieldPreventDamage,
   getKOPenalty,
+  hasScriptImmunity,
   isTalentNegated,
 } from '@/features/game/rules';
 import type {
@@ -211,6 +212,17 @@ export function useGameCombatSupport({
     attacker: PokemonInPlay
   ): boolean {
     return (
+      doesTalentPreventEverything(target, attacker) ||
+      // Code des cartes : immunité aux effets des attaques.
+      hasScriptImmunity(target, 'effects', attacker, board)
+    );
+  }
+
+  function doesTalentPreventEverything(
+    target: PokemonInPlay,
+    attacker: PokemonInPlay
+  ): boolean {
+    return (
       target.card.talent?.effect === 'preventAllEffectsFromExGx' &&
       !isTalentNegated(target, board) &&
       attacker.owner !== target.owner &&
@@ -222,7 +234,12 @@ export function useGameCombatSupport({
     target: PokemonInPlay,
     attacker: PokemonInPlay
   ): boolean {
-    if (doesTalentPreventAllAttackEffects(target, attacker)) {
+    if (doesTalentPreventEverything(target, attacker)) {
+      return true;
+    }
+
+    // Code des cartes : immunité aux dégâts des attaques.
+    if (hasScriptImmunity(target, 'damage', attacker, board)) {
       return true;
     }
 

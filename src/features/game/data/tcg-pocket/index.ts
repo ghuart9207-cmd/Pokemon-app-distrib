@@ -16,6 +16,11 @@ import { feunardtcg } from './feunard-tcg';
 import { sulfuraextcg } from './sulfuraex-tcg';
 import { tortankextcg } from './tortankex-tcg';
 import { tartardtcg } from './tartard-tcg';
+import { erikatcg } from './erika-tcg';
+import { ondinetcg } from './ondine-tcg';
+import { potiontcg } from './potion-tcg';
+import { vitesseplustcg } from './vitesse+-tcg';
+import { pokeballtcg } from './pokeball-tcg';
 
 // =============================================================
 // CARTES POKÉMON TCG POCKET
@@ -51,4 +56,10 @@ tartardtcg,
 
 ];
 
-export const POCKET_TRAINER_CARDS: TrainerCard[] = [];
+export const POCKET_TRAINER_CARDS: TrainerCard[] = [
+erikatcg,
+ondinetcg,
+potiontcg,
+vitesseplustcg,
+pokeballtcg,
+];

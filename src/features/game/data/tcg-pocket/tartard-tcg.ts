@@ -10,12 +10,12 @@ export const tartardtcg: PokemonCard = {
   retreatCost: 2,
   artwork: require('../../../../../assets/images/tartard-tcg.png'),
   talent: {
-  name: 'Nom du talent',
+  name: 'Contre-Attaque',
   type: 'passive',
-  effect: 'damageAttackerWhenDamagedWhileActive',
-  amount: 20,
-  description:
-    "Si ce Pokémon est votre Pokémon actif et qu'il subit les dégâts d'une attaque d'un Pokémon de votre adversaire, le Pokémon attaquant subit 20 dégâts.",
+  effect: 'script', description: 'Si ce pokémon est sur le poste actif et subit des dégâts, le pokémon attaquant subit 20 dégâts.', script: [
+  { action: 'whenDamaged', target: { who: 'self', filter: { position: 'active' } },
+    script: [ { action: 'damage',amount: 20 , target: { who: 'attacker' } } ] },
+  ],
 },
   attacks: [
    {

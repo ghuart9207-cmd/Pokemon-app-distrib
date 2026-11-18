@@ -10,6 +10,7 @@ import {
   getCoinTriggeredEffects,
   getKOPenalty,
   getPokemonMaxHp,
+  isScriptPrevented,
   getToolAttachedAttackBonus,
   isPokemonCard,
   getTalentDamageReduction,
@@ -24,6 +25,8 @@ import {
   isTalentNegated,
   getAttackerColumnDamageReduction,
   describeAttackInvocationRule,
+  getDiscardCardBonus,
+  getScriptAttackDamageBonus,
 } from '@/features/game/rules';
 import type {
   Attack,
@@ -138,6 +141,7 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
     setPendingOwnBenchDamage,
     setPendingCountersToActive,
     setPendingEnergyGather,
+    setPendingScript,
     player1SummonChoices,
     player2SummonChoices,
     setPendingPokemonSwitch,
@@ -176,6 +180,11 @@ export function useGameAttackResolution(options: AttackResolutionContext) {
 
     if (!attacker) return;
 
+
+if (isScriptPrevented(attacker, 'attack')) {
+  setMessage(`${attacker.card.name} ne peut pas attaquer pour le moment (effet en cours).`);
+  return;
+}
 
 if (attacker.blockedAllAttacksTurnId === turnId) {
   setMessage(
@@ -620,6 +629,26 @@ let totalDamage =
   if (perOwnCardEffect) {
     totalDamage += ownHand.length * perOwnCardEffect.amount;
   }
+
+  // X dégâts pour chaque carte (Objet, Supporter…) dans une pile de défausse.
+  totalDamage += getDiscardCardBonus(
+    resolvedAttack,
+    attacker.owner === 1 ? player1Discard : player2Discard,
+    attacker.owner === 1 ? player2Discard : player1Discard
+  );
+
+  // Code des cartes : dégâts en plus (blocs attackDamage, avec `per`).
+  totalDamage += getScriptAttackDamageBonus(resolvedAttack, {
+    board,
+    player: attacker.owner,
+    sourceCell: selectedPokemonCell,
+    player1Discard,
+    player2Discard,
+    player1Hand,
+    player2Hand,
+    player1DiscardEnergies,
+    player2DiscardEnergies,
+  });
 
     if (discardAllForBonusEffect) {
       totalDamage += energiesDiscardedForBonus.length * discardAllForBonusEffect.amount;
@@ -1789,6 +1818,25 @@ const requestOwnBenchDamage = () => {
 };
 
 // -----------------------------------------
+// CODE DES CARTES : script de l'attaque, après ses dégâts
+// -----------------------------------------
+const requestAttackScript = () => {
+  if (!resolvedAttack.script || resolvedAttack.script.length === 0) return;
+
+  setPendingScript({
+    player: attacker.owner,
+    sourceName: attack.name,
+    sourceCell: selectedPokemonCell,
+    trainerCard: null,
+    blocks: resolvedAttack.script,
+    index: 0,
+    stage: 'run',
+    chosenCells: [],
+    turnId,
+  });
+};
+
+// -----------------------------------------
 // DÉPLACER AUTANT D'ÉNERGIES QU'ON VEUT DE SES POKÉMON DE BANC
 // VERS L'ATTAQUANT (une par clic, bouton « Fin de l'effet »)
 // -----------------------------------------
@@ -1906,6 +1954,7 @@ requestOwnBenchDamage();
 requestCountersToActive();
 requestGatherEnergyFromBench();
 requestBenchEnergyEffects();
+requestAttackScript();
 
       return;
     }
@@ -2055,6 +2104,7 @@ const directSpecialConditionBonus =
     requestCountersToActive();
     requestGatherEnergyFromBench();
 requestBenchEnergyEffects();
+requestAttackScript();
   }
 
 function resolveOptionalAttackEffectChoice(accepted: boolean) {

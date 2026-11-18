@@ -52,7 +52,16 @@ export function isTalentNegated(
   board: BoardState | null | undefined,
   cell?: string | null
 ): boolean {
-  if (!pokemon || !board) return false;
+  if (!pokemon) return false;
+
+  // Code des cartes : « ce Pokémon n'a plus de talent » (action 'prevent', 'talent').
+  const preventedByScript = [
+    ...(pokemon.scriptModifiers ?? []).filter((modifier) => modifier.startsIn <= 0),
+    ...(pokemon.auraModifiers ?? []),
+  ].some((modifier) => modifier.kind === 'prevent' && (modifier.prevent ?? []).includes('talent'));
+  if (preventedByScript) return true;
+
+  if (!board) return false;
 
   return isTalentNegatedAt(board, cell ?? findPokemonCell(board, pokemon), pokemon.owner, pokemon.card);
 }

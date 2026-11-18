@@ -13,6 +13,8 @@ import type {
   PendingBothPlayersSwitch,
   PendingCoinFlip,
   PendingCoinReturnToHand,
+  PendingTrainerEffect,
+  PendingScript,
   PendingDragonEnergyChoice,
   PendingGeneratedBenchEnergy,
   PendingInvocationPlacement,
@@ -57,6 +59,8 @@ type UseGameRestartOptions = {
   setPendingAttackAfterCoin: SetState<CoinAttackReference | null>;
   setReadyCoinAttack: SetState<CoinAttackReference | null>;
   setPendingCoinReturnToHand: SetState<PendingCoinReturnToHand | null>;
+  setPendingTrainerEffect: SetState<PendingTrainerEffect | null>;
+  setPendingScript: SetState<PendingScript | null>;
   setTurnId: SetState<number>;
   setPendingKOSurvival: SetState<PendingKOSurvival | null>;
   setPendingGeneratedBenchEnergy: SetState<PendingGeneratedBenchEnergy | null>;
@@ -134,6 +138,8 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setPendingAttackAfterCoin(null);
     options.setReadyCoinAttack(null);
     options.setPendingCoinReturnToHand(null);
+    options.setPendingTrainerEffect(null);
+    options.setPendingScript(null);
     options.setTurnId(1);
     options.setPendingKOSurvival(null);
     options.setPendingGeneratedBenchEnergy(null);

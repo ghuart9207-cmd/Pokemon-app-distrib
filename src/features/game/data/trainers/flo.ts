@@ -9,9 +9,12 @@ export const flo: TrainerCard = {
   description:
     "Soignez 80 dégâts à l'un de vos Pokémon auquel une Énergie Plante est attachée.",
 
-  effect: 'healPokemonWithEnergyType',
-
- 
-  healAmount: 80,
-  healEnergyType: 'plante',
+  effect: 'script',
+  script: [
+  {
+  action: 'heal',          
+  amount: 80,              
+      target: { side: 'own', who: 'chosen', filter: { hasEnergyType: 'plante'  } },
+}
+  ],
 };

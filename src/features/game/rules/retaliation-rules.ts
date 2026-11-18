@@ -1,6 +1,7 @@
 import type { Attack, AttackEffect, BoardState, PokemonInPlay } from '@/features/game/types';
 import { getPokemonMaxHp } from './board-rules';
 import { isTalentNegated } from './talent-negation';
+import { isScriptPrevented } from './script-modifiers';
 
 /**
  * Effet d'attaque 'retaliateDamageNextOpponentTurn' :
@@ -14,39 +15,19 @@ import { isTalentNegated } from './talent-negation';
 export function getRetaliationDamage(
   damagedPokemon: PokemonInPlay,
   attacker: PokemonInPlay | null | undefined,
-  damageDealt: number,
-  // Facultatifs : nécessaires pour le Talent (savoir si le Pokémon est actif).
-  board?: BoardState,
-  damagedCell?: string
+  damageDealt: number
 ): number {
-  // Pas d'attaquant, pas de dégâts, ou attaque de son propre camp : rien.
-  if (!attacker || damageDealt <= 0 || attacker.owner === damagedPokemon.owner) {
+  if (
+    !attacker ||
+    damageDealt <= 0 ||
+    attacker.owner === damagedPokemon.owner ||
+    !damagedPokemon.retaliationDamage ||
+    damagedPokemon.retaliationEndPlayer !== attacker.owner
+  ) {
     return 0;
   }
 
-  let total = 0;
-
-  // 1) Effet d'attaque (déjà existant) : contre-coup pendant le prochain tour adverse.
-  if (
-    damagedPokemon.retaliationDamage &&
-    damagedPokemon.retaliationEndPlayer === attacker.owner
-  ) {
-    total += damagedPokemon.retaliationDamage;
-  }
-
-  // 2) Talent : si ce Pokémon est ACTIF, l'attaquant subit X dégâts.
-  const talent = damagedPokemon.card.talent;
-  if (
-    talent?.effect === 'damageAttackerWhenDamagedWhileActive' &&
-    board &&
-    damagedCell &&
-    isActivePokemonCell(board, damagedCell) &&
-    !isTalentNegated(damagedPokemon, board, damagedCell)
-  ) {
-    total += talent.amount ?? 20;
-  }
-
-  return total;
+  return damagedPokemon.retaliationDamage;
 }
 
 /**
@@ -70,7 +51,7 @@ export function isAttackDamagePreventedByEffect(
  * ne peut pas être soigné jusqu'à la fin du prochain tour de son propriétaire.
  */
 export function isHealBlocked(pokemon: PokemonInPlay | null | undefined): boolean {
-  return !!pokemon?.healBlockedEndPlayer;
+  return !!pokemon?.healBlockedEndPlayer || isScriptPrevented(pokemon, 'heal');
 }
 
 /**

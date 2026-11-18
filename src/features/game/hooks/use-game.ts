@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { useGameState } from './state/use-game-state';
+import { useGameScripts } from './use-game-scripts';
 import { useGameAttackResolution } from './use-game-attack-resolution';
 import { useGameAttackSelection } from './use-game-attack-selection';
 import { useGameCellInteractions } from './use-game-cell-interactions';
@@ -156,11 +157,15 @@ if (
   // Tour, redémarrage et clics sur le plateau
   const turn = useGameTurn({ ...state, ...combat });
   const restart = useGameRestart({ ...state, ...setup });
+  // Code des cartes (scripts des attaques, talents et Dresseurs)
+  const scripts = useGameScripts({ ...state, ...coinFlow, ...combat, cardSeries });
+
   const cellPress = useGameCellInteractions({
     ...state,
     ...movement,
     ...combat,
     ...turn,
+    handleScriptCellPress: scripts.handleScriptCellPress,
   });
 
   // Handlers de l'écran de jeu
@@ -223,6 +228,10 @@ if (
     ...screenActions,
     chooseDragonEnergy,
     undoTurn,
+    answerScriptOptional: scripts.answerScriptOptional,
+    answerScriptCard: scripts.answerScriptCard,
+    scriptCardChoices: scripts.scriptCardChoices,
+    scriptAttackChoices: scripts.scriptAttackChoices,
     cardSeries,
   };
 }

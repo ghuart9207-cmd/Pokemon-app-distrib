@@ -17,6 +17,8 @@ import type {
   PendingBothPlayersSwitch,
   PendingCoinFlip,
   PendingCoinReturnToHand,
+  PendingTrainerEffect,
+  PendingScript,
   PendingGeneratedBenchEnergy,
   PendingTalentEnergyAttachment,
   PendingDamageCounterMove,
@@ -136,6 +138,10 @@ export function useGameState() {
     useState<PendingBothPlayersSwitch | null>(null);
   const [pendingCoinReturnToHand, setPendingCoinReturnToHand] =
     useState<PendingCoinReturnToHand | null>(null);
+  const [pendingTrainerEffect, setPendingTrainerEffect] =
+    useState<PendingTrainerEffect | null>(null);
+  // Code des cartes : script en cours.
+  const [pendingScript, setPendingScript] = useState<PendingScript | null>(null);
   const [pendingDragonEnergyChoices,setPendingDragonEnergyChoices,] = 
     useState<PendingDragonEnergyChoice[]>([]);
   const [pendingGeneratedBenchEnergy, setPendingGeneratedBenchEnergy] =
@@ -273,6 +279,10 @@ export function useGameState() {
     setPendingBothPlayersSwitch,
     pendingCoinReturnToHand,
     setPendingCoinReturnToHand,
+    pendingTrainerEffect,
+    setPendingTrainerEffect,
+    pendingScript,
+    setPendingScript,
     pendingGeneratedBenchEnergy,
     setPendingGeneratedBenchEnergy,
     pendingEnergyTransferToBench,

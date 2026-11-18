@@ -1,6 +1,6 @@
 import type { BoardState, EnergyType, Player, SetState } from '@/features/game/types';
 import { getEffectiveRetreatCost } from '@/features/game/rules/retreat-cost-rules';
-import { isRetreatForbiddenThisRound, isTalentNegated } from '@/features/game/rules';
+import { isRetreatForbiddenThisRound, isScriptPrevented, isTalentNegated } from '@/features/game/rules';
 
 type UseGameRetreatOptions = {
   board: BoardState;
@@ -57,6 +57,11 @@ export function useGameRetreat({
       return;
     }
 
+
+    if (isScriptPrevented(pokemon, 'retreat')) {
+      setMessage(`${pokemon.card.name} ne peut pas battre en retraite pour le moment (effet en cours).`);
+      return;
+    }
 
     if (pokemon.retreatBlockedUntilOwnTurnEnd) {
   setMessage(

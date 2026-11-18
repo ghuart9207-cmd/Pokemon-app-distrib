@@ -1,4 +1,5 @@
 import type { CoinConditionalDamage, CoinConditionalEffect, CoinSide } from './coins';
+import type { ScriptBlock, ScriptCardFilter, ScriptPokemonFilter } from './script';
 import type { CardVariant, EnergyType, SpecialCondition, Stage } from './core';
 
 export type PokemonTalent = {
@@ -29,8 +30,8 @@ export type PokemonTalent = {
     | 'returnToolToHandOncePerTurn'
     | 'switchWithBenchOncePerTurn'
     | 'burnAttackerWhenDamagedWhileActive'
-    | 'damageAttackerWhenDamagedWhileActive'
     | 'negateOpponentGxExTalents'
+    | 'script'
     | 'swapWithCardFromHand'
     | 'gatherEnergyOnPlayThenSwitch'
     | 'increaseOpponentPoisonDamage'
@@ -62,6 +63,12 @@ targetPokemonType?: EnergyType;
   // Talent 'summonOncePerTurn' : PV maximum des Pokémon invocables (60 par défaut).
   // Le type se règle avec `targetPokemonType`, le nombre avec `amount` (1 par défaut).
   maxHp?: number;
+
+  // effect: 'script'
+  // - type 'activated' : bouton « Utiliser le talent », une fois par tour, applique ce code ;
+  // - type 'passive'   : les effets qui durent (retreatCost, maxHp, resistance, boost,
+  //   immunity, prevent, whenDamaged) s'appliquent tant que ce Pokémon est en jeu.
+  script?: ScriptBlock[];
 
   description: string;
 };
@@ -150,6 +157,10 @@ export type AttackEffect = {
     | 'summonPokemon'
     | 'damageAllOpponentPokemonAndPlayer'
     | 'damagePerOpponentTrainerInHand'
+    // `amount` dégâts en plus par carte de la pile de défausse ADVERSE qui respecte `cards`
+    | 'damagePerOpponentDiscardCard'
+    // `amount` dégâts en plus par carte de SA pile de défausse qui respecte `cards`
+    | 'damagePerOwnDiscardCard'
     | 'damagePerOwnCardInHand'
     | 'summonFromInvocationPool'
     | 'retaliateDamageNextOpponentTurn'
@@ -197,6 +208,13 @@ export type AttackEffect = {
   // à la préparation (4 par défaut) et PV maximum des Invocations (60).
   poolSize?: number;
   maxHp?: number;
+
+  // Code des cartes (summon avec `pokemon`) : contraintes des Invocations à choisir.
+  summonFilter?: ScriptPokemonFilter;
+
+  // damagePerOpponentDiscardCard / damagePerOwnDiscardCard : quelles cartes compter
+  // (ex : { category: ['objet'] }) ; sans `cards` : toutes les cartes.
+  cards?: ScriptCardFilter;
 
   // Effet 'moveCountersFromOwnToOpponentActive' : nombre de vos Pokémon
   // qui donnent des marqueurs (2 par défaut). `amount` = dégâts par Pokémon.
@@ -268,6 +286,9 @@ blocksAllAttacksNextOwnTurn?: boolean;
   bonusDamageIfTargetGx?: number;
 
   bonusDamageIfTargetNotEvolved?: number;
+
+  // Code de l'attaque (voir types/script.ts), appliqué après les dégâts de l'attaque.
+  script?: ScriptBlock[];
 };
 
 export type PokemonCard = {
@@ -307,7 +328,10 @@ export type TrainerCard = {
     | 'summonTwoBase60'
     | 'boostPokemonAttackThisTurn'
     | 'toolRetreatMinusOneIgnoreConditions'
-    | 'healPokemonWithEnergyType';
+    | 'healPokemonWithEnergyType'
+    | 'healPokemon'
+    | 'attachEnergy'
+    | 'script';
 
   coinCount?: number;
 
@@ -331,7 +355,42 @@ export type TrainerCard = {
   // Par défaut : 'normal'.
   returnToHandReplacement?: ReturnToHandReplacement;
 
+  // -----------------------------------------
+  // EFFETS À RÉGLAGES ('healPokemon', 'attachEnergy')
+  // -----------------------------------------
+  // 'healPokemon' utilise `healAmount` (30 par défaut).
+  // 'attachEnergy' : `energyAmount` Énergie(s) (1 par défaut) de type `energyType`
+  // (par défaut : le type du Pokémon choisi). `endTurnAfter` : le tour se termine ensuite.
+  energyType?: EnergyType;
+  energyAmount?: number;
+  endTurnAfter?: boolean;
+
+  // Contraintes sur le Pokémon choisi (toutes facultatives, elles s'additionnent).
+  // `coinCount` (plus haut) ajoute un lancer de pièce : l'effet s'applique sur FACE.
+  target?: TrainerTargetFilter;
+
+  // effect: 'script' : le code de la carte (voir types/script.ts).
+  script?: ScriptBlock[];
+
   artwork?: any;
+};
+
+/** Contraintes sur le Pokémon ciblé par une carte Dresseur « à réglages ». */
+export type TrainerTargetFilter = {
+  // Type du Pokémon : ['plante'], ['feu', 'eau']…
+  pokemonTypes?: EnergyType[];
+  // Nom du Pokémon (début du nom) : ['Carchacrok'], ['Pikachu', 'Raichu']…
+  pokemonNames?: string[];
+  // Stade : ['base'], ['niveau1', 'niveau2']…
+  stages?: Stage[];
+  // Variante : ['gx', 'ex'], ['normal']…
+  variants?: CardVariant[];
+  // Doit avoir au moins une Énergie attachée.
+  hasEnergy?: boolean;
+  // Doit avoir au moins une Énergie de ce type attachée.
+  hasEnergyType?: EnergyType;
+  // Seulement le Pokémon actif, ou seulement un Pokémon de banc.
+  position?: 'active' | 'bench';
 };
 
 export type GameCard = PokemonCard | TrainerCard;

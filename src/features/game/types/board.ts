@@ -1,6 +1,7 @@
 import type { PokemonCard, TrainerCard } from './cards';
 import type { CoinHistory, CoinSide } from './coins';
 import type {CardVariant,EnergyType,Player,Stage,} from './core';
+import type { ScriptModifier } from './script';
 
 
 export type PlayerAttackBonus = {
@@ -28,6 +29,9 @@ export type PlayerStatusState = {
   extraDamageNextTurnSourcePlayer?: Player | null;
 
   extraDamageNextTurnReady?: boolean;
+
+  // Code des cartes : effets qui durent sur le joueur (prevent items / supporters).
+  scriptModifiers?: ScriptModifier[];
 };
 
 export type PokemonInPlay = {
@@ -120,6 +124,11 @@ export type PokemonInPlay = {
   preventAllAttackDamageAndEffects?: boolean;
 preventAllAttackDamageAndEffectsEndPlayer?: Player | null;
 
+
+// Code des cartes : effets qui durent (attaques, talents à activer, Dresseurs).
+scriptModifiers?: ScriptModifier[];
+// Code des cartes : effets des talents passifs en jeu (recalculés tout seuls).
+auraModifiers?: ScriptModifier[];
 
 temporaryAttackDamageProtection?: {
   stage?: Stage;

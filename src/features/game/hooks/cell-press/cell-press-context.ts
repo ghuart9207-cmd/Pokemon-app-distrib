@@ -5,6 +5,7 @@ import type {
   PendingBenchEnergyAttachment,
   PendingBothPlayersSwitch,
   PendingCoinReturnToHand,
+  PendingTrainerEffect,
   PendingGeneratedBenchEnergy,
   PendingTalentEnergyAttachment,
   PendingDamageCounterMove,
@@ -32,6 +33,8 @@ import type {
 } from '@/features/game/types';
 
 export type CellPressContext = {
+  // Code des cartes : clic pour choisir la cible du script en cours.
+  handleScriptCellPress?: (cellName: string) => boolean;
   board: BoardState;
   currentPlayer: Player;
   gameOver: boolean;
@@ -49,6 +52,7 @@ export type CellPressContext = {
   pendingBenchEnergyAttachment: PendingBenchEnergyAttachment | null;
   pendingBothPlayersSwitch: PendingBothPlayersSwitch | null;
   pendingCoinReturnToHand: PendingCoinReturnToHand | null;
+  pendingTrainerEffect: PendingTrainerEffect | null;
   pendingGeneratedBenchEnergy: PendingGeneratedBenchEnergy | null;
   pendingTalentEnergyAttachment: PendingTalentEnergyAttachment | null;
   pendingDamageCounterMove: PendingDamageCounterMove | null;
@@ -93,6 +97,7 @@ export type CellPressContext = {
   setPendingBenchEnergyAttachment: SetState<PendingBenchEnergyAttachment | null>;
   setPendingBothPlayersSwitch: SetState<PendingBothPlayersSwitch | null>;
   setPendingCoinReturnToHand: SetState<PendingCoinReturnToHand | null>;
+  setPendingTrainerEffect: SetState<PendingTrainerEffect | null>;
   setPendingGeneratedBenchEnergy: SetState<PendingGeneratedBenchEnergy | null>;
   setPendingTalentEnergyAttachment: SetState<PendingTalentEnergyAttachment | null>;
   setPendingInvocationPlacement: SetState<PendingInvocationPlacement | null>;

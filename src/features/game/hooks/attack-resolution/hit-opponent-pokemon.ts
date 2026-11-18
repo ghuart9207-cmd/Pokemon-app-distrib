@@ -1,4 +1,4 @@
-import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, doesTalentBurnAttacker, burnAttackingPokemon, getCoinCheckForTarget, doesToolAttackerShieldPreventDamage, getOutgoingReductionForTarget, } from '@/features/game/rules';
+import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, doesTalentBurnAttacker, burnAttackingPokemon, getCoinCheckForTarget, doesToolAttackerShieldPreventDamage, getOutgoingReductionForTarget, hasScriptImmunity, revertImmuneConditions, } from '@/features/game/rules';
 import type {
   Attack,
   AttackEffect,
@@ -362,7 +362,9 @@ const targetProtectionMessage =
     : doesTemporaryProtectionPreventDamage(target, attacker)
       ? `${target.card.name} évite les dégâts de ${attacker.card.name} grâce à sa protection temporaire.`
       : damagePrevented
-        ? doesToolAttackerShieldPreventDamage(target, attacker, board)
+        ? hasScriptImmunity(target, 'damage', attacker, board)
+          ? `${target.card.name} est immunisé : il ne subit aucun dégât de ${attacker.card.name}.`
+        : doesToolAttackerShieldPreventDamage(target, attacker, board)
           ? `${target.card.name} ne subit aucun dégât : un Talent allié protège ses Pokémon Métal des attaquants avec un Outil.`
           : `${target.card.name} ne subit aucun dégât grâce à son Talent ${target.card.talent?.name}.`
         : `${attacker.card.name} utilise ${attack.name} sur ${target.card.name} : ${damageToTarget} dégâts.`;
@@ -445,7 +447,7 @@ const targetProtectionMessage =
     : (swappedTargetHp ?? hpAfterAttackDamage);
 
   // Contre-coup éventuel de la cible (et des Pokémon de banc touchés).
-  let retaliationTotal = getRetaliationDamage(target, attacker, damageToTarget, board, targetCell);
+  let retaliationTotal = getRetaliationDamage(target, attacker, damageToTarget);
 
   // --------------------------------
   // DÉGÂTS AUX POKÉMON DE BANC
@@ -785,6 +787,13 @@ applyDiscardBothActiveAttachmentsEffect();
     ...getOutgoingReductionForTarget(attackEffectsPrevented ? undefined : resolvedAttack.effects, target),
   };
 
+
+// Code des cartes : immunités contre les états spéciaux.
+const targetAfterConditions = newBoard[targetCell];
+
+if (targetAfterConditions) {
+  newBoard[targetCell] = revertImmuneConditions(target, targetAfterConditions, attacker, board);
+}
 
 // Interdiction de retraite sur le Pokémon touché.
 const updatedTarget = newBoard[targetCell];

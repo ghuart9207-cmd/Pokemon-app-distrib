@@ -1,10 +1,16 @@
 import { superRappel } from '@/features/game/data';
 import {
+  describeTrainerTarget,
+  hasValidTrainerTarget,
+  isGenericTrainerEffect,
+} from '@/features/game/hooks/cell-press/trainer-effects/generic-trainer-effect';
+import {
   addTrainerCoinConstraint,
   consumeCoinConstraint,
   getKOPenalty,
   isAllCoinSide,
   isPokemonCard,
+  isPlayerScriptPrevented,
   isTalentNegated,
   resolveCoinFlip,
   saveCoinResult,
@@ -18,7 +24,10 @@ import type {
   EnergyType,
   GameCard,
   PendingCoinFlip,
+  PendingScript,
+  PlayerStatusState,
   PendingCoinReturnToHand,
+  PendingTrainerEffect,
   PendingKOSurvival,
   PendingSleepResolution,
   Player,
@@ -43,6 +52,11 @@ type UseGameCoinFlowOptions = {
   pendingAttackAfterCoin: CoinAttackReference | null;
   pendingKOSurvival: PendingKOSurvival | null;
   pendingSleepResolution: PendingSleepResolution | null;
+  player1Status: PlayerStatusState;
+  player2Status: PlayerStatusState;
+  hasUsedSupporterThisTurn: boolean;
+  pendingScript: PendingScript | null;
+  setPendingScript: SetState<PendingScript | null>;
   setMessage: SetState<string>;
   setPendingCoinFlip: SetState<PendingCoinFlip | null>;
   setCoinDraft: SetState<(CoinSide | null)[]>;
@@ -63,6 +77,7 @@ type UseGameCoinFlowOptions = {
   setPendingAttackAfterCoin: SetState<CoinAttackReference | null>;
   setReadyCoinAttack: SetState<CoinAttackReference | null>;
   setPendingCoinReturnToHand: SetState<PendingCoinReturnToHand | null>;
+  setPendingTrainerEffect: SetState<PendingTrainerEffect | null>;
   setPendingKOSurvival: SetState<PendingKOSurvival | null>;
   setPendingSleepResolution: SetState<PendingSleepResolution | null>;
   setBoard: SetState<BoardState>;
@@ -70,6 +85,11 @@ type UseGameCoinFlowOptions = {
 
 export function useGameCoinFlow({
   board,
+  pendingScript,
+  setPendingScript,
+  player1Status,
+  player2Status,
+  hasUsedSupporterThisTurn,
   currentPlayer,
   turnId,
   victoriousUsedTurnId,
@@ -105,6 +125,7 @@ export function useGameCoinFlow({
   setPendingAttackAfterCoin,
   setReadyCoinAttack,
   setPendingCoinReturnToHand,
+  setPendingTrainerEffect,
   setPendingKOSurvival,
   setPendingSleepResolution,
   setBoard,
@@ -117,6 +138,37 @@ export function useGameCoinFlow({
     if (hasAttackedThisTurn) {
       setMessage('Tu ne peux plus jouer de carte Dresseur après avoir attaqué.');
       return;
+    }
+
+    // Code des cartes : Objets / Supporters interdits.
+    if (
+      isPlayerScriptPrevented(
+        player === 1 ? player1Status : player2Status,
+        board,
+        player,
+        trainer.category === 'objet' ? 'items' : 'supporters'
+      )
+    ) {
+      setMessage(`Joueur ${player} : tu ne peux pas jouer cette carte pour le moment (effet en cours).`);
+      return;
+    }
+
+    // Carte « à réglages » : on vérifie avant de lancer qu'elle peut servir.
+    if (isGenericTrainerEffect(trainer)) {
+      const status = player === 1 ? player1Status : player2Status;
+
+      if (trainer.category === 'objet' && status.itemsBlockedThisTurn) {
+        setMessage(`Joueur ${player} : tu ne peux pas jouer de carte Objet pendant ce tour.`);
+        return;
+      }
+      if (trainer.category === 'supporter' && hasUsedSupporterThisTurn) {
+        setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');
+        return;
+      }
+      if (!hasValidTrainerTarget(trainer, board, player)) {
+        setMessage(`${trainer.name} : aucun de tes Pokémon ne peut recevoir l'effet (${describeTrainerTarget(trainer)}).`);
+        return;
+      }
     }
 
     const trainerHistoryKey = getTrainerHistoryKey(player, trainer.id);
@@ -417,6 +469,47 @@ export function useGameCoinFlow({
 
       setSelectedTrainerCard(null);
       setTrainerEffectActivated(false);
+    }
+
+    // =====================================
+    // CODE DES CARTES : la pièce d'un script, qui reprend avec le résultat
+    // =====================================
+
+    if (
+      pendingScript?.stage === 'coin' &&
+      pendingScript.coinKey === pendingCoinFlip.sourceKey
+    ) {
+      setPendingScript({ ...pendingScript, stage: 'run', coinResult: finalResult });
+      setPendingCoinFlip(null);
+      setCoinDraft([]);
+      setMessage(
+        `🪙 ${finalResult.map((side) => (side === 'face' ? 'FACE' : 'PILE')).join(' / ')}`
+      );
+      return;
+    }
+
+    // =====================================
+    // CARTE « À RÉGLAGES » AVEC PIÈCE : FACE = l'effet s'applique
+    // =====================================
+
+    if (pendingCoinFlip.sourceType === 'trainer') {
+      const genericCard = [...player1Hand, ...player2Hand].find(
+        (card): card is TrainerCard =>
+          card.id === pendingCoinFlip.sourceKey && !isPokemonCard(card) && isGenericTrainerEffect(card)
+      );
+
+      if (genericCard) {
+        if (finalResult.includes('face')) {
+          setPendingTrainerEffect({ card: genericCard, player: pendingCoinFlip.player });
+          setMessage(`🪙 FACE ! ${genericCard.name} : choisis ${describeTrainerTarget(genericCard)}.`);
+        } else {
+          setMessage(`🪙 PILE ! ${genericCard.name} n'a aucun effet.`);
+        }
+
+        setPendingCoinFlip(null);
+        setCoinDraft([]);
+        return;
+      }
     }
 
     // =====================================

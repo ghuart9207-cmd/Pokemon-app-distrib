@@ -20,6 +20,9 @@ import {
 } from './retaliation-rules';
 import { calculateCoinDamage } from './coin-rules';
 import { getAttackerColumnDamageReduction } from './talent-damage-reduction';
+import { getScriptBoost } from './script-modifiers';
+import { matchesCardFilter } from './script-cards';
+import { getScriptAttackDamageBonus } from './script-count';
 
 
 export function getAttachedEnergyBonusDamage(
@@ -173,9 +176,16 @@ export function getAttackWithBaseDamageOverride(
   attackBonuses?: PlayerAttackBonus[]
 ): Attack {
   const supporterBonus = getPlayerAttackBonus(pokemon, originalAttack, attackBonuses);
+
+  // Code des cartes : boost des attaques (seulement celles qui font des dégâts).
+  const dealsDamage =
+    originalAttack.fixedDamage === undefined &&
+    (originalAttack.damage > 0 || (originalAttack.damagePerFace ?? 0) > 0);
+  const scriptBoost = dealsDamage ? getScriptBoost(pokemon, originalAttack.name) : 0;
+
   const attack =
-    supporterBonus > 0
-      ? { ...originalAttack, damage: originalAttack.damage + supporterBonus }
+    supporterBonus !== 0 || scriptBoost !== 0
+      ? { ...originalAttack, damage: Math.max(0, originalAttack.damage + supporterBonus + scriptBoost) }
       : originalAttack;
 
   if (
@@ -329,6 +339,29 @@ export function getOpponentActiveSpecialConditionBonus(
   );
 }
 
+/**
+ * Bonus « X dégâts pour chaque carte … dans la pile de défausse »
+ * (damagePerOpponentDiscardCard / damagePerOwnDiscardCard).
+ */
+export function getDiscardCardBonus(
+  attack: Attack,
+  ownDiscard: GameCard[],
+  opponentDiscard: GameCard[]
+): number {
+  let bonus = 0;
+
+  for (const effect of attack.effects ?? []) {
+    if (effect.type === 'damagePerOpponentDiscardCard') {
+      bonus += opponentDiscard.filter((card) => matchesCardFilter(card, effect.cards)).length * effect.amount;
+    }
+    if (effect.type === 'damagePerOwnDiscardCard') {
+      bonus += ownDiscard.filter((card) => matchesCardFilter(card, effect.cards)).length * effect.amount;
+    }
+  }
+
+  return bonus;
+}
+
 export function getDisplayedAttackDamage(
   pokemon: PokemonInPlay,
   originalAttack: Attack,
@@ -467,6 +500,24 @@ if (attack.bonusDamagePerOwnDiscardCard) {
   if (perOwnCardEffect) {
     damage += ownHand.length * perOwnCardEffect.amount;
   }
+
+  // Dégâts selon les cartes des piles de défausse.
+  damage += getDiscardCardBonus(
+    attack,
+    pokemon.owner === 1 ? player1Discard : player2Discard,
+    pokemon.owner === 1 ? player2Discard : player1Discard
+  );
+
+  // Code des cartes : dégâts en plus (blocs attackDamage, avec `per`).
+  damage += getScriptAttackDamageBonus(attack, {
+    board,
+    player: pokemon.owner,
+    sourceCell: selectedPokemonCell,
+    player1Discard,
+    player2Discard,
+    player1Hand,
+    player2Hand,
+  });
 
  
 

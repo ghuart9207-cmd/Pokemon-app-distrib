@@ -6,6 +6,7 @@ import type {
   PokemonInPlay,
 } from '@/features/game/types';
 import { isTalentNegatedAt } from './talent-negation';
+import { getScriptMaxHpBonus } from './script-modifiers';
 
 export function getPassiveEnergyLimit(card: PokemonCard): number {
   if (card.attacks.length === 0) {
@@ -51,7 +52,10 @@ export function getPokemonMaxHp(pokemon: PokemonInPlay): number {
     maxHp += 40;
   }
 
-  return maxHp;
+  // Code des cartes : PV max +/- (effets qui durent, talents passifs).
+  maxHp += getScriptMaxHpBonus(pokemon);
+
+  return Math.max(10, maxHp);
 }
 
 /** Les 16 cases du plateau (lignes A à D, colonnes 1 à 4). */
