@@ -123,8 +123,8 @@ export function useGameSetup({
   const [invocationSetupPlayer, setInvocationSetupPlayer] = useState<Player | null>(null);
   const [invocationSetupKind, setInvocationSetupKind] =
     useState<InvocationSetupKind>('supporter');
-  // Pokémon qui invoque dont on choisit l'Invocation, et le choix en cours (0 ou 1 carte).
-  const [invocationSetupSummoner, setInvocationSetupSummoner] = useState<PokemonCard | null>(
+  // Carte qui invoque (Pokémon, ou Dresseur « script ») dont on choisit l'Invocation, et le choix en cours.
+  const [invocationSetupSummoner, setInvocationSetupSummoner] = useState<GameCard | null>(
     null
   );
   const [summonChoiceDraft, setSummonChoiceDraft] = useState<PokemonCard[]>([]);

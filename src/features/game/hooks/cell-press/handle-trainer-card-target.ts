@@ -4,6 +4,11 @@ import { attachHpTool } from './trainer-effects/attach-hp-tool';
 import { attachKOEnergyTool } from './trainer-effects/attach-ko-energy-tool';
 import { attachTwoFireEnergiesAndEndTurn } from './trainer-effects/attach-two-fire-energies';
 import { healPokemon } from './trainer-effects/heal-pokemon';
+import {
+  applyGenericTrainerEffect,
+  getTrainerTargetError,
+  isGenericTrainerEffect,
+} from './trainer-effects/generic-trainer-effect';
 import { returnPokemonToHand } from './trainer-effects/return-pokemon-to-hand';
 import type {
   TrainerEffectContext,
@@ -45,6 +50,48 @@ if (!trainerEffectActivated) {
 
   if (hasAttackedThisTurn) {
     setMessage('Tu ne peux plus jouer de carte Dresseur après avoir attaqué.');
+    return true;
+  }
+
+  // =====================================
+  // CARTES « À RÉGLAGES » (soin, Énergies, avec contraintes)
+  // =====================================
+  if (isGenericTrainerEffect(selectedTrainerCard)) {
+    const card = selectedTrainerCard;
+
+    if (card.category === 'supporter' && context.hasUsedSupporterThisTurn) {
+      setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');
+      return true;
+    }
+
+    const error = getTrainerTargetError(card, board, cellName, currentPlayer);
+    if (error) {
+      setMessage(error);
+      return true;
+    }
+
+    // Carte -> défausse
+    if (currentPlayer === 1) {
+      context.setPlayer1Hand((hand) => hand.filter((handCard) => handCard.id !== card.id));
+      context.setPlayer1Discard((discard) => [...discard, card]);
+    } else {
+      context.setPlayer2Hand((hand) => hand.filter((handCard) => handCard.id !== card.id));
+      context.setPlayer2Discard((discard) => [...discard, card]);
+    }
+    if (card.category === 'supporter') context.setHasUsedSupporterThisTurn(true);
+
+    context.setSelectedTrainerCard(null);
+    context.setTrainerEffectActivated(false);
+
+    const result = applyGenericTrainerEffect(card, board, cellName);
+
+    if (card.endTurnAfter) {
+      context.endTurn(result.board);
+      return true;
+    }
+
+    context.setBoard(result.board);
+    setMessage(result.message);
     return true;
   }
 

@@ -10,7 +10,7 @@ export const silvalliegx: PokemonCard = {
   retreatCost: 2,
   artwork: require('../../../../../assets/images/silvalliegx-card.png'),
   talent: {
-  name: 'Nom du talent',
+  name: 'Gyro-Unité',
   type: 'passive',
   effect: 'freeRetreatForOwnBasePokemon',
   description: "Vos Pokémon de Base en jeu n'ont pas de coût de retraite.",

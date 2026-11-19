@@ -99,4 +99,81 @@ export const styles = StyleSheet.create({
 
     marginBottom: 24,
   },
+
+  // Barre « Trier par : Signe / PV / Niveau / Types »
+  sortBar: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+
+  sortLabel: {
+    color: '#ffffff',
+    fontWeight: '700',
+    marginRight: 4,
+  },
+
+  sortOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
+    backgroundColor: '#1b1b1b',
+  },
+
+  sortOptionActive: {
+    borderColor: '#f5c542',
+    backgroundColor: '#2e2a17',
+  },
+
+  sortOptionText: {
+    color: '#cccccc',
+  },
+
+  sortOptionTextActive: {
+    color: '#f5c542',
+    fontWeight: '700',
+  },
+
+  // En haut : titre + compteurs à gauche, cartes choisies à droite
+  setupHeaderRow: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: 16,
+    marginBottom: 8,
+  },
+
+  setupHeaderLeft: {
+    width: 300,
+    flexShrink: 0,
+  },
+
+  selectedArea: {
+    flex: 1,
+    minWidth: 260,
+    marginTop: 20,
+  },
+
+  selectedScroll: {
+    width: '100%',
+  },
+
+  selectedStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    gap: 10,
+  },
+
+  selectedEmpty: {
+    color: '#888888',
+    paddingVertical: 20,
+  },
 });

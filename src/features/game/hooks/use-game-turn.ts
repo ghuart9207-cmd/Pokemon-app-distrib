@@ -19,6 +19,7 @@ import type {
   SetState,
   TrainerCard,
   PendingDragonEnergyChoice,
+  PendingScript,
 } from '@/features/game/types';
 
 type UseGameTurnOptions = {
@@ -46,6 +47,8 @@ type UseGameTurnOptions = {
   setPlayer1Status: SetState<PlayerStatusState>;
   setPlayer2Status: SetState<PlayerStatusState>;
   pendingDragonEnergyChoices: PendingDragonEnergyChoice[];
+  // Code des cartes : un effet attend encore un choix.
+  pendingScript?: PendingScript | null;
   setPendingDragonEnergyChoices:
   SetState<PendingDragonEnergyChoice[]>;
   setRemainingAttackPaths: SetState<AttackPath[]>;
@@ -66,6 +69,13 @@ export function useGameTurn(options: UseGameTurnOptions) {
     }
 
     
+if (options.pendingScript) {
+  options.setMessage(
+    `Termine d'abord l'effet en cours (${options.pendingScript.sourceName}).`
+  );
+  return;
+}
+
 if (options.pendingDragonEnergyChoices.length > 0) {
   options.setMessage(
     "Termine d'abord les choix d'Énergie de tes Pokémon Dragon."

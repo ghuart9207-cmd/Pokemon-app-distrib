@@ -19,12 +19,13 @@ export const archeodong: PokemonCard = {
       requiredEnergies: { metal: 1,},
 
       
-      effects: [ { type: 'paralyze',      amount: 1, },],
+      coinCount: 1,
 
+coinEffects: [ { side: 'face',
+    effect: {type: 'paralyze',
+        amount: 1,  }, },],
+effectText: 'Lancez une pièce. Si c’est Face, le Pokémon adverse est Paralysé.' 
 
-      
-      effectText:
-        'Le Pokémon actif de votre adversaire est maintenant paralysé.',
     },
     {
       name: 'Résonance Psychique',

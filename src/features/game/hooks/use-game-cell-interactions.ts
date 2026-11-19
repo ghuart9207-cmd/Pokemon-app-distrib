@@ -4,6 +4,8 @@ import { handleBenchEnergyAttachment } from './cell-press/handle-bench-energy-at
 import { handleBoardPokemonSelection } from './cell-press/handle-board-pokemon-selection';
 import { handleBothPlayersSwitch } from './cell-press/handle-both-players-switch';
 import { handleCoinReturnToHand } from './cell-press/handle-coin-return-to-hand';
+import { handleScriptTarget } from './cell-press/handle-script-target';
+import { handlePendingTrainerEffect } from './cell-press/handle-pending-trainer-effect';
 import { handleEmptyCell } from './cell-press/handle-empty-cell';
 import { handleGeneratedBenchEnergy } from './cell-press/handle-generated-bench-energy';
 import { handleTalentEnergyAttachment } from './cell-press/handle-talent-energy-attachment';
@@ -31,6 +33,8 @@ import { handleAttackSummonPlacement } from './cell-press/handle-attack-summon-p
  * L'ordre reproduit la priorité des actions en attente sur une case du plateau.
  */
 const CELL_PRESS_HANDLERS = [
+  // Code des cartes : prioritaire pendant un script.
+  handleScriptTarget,
   handleDiscardTalentPlacement,
   handleInvocationPlacement,
   handleTalentEnergyAttachment,
@@ -44,6 +48,7 @@ const CELL_PRESS_HANDLERS = [
   handleGeneratedBenchEnergy,
   handleOpponentActiveSwitch,
   handleCoinReturnToHand,
+  handlePendingTrainerEffect,
   handleKOEnergyMove,
   handleBothPlayersSwitch,
   handleAttachedToolClick,

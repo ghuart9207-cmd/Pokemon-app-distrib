@@ -31,7 +31,7 @@ export const bastiodon: PokemonCard = {
     
   
 
-  effectText: "Vous pouvez faire échanger le Pokémon Actif de votre adversaire avec l'un de ses Pokémon de Banc.",
+  effectText: "Vous pouvez demander à votre adversaire d'échanger le Pokémon Actif avec l'un de ses Pokémon de Banc.",
     },
   ],
 };

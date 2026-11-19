@@ -5,3 +5,4 @@ export * from './core';
 export * from './pending';
 export * from './selection';
 export * from './state';
+export * from './script';

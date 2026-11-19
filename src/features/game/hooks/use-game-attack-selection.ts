@@ -3,6 +3,8 @@ import {
   getPendingAttackCoinCheck,
   getPokemonMaxHp,
   hasFailedAttackCoinCheck,
+  isScriptAttackPrevented,
+  isScriptPrevented,
   isTalentNegated,
 } from '@/features/game/rules';
 import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
@@ -79,6 +81,11 @@ export function useGameAttackSelection({
 
 
     
+if (isScriptPrevented(pokemon, 'attack')) {
+  setMessage(`${pokemon.card.name} ne peut pas attaquer pour le moment (effet en cours).`);
+  return;
+}
+
 if (pokemon.blockedAllAttacksTurnId === turnId) {
   setMessage(
     `${pokemon.card.name} ne peut pas attaquer pendant ce tour à cause de son attaque précédente.`
@@ -125,6 +132,12 @@ const attack = getAvailablePokemonAttacks(
     }
 
     if (!attack) {
+      return;
+    }
+
+    // Code des cartes : attaque interdite (blockAttack, ou prevent avec attackName).
+    if (isScriptAttackPrevented(pokemon, attack.name)) {
+      setMessage(`${pokemon.card.name} ne peut pas utiliser ${attack.name} pour le moment (effet en cours).`);
       return;
     }
 

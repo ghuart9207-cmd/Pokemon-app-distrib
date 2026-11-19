@@ -4,6 +4,7 @@ import type {
   PokemonInPlay,
 } from '@/features/game/types';
 import { isTalentNegated } from './talent-negation';
+import { getScriptRetreatCostDelta } from './script-modifiers';
 
 /**
  * Talent 'freeRetreatForOwnBasePokemon' : vos Pokémon de Base en jeu
@@ -68,6 +69,9 @@ export function getEffectiveRetreatCost(
       ? (pokemon.attachedTool.retreatCostReduction ?? 1)
       : 0;
 
+  // Code des cartes : coût de retraite +/-.
+  const scriptDelta = getScriptRetreatCostDelta(pokemon);
+
   // Sinon, coût normal du Pokémon.
-  return Math.max(0, baseRetreatCost - toolReduction);
+  return Math.max(0, baseRetreatCost - toolReduction + scriptDelta);
 }

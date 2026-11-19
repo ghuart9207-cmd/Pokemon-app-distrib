@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { PokemonHandCard } from '@/features/game/components/cards/pokemon-hand-card';
 import { TrainerHandCard } from '@/features/game/components/cards/trainer-hand-card';
 import type { CardSeriesInfo } from '@/features/game/data';
+import { isPokemonCard } from '@/features/game/rules';
 import type { GameCard, Player, PokemonCard, SetupPhase, TrainerCard } from '@/features/game/types';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 import { styles } from './card-setup-screen.styles';
@@ -35,6 +36,75 @@ type CardSetupScreenProps = {
 
 // Identifiant du panneau Dresseurs (pour le replier comme les autres).
 const TRAINERS_PANEL_ID = '__dresseurs__';
+// Identifiant du panneau unique quand les Pokémon sont triés (PV, niveau, types).
+const SORTED_PANEL_ID = '__tri__';
+
+/** Façon de trier les Pokémon. 'signe' : un panneau par extension (comme avant). */
+type SortMode = 'signe' | 'pv' | 'niveau' | 'types';
+
+const SORT_OPTIONS: { mode: SortMode; label: string }[] = [
+  { mode: 'signe', label: 'Signe' },
+  { mode: 'pv', label: 'PV' },
+  { mode: 'niveau', label: 'Niveau' },
+  { mode: 'types', label: 'Types' },
+];
+
+const SORT_TITLES: Record<Exclude<SortMode, 'signe'>, string> = {
+  pv: 'Pokémon triés par PV',
+  niveau: 'Pokémon triés par niveau',
+  types: 'Pokémon triés par type',
+};
+
+/** Ordre des types, comme dans les vraies extensions Pokémon. */
+const TYPE_ORDER: PokemonCard['type'][] = [
+  'plante',
+  'feu',
+  'eau',
+  'electrique',
+  'psy',
+  'combat',
+  'obscurite',
+  'metal',
+  'fee',
+  'dragon',
+  'normal',
+];
+
+function typeRank(card: PokemonCard): number {
+  const index = TYPE_ORDER.indexOf(card.type);
+  return index === -1 ? TYPE_ORDER.length : index;
+}
+
+/** Niveau : Méga-EX, puis GX / EX, puis Niveau 2, Niveau 1 et Base. */
+function levelRank(card: PokemonCard): number {
+  if (card.stage === 'mega_ex') return 5;
+  if (card.variant === 'gx' || card.variant === 'ex') return 4;
+  if (card.stage === 'niveau2') return 3;
+  if (card.stage === 'niveau1') return 2;
+  return 1;
+}
+
+/**
+ * Tous les Pokémon de la série triés : d'abord le critère choisi,
+ * puis le type (Plante en premier…), puis l'ordre des signes (extensions).
+ */
+function sortSeriesPokemon(cardSeries: CardSeriesInfo, mode: Exclude<SortMode, 'signe'>): PokemonCard[] {
+  const entries = cardSeries.extensions.flatMap((extension, extensionIndex) =>
+    extension.pokemon.map((card, cardIndex) => ({ card, extensionIndex, cardIndex }))
+  );
+
+  return entries
+    .sort((a, b) => {
+      if (mode === 'pv' && a.card.maxHp !== b.card.maxHp) return b.card.maxHp - a.card.maxHp;
+      if (mode === 'niveau' && levelRank(a.card) !== levelRank(b.card)) {
+        return levelRank(b.card) - levelRank(a.card);
+      }
+      if (typeRank(a.card) !== typeRank(b.card)) return typeRank(a.card) - typeRank(b.card);
+      if (a.extensionIndex !== b.extensionIndex) return a.extensionIndex - b.extensionIndex;
+      return a.cardIndex - b.cardIndex;
+    })
+    .map(({ card }) => card);
+}
 
 export function CardSetupScreen({
   cardSeries,
@@ -60,6 +130,11 @@ export function CardSetupScreen({
     {}
   );
 
+  // Tri des Pokémon (par signe = comme avant).
+  const [sortMode, setSortMode] = useState<SortMode>('signe');
+  const sortedPokemon =
+    sortMode === 'signe' ? [] : sortSeriesPokemon(cardSeries, sortMode as Exclude<SortMode, 'signe'>);
+
   function toggleExtension(extensionId: string) {
     setCollapsedExtensions((previous) => ({
       ...previous,
@@ -80,6 +155,9 @@ export function CardSetupScreen({
     >
       {headerRight && <View style={{ alignSelf: 'stretch', alignItems: 'flex-end' }}>{headerRight}</View>}
 
+      {/* En haut : le titre et les compteurs à gauche, les cartes choisies à droite */}
+      <View style={styles.setupHeaderRow}>
+      <View style={styles.setupHeaderLeft}>
       <Text style={sharedStyles.title}>Pokémon Plateau</Text>
 
       <View style={sharedStyles.actionBox}>
@@ -99,9 +177,52 @@ export function CardSetupScreen({
         <Text style={sharedStyles.actionInfo}>Objets : {objectCount}/3</Text>
         <Text style={sharedStyles.actionInfo}>Supporters : {supporterCount}/2</Text>
       </View>
+      </View>
 
-      {/* Un panneau par extension : uniquement ses Pokémon */}
-      {cardSeries.extensions.map((extension) => (
+      <SelectedCardsStrip cards={setupCards} onToggleCard={onToggleCard} />
+      </View>
+
+      {/* Tri des Pokémon */}
+      <View style={styles.sortBar}>
+        <Text style={styles.sortLabel}>Trier par :</Text>
+        {SORT_OPTIONS.map((option) => {
+          const active = sortMode === option.mode;
+          return (
+            <Pressable
+              key={option.mode}
+              onPress={() => setSortMode(option.mode)}
+              style={[styles.sortOption, active && styles.sortOptionActive]}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: active }}
+            >
+              <Text style={[styles.sortOptionText, active && styles.sortOptionTextActive]}>
+                {active ? '◉' : '○'} {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Trié par PV / niveau / types : un seul panneau avec tous les Pokémon */}
+      {sortMode !== 'signe' && (
+        <CollapsiblePanel
+          title={SORT_TITLES[sortMode as Exclude<SortMode, 'signe'>]}
+          cards={sortedPokemon}
+          collapsed={collapsedExtensions[SORTED_PANEL_ID] === true}
+          onToggleCollapsed={() => toggleExtension(SORTED_PANEL_ID)}
+          isSelected={isSelected}
+        >
+          <PokemonGrid
+            cards={sortedPokemon}
+            isSelected={isSelected}
+            setupPokemonPerRow={setupPokemonPerRow}
+            onToggleCard={onToggleCard}
+          />
+        </CollapsiblePanel>
+      )}
+
+      {/* Par signe : un panneau par extension, uniquement ses Pokémon */}
+      {sortMode === 'signe' && cardSeries.extensions.map((extension) => (
         <CollapsiblePanel
           key={extension.id}
           title={extension.label}
@@ -166,6 +287,52 @@ export function CardSetupScreen({
         <Text style={sharedStyles.message}>{message}</Text>
       </View>
     </ScrollView>
+  );
+}
+
+/** Cartes déjà choisies, qui défilent comme la main (un clic les retire). */
+function SelectedCardsStrip({
+  cards,
+  onToggleCard,
+}: {
+  cards: GameCard[];
+  onToggleCard: (card: GameCard) => void;
+}) {
+  return (
+    <View style={styles.selectedArea}>
+      <Text style={sharedStyles.handTitle}>Cartes choisies ({cards.length})</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator
+        contentContainerStyle={styles.selectedStrip}
+        style={styles.selectedScroll}
+      >
+        {cards.length > 0 ? (
+          cards.map((card, index) =>
+            isPokemonCard(card) ? (
+              <Pressable
+                key={`choisie-${card.id}-${index}`}
+                onPress={() => onToggleCard(card)}
+                style={sharedStyles.handPokemonPressable}
+              >
+                <PokemonHandCard card={card} />
+              </Pressable>
+            ) : (
+              <View key={`choisie-${card.id}-${index}`}>
+                <TrainerHandCard
+                  card={card}
+                  disabled={false}
+                  isSelected={false}
+                  onPress={() => onToggleCard(card)}
+                />
+              </View>
+            )
+          )
+        ) : (
+          <Text style={styles.selectedEmpty}>Clique sur des cartes plus bas pour les ajouter.</Text>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 

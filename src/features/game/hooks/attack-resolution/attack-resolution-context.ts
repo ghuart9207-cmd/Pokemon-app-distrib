@@ -21,6 +21,7 @@ import type {
   PendingOwnBenchDamage,
   PendingCountersToActive,
   PendingEnergyGather,
+  PendingScript,
   PokemonCard,
 } from '@/features/game/types';
 
@@ -52,6 +53,7 @@ player2Discard: GameCard[];
   setPendingOwnBenchDamage: SetState<PendingOwnBenchDamage | null>;
   setPendingCountersToActive: SetState<PendingCountersToActive | null>;
   setPendingEnergyGather: SetState<PendingEnergyGather | null>;
+  setPendingScript: SetState<PendingScript | null>;
   player1SummonChoices: SummonChoices;
   player2SummonChoices: SummonChoices;
   setPendingOpponentTarget: SetState<PendingOpponentTarget | null>;

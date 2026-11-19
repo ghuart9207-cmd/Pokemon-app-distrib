@@ -1,6 +1,7 @@
 import type { Player, PlayerStatusState, PokemonInPlay } from '@/features/game/types';
 import { canAttachEnergyFromSource } from
   './energy-attachment-rules';
+import { advanceModifierList, advancePokemonModifiers } from './script-modifiers';
 
 export function resolvePokemonEndOfTurn(
   pokemon: PokemonInPlay,
@@ -10,7 +11,8 @@ export function resolvePokemonEndOfTurn(
   // Dégâts de brûlure sur les Pokémon ADVERSES (talent : 60 au lieu de 20).
   opponentBurnDamage = 20
 ): PokemonInPlay {
-  let updatedPokemon = pokemon;
+  // Code des cartes : les effets qui durent avancent d'un tour.
+  let updatedPokemon = advancePokemonModifiers(pokemon);
 
   if (updatedPokemon.owner === playerReceivingEnergy) {
     const passiveEnergyLimit = Math.max(
@@ -218,7 +220,11 @@ export function resolvePlayerEndOfTurnStatus(
   poisonDamageBonus = 0,
   burnDamage = 20
 ): { status: PlayerStatusState; damage: number } {
-  let nextStatus = status;
+  // Code des cartes : les effets qui durent sur le joueur avancent d'un tour.
+  let nextStatus: PlayerStatusState =
+    status.scriptModifiers && status.scriptModifiers.length > 0
+      ? { ...status, scriptModifiers: advanceModifierList(status.scriptModifiers) }
+      : status;
   let damage = 0;
 
   if (status.poisoned && status.poisonSourcePlayer === currentPlayer) {
@@ -233,7 +239,7 @@ export function resolvePlayerEndOfTurnStatus(
     damage += burnDamage;
     const remaining = status.burnTriggersRemaining - 1;
     nextStatus = {
-      ...status,
+      ...nextStatus,
       burned: remaining > 0,
       burnSourcePlayer: remaining === 0 ? null : status.burnSourcePlayer,
       burnTriggersRemaining: remaining,

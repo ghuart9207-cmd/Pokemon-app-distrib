@@ -5,6 +5,7 @@ import type {
   Player,
   SpecialCondition,
 } from '@/features/game/types';
+import { filterImmuneConditions } from './script-modifiers';
 
 /**
  * États spéciaux infligés au Pokémon adverse en face quand ce Pokémon est posé.
@@ -33,7 +34,8 @@ export function applySpecialConditions(
 ): PokemonInPlay {
   let updated = { ...target };
 
-  for (const condition of conditions) {
+  // Code des cartes : immunités contre les états spéciaux.
+  for (const condition of filterImmuneConditions(target, conditions, sourcePlayer)) {
     switch (condition) {
       case 'poison':
         updated = { ...updated, poisoned: true, poisonSourcePlayer: sourcePlayer };

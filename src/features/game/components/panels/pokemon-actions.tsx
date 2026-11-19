@@ -1,6 +1,12 @@
 import { Pressable, Text, View } from 'react-native';
 
-import { getDisplayedAttackDamage, getKOPenalty, isTalentNegated } from '@/features/game/rules';
+import {
+  describeModifier,
+  getActiveModifiers,
+  getDisplayedAttackDamage,
+  getKOPenalty,
+  isTalentNegated,
+} from '@/features/game/rules';
 import { getAvailablePokemonAttacks } from '@/features/game/utils/available-pokemon-attacks';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 import type {
@@ -138,12 +144,23 @@ export function PokemonActions({
         </View>
       )}
 
+{/* Code des cartes : effets en cours sur ce Pokémon */}
+{[...getActiveModifiers(pokemon), ...(pokemon.scriptModifiers ?? []).filter((modifier) => modifier.startsIn > 0)].map(
+  (modifier, index) => (
+    <Text key={`modifier-${index}`} style={sharedStyles.actionInfo}>
+      {modifier.startsIn > 0 ? '⏳' : '✨'} {modifier.sourceName} : {describeModifier(modifier)}
+      {modifier.startsIn > 0 ? ' (plus tard)' : ''}
+    </Text>
+  )
+)}
+
 {pokemon.card.talent?.type === 'activated' &&
   !talentNegated &&
   (pokemon.card.talent?.effect === 'attachEnergyOncePerTurn' ||
     pokemon.card.talent?.effect === 'moveDamageCounterOncePerTurn' ||
     pokemon.card.talent?.effect === 'healOwnPokemonOncePerTurn' ||
     pokemon.card.talent?.effect === 'healAllOwnPokemonOncePerTurn' ||
+    pokemon.card.talent?.effect === 'script' ||
     pokemon.card.talent?.effect === 'summonOncePerTurn' ||
     pokemon.card.talent?.effect === 'returnToolToHandOncePerTurn' ||
     pokemon.card.talent?.effect === 'switchWithBenchOncePerTurn' ||

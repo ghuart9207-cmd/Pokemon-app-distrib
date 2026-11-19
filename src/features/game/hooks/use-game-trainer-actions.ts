@@ -1,4 +1,9 @@
-import { getPokemonMaxHp } from '@/features/game/rules';
+import { getPokemonMaxHp, isPlayerScriptPrevented } from '@/features/game/rules';
+import {
+  describeTrainerTarget,
+  hasValidTrainerTarget,
+  isGenericTrainerEffect,
+} from './cell-press/trainer-effects/generic-trainer-effect';
 import type {
   BoardState,
   GameCard,
@@ -7,9 +12,12 @@ import type {
   SetState,
    PlayerStatusState,
   TrainerCard,
+  PendingScript,
 } from '@/features/game/types';
 
 type UseGameTrainerActionsOptions = {
+  turnId: number;
+  setPendingScript: SetState<PendingScript | null>;
   selectedTrainerCard: TrainerCard | null;
   hasAttackedThisTurn: boolean;
   hasUsedSupporterThisTurn: boolean;
@@ -45,6 +53,8 @@ export function useGameTrainerActions({
   hasAttackedThisTurn,
   hasUsedSupporterThisTurn,
   setHasUsedSupporterThisTurn,
+  turnId,
+  setPendingScript,
   board,
   currentPlayer,
   player1Status,
@@ -89,6 +99,21 @@ if (
   );
   return;
 }
+
+    // Code des cartes : Objets / Supporters interdits.
+    if (
+      isPlayerScriptPrevented(
+        currentPlayerStatus,
+        board,
+        currentPlayer,
+        card.category === 'objet' ? 'items' : 'supporters'
+      )
+    ) {
+      setMessage(
+        `Joueur ${currentPlayer} : tu ne peux pas jouer de carte ${card.category === 'objet' ? 'Objet' : 'Supporter'} pour le moment (effet en cours).`
+      );
+      return;
+    }
 
     if (hasAttackedThisTurn) {
       setMessage('Tu ne peux plus jouer de carte Dresseur après avoir attaqué.');
@@ -281,6 +306,67 @@ if (
           ? `Carte activée ! Le joueur ${opponent} échange en premier. Choisis son premier Pokémon.`
           : `Le joueur ${opponent} ne peut pas échanger. Joueur ${currentPlayer}, choisis ton premier Pokémon.`
       );
+      return;
+    }
+
+    // -----------------------------------------
+    // CODE DES CARTES : la carte part à la défausse, puis son script s'applique.
+    // -----------------------------------------
+    if (card.effect === 'script') {
+      if (card.category === 'supporter' && hasUsedSupporterThisTurn) {
+        setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');
+        return;
+      }
+
+      if (currentPlayer === 1) {
+        setPlayer1Hand((hand) => hand.filter((handCard) => handCard.id !== card.id));
+        setPlayer1Discard((discard) => [...discard, card]);
+      } else {
+        setPlayer2Hand((hand) => hand.filter((handCard) => handCard.id !== card.id));
+        setPlayer2Discard((discard) => [...discard, card]);
+      }
+      if (card.category === 'supporter') setHasUsedSupporterThisTurn(true);
+
+      setSelectedTrainerCard(null);
+      setTrainerEffectActivated(false);
+      setPendingScript({
+        player: currentPlayer,
+        sourceName: card.name,
+        sourceCell: null,
+        trainerCard: card,
+        blocks: card.script ?? [],
+        index: 0,
+        stage: 'run',
+        chosenCells: [],
+        turnId,
+      });
+      return;
+    }
+
+    // -----------------------------------------
+    // CARTES « À RÉGLAGES » (soin, Énergies, avec contraintes)
+    // -----------------------------------------
+    if (isGenericTrainerEffect(card)) {
+      if (card.category === 'supporter' && hasUsedSupporterThisTurn) {
+        setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');
+        return;
+      }
+
+      if (!hasValidTrainerTarget(card, board, currentPlayer)) {
+        setMessage(
+          `${card.name} : aucun de tes Pokémon ne peut recevoir l'effet (${describeTrainerTarget(card)}).`
+        );
+        return;
+      }
+
+      // Avec une pièce : on passe par le bouton « Lancer la pièce ».
+      if (card.coinCount) {
+        setMessage(`${card.name} : lance d'abord la pièce. FACE = l'effet s'applique.`);
+        return;
+      }
+
+      setTrainerEffectActivated(true);
+      setMessage(`${card.name} : choisis ${describeTrainerTarget(card)}.`);
       return;
     }
 

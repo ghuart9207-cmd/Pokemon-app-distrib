@@ -18,7 +18,7 @@ export const magnezone: PokemonCard = {
   targetPokemonType: 'metal',
   amount: 1,
   description:
-    'Une fois pendant votre tour, attachez une Énergie Fée à l’un de vos Pokémon Métal.',
+    'Une fois pendant votre tour, attachez une Énergie Métal à l’un de vos Pokémon Métal.',
 },
   attacks: [
     

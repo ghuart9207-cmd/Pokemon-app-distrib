@@ -82,6 +82,8 @@ export function createOnlineGame(game: GameApi, send: SendAction): GameApi {
       send('energyGatherSelect', [energy]),
     forfeitGame: (player: Player) => send('forfeit', [player]),
     undoTurn: () => send('undoTurn', []),
+    answerScriptOptional: (accept: boolean) => send('scriptOptional', [accept]),
+    answerScriptCard: (index: number) => send('scriptCard', [index]),
     chooseDragonEnergy: (energy: Parameters<GameApi['chooseDragonEnergy']>[0]) =>
       send('dragonEnergy', [energy]),
 
@@ -189,6 +191,14 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
       if (!pending || pending.player !== action.from) return;
       return game.chooseDragonEnergy(first as Parameters<GameApi['chooseDragonEnergy']>[0]);
     }
+    case 'scriptOptional':
+      // Seul le joueur du script répond à sa question.
+      if (!game.pendingScript || game.pendingScript.player !== action.from) return;
+      return game.answerScriptOptional(Boolean(first));
+    case 'scriptCard':
+      // Seul le joueur du script choisit la carte de sa défausse.
+      if (!game.pendingScript || game.pendingScript.player !== action.from) return;
+      return game.answerScriptCard(Number(first));
     case 'undoTurn':
       // Seul le joueur dont c'est le tour peut annuler son tour.
       if (action.from !== game.currentPlayer) return;
@@ -247,6 +257,7 @@ export function getActiveSeats(game: GameApi): Seat[] {
   addSeat(game.pendingKOSurvival?.player);
   addSeat(game.pendingBothPlayersSwitch?.controlledBy);
   addSeat(game.pendingDragonEnergyChoices[0]?.player);
+  addSeat(game.pendingScript?.player);
 
   return [...seats];
 }
@@ -256,6 +267,7 @@ export function getActiveSeats(game: GameApi): Seat[] {
  * pas forcément le joueur dont c'est le tour (sinon null : règles habituelles).
  */
 export function getCellPressOwner(game: GameApi): Seat | null {
+  if (game.pendingScript) return game.pendingScript.player;
   if (game.pendingBothPlayersSwitch) return game.pendingBothPlayersSwitch.controlledBy;
   if (game.pendingOpponentActiveSwitch) return game.pendingOpponentActiveSwitch.player;
   if (game.pendingKOEnergyMove) return game.pendingKOEnergyMove.player;

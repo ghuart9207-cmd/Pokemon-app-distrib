@@ -36,6 +36,8 @@ export type ActionName =
   | 'undoTurn'
   | 'dragonEnergy'
   | 'setupSubmit'
+  | 'scriptOptional'
+  | 'scriptCard'
   | 'restart'
   | 'restartSame'
   | 'setupToggle'

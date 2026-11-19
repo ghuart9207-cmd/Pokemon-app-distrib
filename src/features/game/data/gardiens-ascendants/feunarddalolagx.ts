@@ -25,7 +25,7 @@ export const feunardalolagx: PokemonCard = {
       requiredEnergies: {
         eau: 2,
       },
-       effects: [{      type: 'discardTypedEnergy',      amount: 2,          },  ],
+       effects: [{      type: 'discardTypedEnergy',      amount: 2,   energyType: 'eau',           },  ],
  
   effectText:    'Défaussez 2 Énergies attachées à ce Pokémon.',
 

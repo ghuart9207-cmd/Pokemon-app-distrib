@@ -41,7 +41,7 @@ export const godrive: PokemonCard = {
 
       damage: 80,
 
-      energyCost: 2,
+      energyCost: 3,
       requiredEnergies: {
         psy: 1,
       },

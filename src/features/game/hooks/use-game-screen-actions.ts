@@ -37,6 +37,7 @@ type GameScreenActionsOptions = Pick<
   | 'setPendingDamageCounterMove'
   | 'setPendingTalentHeal'
   | 'setPendingTalentToolReturn'
+  | 'setPendingScript'
   | 'player1SummonChoices'
   | 'player2SummonChoices'
   | 'pendingDiscardSummon'
@@ -95,6 +96,7 @@ export function useGameScreenActions({
   setPendingDamageCounterMove,
   setPendingTalentHeal,
   setPendingTalentToolReturn,
+  setPendingScript,
   player1SummonChoices,
   player2SummonChoices,
   pendingDiscardSummon,
@@ -506,6 +508,42 @@ if (!hasFreeBoardSpace) {
       setMessage(
         `${talent.name} : choisis l'un de tes Pokémon qui porte un Outil pour le remettre dans ta main. Clic sur une case vide pour annuler.`
       );
+      return;
+    }
+
+    // -----------------------------------------
+    // TALENT CODÉ (code des cartes) : une seule fois pendant votre tour
+    // -----------------------------------------
+    if (talent?.type === 'activated' && talent.effect === 'script') {
+      if (selectedPokemon.owner !== currentPlayer) {
+        setMessage('Tu ne peux utiliser que tes propres Talents.');
+        return;
+      }
+
+      if (selectedPokemon.lastUsedTalentTurnId === turnId) {
+        setMessage('Ce Pokémon a déjà utilisé son Talent pendant ce tour.');
+        return;
+      }
+
+      const talentCell = selectedPokemonCell;
+      setBoard((previousBoard) => {
+        const current = previousBoard[talentCell];
+        return current
+          ? { ...previousBoard, [talentCell]: { ...current, lastUsedTalentTurnId: turnId } }
+          : previousBoard;
+      });
+
+      setPendingScript({
+        player: currentPlayer,
+        sourceName: talent.name,
+        sourceCell: talentCell,
+        trainerCard: null,
+        blocks: talent.script ?? [],
+        index: 0,
+        stage: 'run',
+        chosenCells: [],
+        turnId,
+      });
       return;
     }
 

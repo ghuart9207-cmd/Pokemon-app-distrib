@@ -2,6 +2,7 @@ import type { PokemonInPlay } from '@/features/game/types';
 import type { BoardState } from '@/features/game/types';
 import { findPokemonCell, isTalentNegated } from './talent-negation';
 import { isActivePokemonCell } from './retaliation-rules';
+import { getScriptResistance } from './script-modifiers';
 
 const DEFAULT_TALENT_REDUCTION = 30;
 
@@ -17,7 +18,12 @@ export function getTalentDamageReduction(
   // Plateau : pour savoir si le Talent est annulé (Talent qui annule les GX/EX).
   board?: BoardState
 ): number {
-  return getTargetTalentReduction(target, attacker, board) + getAttackerColumnDamageReduction(attacker, board);
+  return (
+    getTargetTalentReduction(target, attacker, board) +
+    getAttackerColumnDamageReduction(attacker, board) +
+    // Code des cartes : résistance (+) ou faiblesse (-).
+    getScriptResistance(target, attacker, board)
+  );
 }
 
 /**

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { GameApi } from '@/features/game/hooks/use-game';
+import { needsAuraSync } from '@/features/game/rules';
 
 import {
   TUNNEL_MARKER,
@@ -35,6 +36,8 @@ const TUNNELED_ACTIONS = new Set<ActionName>([
   'undoTurn',
   'dragonEnergy',
   'setupSubmit',
+  'scriptOptional',
+  'scriptCard',
 ]);
 
 /**
@@ -81,6 +84,11 @@ export function useOnlineGame(rawGame: GameApi, you: Seat) {
 
   // Applique UNE action du journal par rendu, avec l'état le plus récent du jeu.
   useEffect(() => {
+    // Code des cartes : on attend que le script en cours ait fini son calcul.
+    if (rawGame.pendingScript?.stage === 'run') return;
+    // … et que les talents passifs aient mis le plateau à jour.
+    if (needsAuraSync(rawGame.board)) return;
+
     // protège contre le double appel des effets en mode développement
     const runKey = `${appliedCount}:${log.length}`;
     if (lastRunRef.current === runKey) return;
