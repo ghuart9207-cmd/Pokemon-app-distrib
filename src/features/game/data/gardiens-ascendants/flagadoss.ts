@@ -12,29 +12,39 @@ export const flagadoss: PokemonCard = {
   artwork: require('../../../../../assets/images/flagadoss-card.png'),
   attacks: [
     {
-      name: 'Poltergeist',
-      damage: 0,
-      energyCost: 2,
-        requiredEnergies: { psy: 2},
+      name: 'Amnésie',
+      damage: 20,
+      energyCost: 1,
+        
       
-         effects: [{ type: 'damagePerOpponentTrainerInHand', amount: 30 }],
-  effectText: 'Cette attaque inflige 30 dégâts pour chaque carte Dresseur dans la main de votre adversaire.',
+        script: [
+  
+
+
+  { action: 'prevent', prevent: ['attack'], chooseAttack: true,
+    target: { side: 'opponent', who: 'active' }, duration: 'opponentNextTurn' },
+],
+  effectText: 'Choisissez une attaque du pokémon actif de votre adversaire, celui ci ne pourras pas l\'utiliser lors du prochain tour de votre adversaire.',
 
     },
     {
-      name: 'Encornebois',
-      damage: 90,
-      energyCost: 3,
-      
-         effects: [
-        {
-          type: 'heal',
-          amount: 30,
-        },
-    ],
-    effectText:
-    'Soignez 30 dégâts à ce pokémon.',
-
+  name: 'Façade',
+  damage: 50,
+  energyCost: 3,
+  script: [
+    {
+      action: 'attackDamage',
+      amount: 80,
+      per: {
+        count: 'pokemon',
+        side: 'opponent',
+        who: 'active',
+        filter: { conditions: ['poison', 'burn'] },
+      },
     },
+  ],
+  effectText:
+    "Si le Pokémon actif de votre adversaire est Empoisonné ou Brûlé, cette attaque inflige 80 dégâts supplémentaires.",
+},
   ],
 };

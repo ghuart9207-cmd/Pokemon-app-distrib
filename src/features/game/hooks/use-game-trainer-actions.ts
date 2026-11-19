@@ -312,6 +312,14 @@ if (
     // -----------------------------------------
     // CODE DES CARTES : la carte part à la défausse, puis son script s'applique.
     // -----------------------------------------
+    // Outil « script » : on choisit d'abord le Pokémon qui le porte ;
+    // ses effets s'appliquent ensuite tant qu'il reste attaché.
+    if (card.effect === 'script' && card.subtype === 'outil') {
+      setTrainerEffectActivated(true);
+      setMessage(`Choisis un de tes Pokémon auquel attacher ${card.name}.`);
+      return;
+    }
+
     if (card.effect === 'script') {
       if (card.category === 'supporter' && hasUsedSupporterThisTurn) {
         setMessage('Tu as déjà utilisé une carte Supporter pendant ce tour.');

@@ -1,9 +1,13 @@
 import type {
   BoardState,
+  EnergyType,
+  GameCard,
   Player,
   PlayerStatusState,
   PokemonInPlay,
   ScriptBlock,
+  ScriptCondition,
+  ScriptCount,
   ScriptDuration,
   ScriptImmunity,
   ScriptModifier,
@@ -12,6 +16,7 @@ import type {
   SpecialCondition,
 } from '@/features/game/types';
 import { isTalentNegatedAt } from './talent-negation';
+import { matchesCardFilter } from './script-cards';
 
 // =====================================================================
 // CODE DES CARTES — ÉTAPE 2 : effets qui DURENT
@@ -32,6 +37,10 @@ export const MODIFIER_ACTIONS = [
   'immunity',
   'prevent',
   'whenDamaged',
+  'poisonDamage',
+  'burnDamage',
+  'retreatDespiteConditions',
+  'whenPlayed',
 ] as const;
 
 export function isModifierAction(action: ScriptBlock['action']): action is ScriptModifier['kind'] {
@@ -49,6 +58,9 @@ export function getDefaultScriptSide(block: ScriptBlock): 'own' | 'opponent' {
     case 'boost':
     case 'immunity':
     case 'whenDamaged':
+    case 'whenPlayed':
+    case 'retreatDespiteConditions':
+    case 'swapDamage':
     case 'switch':
     case 'moveEnergy':
     case 'moveDamage':
@@ -141,6 +153,37 @@ export function matchesPokemonFilter(
   if (filter.hasEnergyType && !pokemon.energies.includes(filter.hasEnergyType)) return false;
   if (filter.hasEnergy && pokemon.energies.length === 0) return false;
   if (filter.damaged && pokemon.currentHp >= getMaxHpForFilter(pokemon)) return false;
+
+  // Talent, Outil, Invocation, PV, nombre d'Énergies
+  if (filter.hasTalent !== undefined && !!pokemon.card.talent !== filter.hasTalent) return false;
+  if (filter.hasTool !== undefined && !!pokemon.attachedTool !== filter.hasTool) return false;
+  if (filter.isInvocation !== undefined && !!pokemon.isInvocation !== filter.isInvocation) return false;
+  if (filter.hpAtMost !== undefined && pokemon.currentHp > filter.hpAtMost) return false;
+  if (filter.hpAtLeast !== undefined && pokemon.currentHp < filter.hpAtLeast) return false;
+  if (filter.maxHpAtMost !== undefined && getMaxHpForFilter(pokemon) > filter.maxHpAtMost) return false;
+  if (filter.maxHpAtLeast !== undefined && getMaxHpForFilter(pokemon) < filter.maxHpAtLeast) return false;
+  if (filter.energiesAtLeast !== undefined && pokemon.energies.length < filter.energiesAtLeast) return false;
+  if (filter.energiesAtMost !== undefined && pokemon.energies.length > filter.energiesAtMost) return false;
+  if (
+    filter.hasAnyEnergyType?.length &&
+    !filter.hasAnyEnergyType.some((type) => pokemon.energies.includes(type))
+  ) {
+    return false;
+  }
+
+  // États spéciaux
+  const hasState: Record<SpecialCondition, boolean> = {
+    poison: pokemon.poisoned === true,
+    burn: pokemon.burned === true,
+    paralyze: pokemon.paralyzed === true,
+    confuse: pokemon.confused === true,
+    sleep: pokemon.asleep === true,
+  };
+  if (filter.conditions?.length && !filter.conditions.some((condition) => hasState[condition])) return false;
+  if (filter.hasCondition !== undefined) {
+    const any = Object.values(hasState).some(Boolean);
+    if (any !== filter.hasCondition) return false;
+  }
 
   if (filter.position && board) {
     const where = cell ?? findCell(board, pokemon);
@@ -242,12 +285,40 @@ export function describeModifier(modifier: ScriptModifier): string {
         : `ne peut plus : ${(modifier.prevent ?? []).join(', ')}`;
     case 'whenDamaged':
       return 'riposte si blessé';
+    case 'poisonDamage':
+      return `le Poison lui inflige ${amount} dégâts de plus`;
+    case 'burnDamage':
+      return `la Brûlure lui inflige ${amount} dégâts de plus`;
+    case 'retreatDespiteConditions':
+      return 'peut battre en retraite même Endormi ou Paralysé';
+    case 'whenPlayed':
+      return 'effet quand il est joué';
   }
 }
 
 // ---------------------------------------------------------------
 // LECTURE (utilisées par les règles du jeu)
 // ---------------------------------------------------------------
+
+/** Somme des `amount` des effets `kind` actifs sur ce Pokémon. */
+export function getScriptModifierTotal(
+  pokemon: PokemonInPlay | null | undefined,
+  kind: ScriptModifier['kind']
+): number {
+  return getActiveModifiers(pokemon)
+    .filter((modifier) => modifier.kind === kind)
+    .reduce((total, modifier) => total + (modifier.amount ?? 0), 0);
+}
+
+/** Ce Pokémon a-t-il au moins un effet `kind` actif ? */
+export function hasScriptModifier(pokemon: PokemonInPlay | null | undefined, kind: ScriptModifier['kind']): boolean {
+  return getActiveModifiers(pokemon).some((modifier) => modifier.kind === kind);
+}
+
+/** Joueur qui fait le choix en cours d'un script (chooser: 'opponent'), sinon celui de la carte. */
+export function getScriptActor(script: { player: Player; chooser?: Player | null }): Player {
+  return script.chooser ?? script.player;
+}
 
 export function getScriptRetreatCostDelta(pokemon: PokemonInPlay): number {
   return getActiveModifiers(pokemon)
@@ -386,6 +457,19 @@ export function isScriptAttackPrevented(
   );
 }
 
+/** Contexte de comptage sans main ni défausse (talents passifs). */
+function boardOnlyContext(board: BoardState, player: Player, sourceCell: string): ScriptCountContext {
+  return {
+    board,
+    player,
+    sourceCell,
+    player1Discard: [],
+    player2Discard: [],
+    player1Hand: [],
+    player2Hand: [],
+  };
+}
+
 /** Le joueur a-t-il l'interdiction `what` (Objets, Supporters) ? */
 export function isPlayerScriptPrevented(
   status: PlayerStatusState,
@@ -401,11 +485,12 @@ export function isPlayerScriptPrevented(
 
   // Talents passifs : « votre adversaire ne peut pas jouer de carte Objet ».
   return Object.entries(board).some(([cell, holder]) => {
-    if (!holder || !isPassiveScriptActive(board, cell, holder)) return false;
+    if (!holder) return false;
 
-    return (holder.card.talent?.script ?? []).some((block) => {
+    return getContinuousScripts(board, cell, holder).blocks.some((block) => {
       if (block.action !== 'prevent' || block.target?.who !== 'player') return false;
       if (!(block.prevent ?? []).includes(what)) return false;
+      if (block.if && !isScriptConditionMet(block.if, boardOnlyContext(board, holder.owner, cell))) return false;
       return sidePlayersFor(block, holder.owner).includes(player);
     });
   });
@@ -465,15 +550,52 @@ function isPassiveScriptActive(board: BoardState, cell: string, holder: PokemonI
   );
 }
 
-/** Effets que chaque Pokémon reçoit des talents passifs en jeu. */
+/**
+ * Blocs qui agissent en continu pour ce Pokémon :
+ * son talent passif « script » (s'il marche) + le script de son Outil.
+ */
+function getContinuousScripts(
+  board: BoardState,
+  cell: string,
+  holder: PokemonInPlay
+): { blocks: ScriptBlock[]; names: string[] } {
+  const blocks: ScriptBlock[] = [];
+  const names: string[] = [];
+
+  if (isPassiveScriptActive(board, cell, holder)) {
+    for (const block of holder.card.talent?.script ?? []) {
+      blocks.push(block);
+      names.push(holder.card.talent?.name ?? holder.card.name);
+    }
+  }
+
+  // Outil « script » : ses effets s'appliquent tant qu'il est attaché
+  // (who: 'self' = le Pokémon qui porte l'Outil).
+  const tool = holder.attachedTool;
+  if (tool?.effect === 'script') {
+    for (const block of tool.script ?? []) {
+      blocks.push(block);
+      names.push(tool.name);
+    }
+  }
+
+  return { blocks, names };
+}
+
+/** Effets que chaque Pokémon reçoit des talents passifs et des Outils en jeu. */
 export function computeAuraModifiers(board: BoardState): Record<string, ScriptModifier[]> {
   const result: Record<string, ScriptModifier[]> = {};
 
   for (const [holderCell, holder] of Object.entries(board)) {
-    if (!holder || !isPassiveScriptActive(board, holderCell, holder)) continue;
+    if (!holder) continue;
+    const continuous = getContinuousScripts(board, holderCell, holder);
 
-    for (const block of holder.card.talent?.script ?? []) {
+    for (const [blockIndex, block] of continuous.blocks.entries()) {
       if (!isModifierAction(block.action)) continue;
+      // « quand il est joué » : déclencheur, pas un effet continu
+      if (block.action === 'whenPlayed') continue;
+      // « si … » (talent passif : on compte sur le plateau ; main et défausse ne sont pas connues ici)
+      if (block.if && !isScriptConditionMet(block.if, boardOnlyContext(board, holder.owner, holderCell))) continue;
 
       const who = block.target?.who ?? 'all';
       if (who === 'player' || who === 'attacker') continue;
@@ -490,7 +612,7 @@ export function computeAuraModifiers(board: BoardState): Record<string, ScriptMo
         if (filter?.excludeSelf && cell === holderCell) continue;
         if (!matchesPokemonFilter(pokemon, filter, board, cell)) continue;
 
-        const modifier = createScriptModifier(block, holder.card.talent?.name ?? holder.card.name, holder.owner, null);
+        const modifier = createScriptModifier(block, continuous.names[blockIndex], holder.owner, null);
         if (modifier) (result[cell] ??= []).push(modifier);
       }
     }
@@ -532,4 +654,131 @@ export function syncAuraModifiers(board: BoardState): BoardState | null {
 /** Le plateau doit-il encore être mis à jour par les talents passifs ? */
 export function needsAuraSync(board: BoardState): boolean {
   return syncAuraModifiers(board) !== null;
+}
+
+// ---------------------------------------------------------------
+// COMPTER (`per`) ET CONDITIONS (`if`)
+// ---------------------------------------------------------------
+
+export type ScriptCountContext = {
+  board: BoardState;
+  // joueur qui joue la carte
+  player: Player;
+  // case du Pokémon qui attaque / a le talent (null pour un Dresseur)
+  sourceCell: string | null;
+  player1Discard: GameCard[];
+  player2Discard: GameCard[];
+  player1Hand: GameCard[];
+  player2Hand: GameCard[];
+  player1DiscardEnergies?: EnergyType[];
+  player2DiscardEnergies?: EnergyType[];
+};
+
+function sidePlayers(per: ScriptCount, player: Player): Player[] {
+  const opponent: Player = player === 1 ? 2 : 1;
+  const side = per.side ?? 'own';
+  return side === 'own' ? [player] : side === 'opponent' ? [opponent] : [player, opponent];
+}
+
+/** Combien de … ? (le nombre par lequel on multiplie `amount`) */
+export function computeScriptCount(per: ScriptCount, context: ScriptCountContext): number {
+  const players = sidePlayers(per, context.player);
+
+  switch (per.count) {
+    case 'discard':
+    case 'hand': {
+      return players.reduce((total, player) => {
+        const cards =
+          per.count === 'discard'
+            ? player === 1
+              ? context.player1Discard
+              : context.player2Discard
+            : player === 1
+              ? context.player1Hand
+              : context.player2Hand;
+        return total + cards.filter((card) => matchesCardFilter(card, per.cards)).length;
+      }, 0);
+    }
+
+    case 'damageDealt': {
+      const source = context.sourceCell ? context.board[context.sourceCell] : null;
+      return source?.lastAttackDamage ?? 0;
+    }
+
+    case 'discardEnergy': {
+      return players.reduce((total, player) => {
+        const energies = (player === 1 ? context.player1DiscardEnergies : context.player2DiscardEnergies) ?? [];
+        return total + energies.filter((energy) => !per.energyType || energy === per.energyType).length;
+      }, 0);
+    }
+
+    default: {
+      // Pokémon concernés
+      const who = per.who ?? 'all';
+      const sourceColumn = context.sourceCell ? context.sourceCell.slice(1) : null;
+
+      const cells = Object.keys(context.board).filter((cell) => {
+        const pokemon = context.board[cell];
+        if (!pokemon || !players.includes(pokemon.owner)) return false;
+        if (who === 'self' && cell !== context.sourceCell) return false;
+        if (who === 'active') {
+          if (!isFrontPokemonCell(context.board, cell)) return false;
+          // l'actif de la colonne du Pokémon source (s'il y en a un)
+          if (sourceColumn && cell.slice(1) !== sourceColumn) return false;
+        }
+        return matchesPokemonFilter(pokemon, per.filter, context.board, cell);
+      });
+
+      return cells.reduce((total, cell) => {
+        const pokemon = context.board[cell]!;
+        switch (per.count) {
+          case 'pokemon':
+            return total + 1;
+          case 'energy':
+            return total + pokemon.energies.filter((energy) => !per.energyType || energy === per.energyType).length;
+          case 'damageCounters':
+            return total + Math.max(0, Math.floor((getMaxHpForFilter(pokemon) - pokemon.currentHp) / 10));
+          case 'tools':
+            return total + (pokemon.attachedTool ? 1 : 0);
+          case 'retreatCost':
+            return total + Math.max(0, pokemon.card.retreatCost + getScriptRetreatCostDelta(pokemon));
+          case 'conditions':
+            return (
+              total +
+              [pokemon.poisoned, pokemon.burned, pokemon.paralyzed, pokemon.confused, pokemon.asleep].filter(Boolean)
+                .length
+            );
+          default:
+            return total;
+        }
+      }, 0);
+    }
+  }
+}
+
+/** La condition « si … » est-elle vraie ? (une liste : toutes doivent l'être) */
+export function isScriptConditionMet(
+  condition: ScriptCondition | ScriptCondition[] | undefined,
+  context: ScriptCountContext
+): boolean {
+  if (!condition) return true;
+  const list = Array.isArray(condition) ? condition : [condition];
+
+  return list.every((item) => {
+    const count = computeScriptCount(item, context);
+
+    // Comparaison avec un autre compte
+    const compares = item.sameAs || item.moreThan || item.lessThan || item.atLeast || item.atMost;
+    if (item.sameAs && count !== computeScriptCount(item.sameAs, context)) return false;
+    if (item.moreThan && !(count > computeScriptCount(item.moreThan, context))) return false;
+    if (item.lessThan && !(count < computeScriptCount(item.lessThan, context))) return false;
+    if (item.atLeast && !(count >= computeScriptCount(item.atLeast, context))) return false;
+    if (item.atMost && !(count <= computeScriptCount(item.atMost, context))) return false;
+
+    // Sans min / max : « au moins 1 », sauf si on compare déjà avec un autre compte.
+    const min = item.min ?? (item.max !== undefined || compares ? 0 : 1);
+    if (count < min) return false;
+    if (item.max !== undefined && count > item.max) return false;
+    return true;
+  });
 }

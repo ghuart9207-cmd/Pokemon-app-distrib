@@ -47,6 +47,13 @@ import { lucanongx } from './lucanongx';
 import { plumeline2 } from './plumeline2';
 import { tokoricogx } from './tokoricogx';
 import { ramoloss } from './ramoloss';
+import { flagadoss } from './flagadoss';
+import { scrutella } from './scrutella';
+import { siderella } from './siderella';
+import { predasteriegx } from './predasteriegx';
+import { sinistrail } from './sinistrail';
+import { tokopiyongx } from './tokopiyongx';
+import { lunala } from './lunala';
 
 // =============================================================
 // EXTENSION « GARDIENS ASCENDANTS » (série Soleil et Lune)
@@ -88,7 +95,6 @@ tarpaud,
 cadoizo,
 carvanha,
 sharpedo,
-wailmer,
 wailord,
 stalgamin,
 oniglali,
@@ -108,6 +114,13 @@ lucanongx,
 plumeline2,
 tokoricogx,
 ramoloss,
+flagadoss,
+scrutella,
+siderella,
+predasteriegx,
+sinistrail,
+tokopiyongx,
+lunala,
 ];
 
 export const GARDIENS_ASCENDANTS_TRAINER_CARDS: TrainerCard[] = [];

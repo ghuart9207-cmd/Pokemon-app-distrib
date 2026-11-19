@@ -27,6 +27,8 @@ import {
   describeAttackInvocationRule,
   getDiscardCardBonus,
   getScriptAttackDamageBonus,
+  hasScriptAttackFlag,
+  pokemonOnly,
 } from '@/features/game/rules';
 import type {
   Attack,
@@ -802,6 +804,24 @@ const attackForDamage: Attack =
     // L'ATTAQUE ÉCHOUE SI LE POKÉMON ACTIF ADVERSE
     // POSSÈDE AU MOINS LE SEUIL DE PV MAXIMUM
     // --------------------------------------------
+
+    // Code des cartes : attackFails (avec sa condition `if`).
+    if (
+      hasScriptAttackFlag(resolvedAttack, 'attackFails', {
+        board,
+        player: attacker.owner,
+        sourceCell: selectedPokemonCell,
+        player1Discard,
+        player2Discard,
+        player1Hand,
+        player2Hand,
+        player1DiscardEnergies,
+        player2DiscardEnergies,
+      })
+    ) {
+      setMessage(`${attacker.card.name} utilise ${attack.name}, mais l'attaque ne fait rien.`);
+      return;
+    }
 
     const maxHpRestrictionEffect = resolvedAttack.effects?.find(
       (effect) => effect.type === 'failsIfOpponentActiveMaxHpAtLeast'
@@ -1699,7 +1719,7 @@ const requestPoolSummon = () => {
   }
 
   const choices = attacker.owner === 1 ? player1SummonChoices : player2SummonChoices;
-  const chosen = choices[attacker.card.id] ?? [];
+  const chosen = pokemonOnly(choices[attacker.card.id]);
 
   if (chosen.length === 0) {
     setMessage(

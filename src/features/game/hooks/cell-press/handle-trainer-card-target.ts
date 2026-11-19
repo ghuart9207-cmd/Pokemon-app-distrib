@@ -1,5 +1,6 @@
 import type { CellPressContext } from './cell-press-context';
 import { attachSimpleTool } from './trainer-effects/attach-simple-tool';
+import { matchesPokemonFilter } from '@/features/game/rules';
 import { attachHpTool } from './trainer-effects/attach-hp-tool';
 import { attachKOEnergyTool } from './trainer-effects/attach-ko-energy-tool';
 import { attachTwoFireEnergiesAndEndTurn } from './trainer-effects/attach-two-fire-energies';
@@ -166,6 +167,18 @@ if (!trainerEffectActivated) {
   }
 
   if (selectedTrainerCard.effect === 'toolRetreatMinusOneIgnoreConditions') {
+    attachSimpleTool(targetContext);
+
+    return true;
+  }
+
+  // Code des cartes : Outil « script » (contraintes de pose dans `target`).
+  if (selectedTrainerCard.effect === 'script' && selectedTrainerCard.subtype === 'outil') {
+    const holder = targetContext.board[targetContext.cellName];
+    if (holder && !matchesPokemonFilter(holder, selectedTrainerCard.target, targetContext.board, targetContext.cellName)) {
+      targetContext.setMessage(`${selectedTrainerCard.name} ne peut pas être attaché à ${holder.card.name}.`);
+      return true;
+    }
     attachSimpleTool(targetContext);
 
     return true;

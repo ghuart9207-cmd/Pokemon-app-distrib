@@ -1,7 +1,7 @@
 import type { AttackEffect, GameCard, PokemonCard, ScriptBlock } from '@/features/game/types';
 
 import { isPokemonCard } from './board-rules';
-import { matchesSummonFilter } from './script-cards';
+import { matchesCardFilter, matchesSummonFilter } from './script-cards';
 
 /**
  * Attaques qui invoquent (effet 'summonFromInvocationPool', ex : Plumeline, Goupix d'Alola) :
@@ -17,7 +17,17 @@ export const DEFAULT_INVOCATION_MAX_HP = 60;
  * Pokémon choisis pour chaque Pokémon qui invoque (clé = id de la carte qui invoque).
  * Liste vide : aucun Pokémon possible dans la série.
  */
-export type SummonChoices = Record<string, PokemonCard[]>;
+export type SummonChoices = Record<string, GameCard[]>;
+
+/** Seulement les Pokémon d'une liste d'Invocations (les cartes Dresseur vont dans la main). */
+export function pokemonOnly(cards: GameCard[] | undefined): PokemonCard[] {
+  return (cards ?? []).filter(isPokemonCard);
+}
+
+/** Bloc summon qui invoque une carte Dresseur (dans la main). */
+function isTrainerSummon(block: ScriptBlock): boolean {
+  return !!block.kind && block.kind !== 'pokemon';
+}
 
 /** Nombre de Pokémon à choisir (et invoqués à chaque attaque) pour cet effet. */
 export function getSummonChoiceCount(rule: AttackEffect): number {
@@ -32,7 +42,7 @@ export function findScriptSummonBlock(card: GameCard): ScriptBlock | null {
 
   const search = (blocks: ScriptBlock[]): ScriptBlock | null => {
     for (const block of blocks) {
-      if (block.action === 'summon' && block.pokemon && !block.pokemonName) return block;
+      if (block.action === 'summon' && !block.pokemonName && (block.pokemon || isTrainerSummon(block))) return block;
       // aussi dans les déclencheurs « si ce Pokémon subit des dégâts »
       const inner = block.script ? search(block.script) : null;
       if (inner) return inner;
@@ -51,6 +61,16 @@ export function findScriptSummonBlock(card: GameCard): ScriptBlock | null {
 export function getSummonChoiceEffect(card: GameCard): AttackEffect | null {
   // Code des cartes : summon avec `pokemon`.
   const scriptBlock = findScriptSummonBlock(card);
+  if (scriptBlock && isTrainerSummon(scriptBlock)) {
+    return {
+      type: 'summonFromInvocationPool',
+      amount: Math.max(1, scriptBlock.target?.count ?? 1),
+      summonTrainer: {
+        kind: scriptBlock.kind as 'supporter' | 'objet' | 'outil',
+        cards: scriptBlock.cards,
+      },
+    };
+  }
   if (scriptBlock?.pokemon) {
     return {
       type: 'summonFromInvocationPool',
@@ -84,7 +104,13 @@ export function getSummonChoiceEffect(card: GameCard): AttackEffect | null {
 }
 
 /** La carte peut-elle être choisie comme Invocation pour cet effet ? */
-export function isValidAttackInvocation(card: PokemonCard, rule: AttackEffect): boolean {
+export function isValidAttackInvocation(card: GameCard, rule: AttackEffect): boolean {
+  // Code des cartes : carte Dresseur invoquée dans la main.
+  if (rule.summonTrainer) {
+    return !isPokemonCard(card) && matchesCardFilter(card, { ...rule.summonTrainer.cards, category: [rule.summonTrainer.kind] });
+  }
+  if (!isPokemonCard(card)) return false;
+
   // Code des cartes : les contraintes de `pokemon` (Pokémon de Base si `stages` n'est pas donné).
   if (rule.summonFilter) {
     const filter = rule.summonFilter.stages?.length
@@ -133,6 +159,12 @@ export function getNextSummonerNeedingChoice(
 
 /** Texte de la règle, ex : « Pokémon Feu de Base ayant 60 PV ou moins ». */
 export function describeAttackInvocationRule(rule: AttackEffect): string {
+  if (rule.summonTrainer) {
+    const label = { supporter: 'carte Supporter', objet: 'carte Objet', outil: 'carte Outil' }[rule.summonTrainer.kind];
+    const names = rule.summonTrainer.cards?.names?.length ? ` (${rule.summonTrainer.cards.names.join(' ou ')})` : '';
+    return `${label}${names}`;
+  }
+
   if (rule.summonFilter) {
     const filter = rule.summonFilter;
     const parts = ['Pokémon'];

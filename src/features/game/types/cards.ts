@@ -211,6 +211,8 @@ export type AttackEffect = {
 
   // Code des cartes (summon avec `pokemon`) : contraintes des Invocations à choisir.
   summonFilter?: ScriptPokemonFilter;
+  // Code des cartes (summon avec kind 'supporter' / 'objet' / 'outil') : cartes Dresseur à choisir.
+  summonTrainer?: { kind: 'supporter' | 'objet' | 'outil'; cards?: ScriptCardFilter };
 
   // damagePerOpponentDiscardCard / damagePerOwnDiscardCard : quelles cartes compter
   // (ex : { category: ['objet'] }) ; sans `cards` : toutes les cartes.
@@ -391,6 +393,27 @@ export type TrainerTargetFilter = {
   hasEnergyType?: EnergyType;
   // Seulement le Pokémon actif, ou seulement un Pokémon de banc.
   position?: 'active' | 'bench';
+  // Code des cartes : a au moins un de ces états spéciaux (['poison', 'burn']…).
+  conditions?: SpecialCondition[];
+  // Code des cartes : a n'importe quel état spécial (true) ou aucun (false).
+  hasCondition?: boolean;
+  // Code des cartes : a un Outil (true) ou n'en a pas (false).
+  hasTool?: boolean;
+  // Code des cartes : est une Invocation (true) ou un Pokémon normal (false).
+  isInvocation?: boolean;
+  // Code des cartes : PV RESTANTS au plus / au moins.
+  hpAtMost?: number;
+  hpAtLeast?: number;
+  // Code des cartes : PV MAX de la carte au plus / au moins.
+  maxHpAtMost?: number;
+  maxHpAtLeast?: number;
+  // Code des cartes : nombre d'Énergies attachées au moins / au plus.
+  energiesAtLeast?: number;
+  energiesAtMost?: number;
+  // Code des cartes : au moins une Énergie d'un de ces types attachée.
+  hasAnyEnergyType?: EnergyType[];
+  // Code des cartes : a un talent (true) ou n'en a pas (false).
+  hasTalent?: boolean;
 };
 
 export type GameCard = PokemonCard | TrainerCard;

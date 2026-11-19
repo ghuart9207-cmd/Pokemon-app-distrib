@@ -158,7 +158,17 @@ if (
   const turn = useGameTurn({ ...state, ...combat });
   const restart = useGameRestart({ ...state, ...setup });
   // Code des cartes (scripts des attaques, talents et Dresseurs)
-  const scripts = useGameScripts({ ...state, ...coinFlow, ...combat, cardSeries });
+  // « Annuler le tour » remet un ancien plateau : il ne doit pas relancer les déclencheurs.
+  const ignoreTriggerBoardRef = useRef<unknown>(null);
+  const scripts = useGameScripts({
+    ...state,
+    ...coinFlow,
+    ...combat,
+    cardSeries,
+    endTurn: turn.endTurn,
+    ignoreTriggerBoardRef,
+    triggersActive: setup.setupPhase === 'battle',
+  });
 
   const cellPress = useGameCellInteractions({
     ...state,
@@ -204,6 +214,7 @@ if (
       return;
     }
 
+    ignoreTriggerBoardRef.current = snapshot.board;
     restoreStateSnapshot(state, snapshot);
     attackResolution.clearAttackPrompts();
     state.setMessage(

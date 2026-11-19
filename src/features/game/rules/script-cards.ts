@@ -1,5 +1,8 @@
 import type { GameCard, PokemonCard, ScriptCardFilter, ScriptPokemonFilter } from '@/features/game/types';
-import { isPokemonCard } from './board-rules';
+/** (copie locale pour éviter une boucle d'imports avec board-rules) */
+function isPokemonCard(card: GameCard): card is PokemonCard {
+  return 'stage' in card;
+}
 
 // =====================================================================
 // CODE DES CARTES — ÉTAPE 3 : cartes de la défausse (recoverCards)

@@ -1,26 +1,41 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PokemonHandCard } from '@/features/game/components/cards/pokemon-hand-card';
+import { TrainerHandCard } from '@/features/game/components/cards/trainer-hand-card';
 import type { CardSeriesInfo } from '@/features/game/data';
-import type { Player, PokemonCard } from '@/features/game/types';
+import { isPokemonCard } from '@/features/game/rules';
+import type { GameCard, Player } from '@/features/game/types';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 
 type InvocationSetupScreenProps = {
   cardSeries: CardSeriesInfo;
   player: Player;
-  invocationCards: PokemonCard[];
+  invocationCards: GameCard[];
   setupPokemonPerRow: number;
   message: string;
-  onAddCard: (card: PokemonCard) => void;
+  onAddCard: (card: GameCard) => void;
   onRemoveCard: (index: number) => void;
   onConfirm: () => void;
   // Règle de l'étape (par défaut : Fan Club, 2 Pokémon de Base ≤ 60 PV).
   requiredCount?: number;
   ruleText?: string;
-  isCandidate?: (card: PokemonCard) => boolean;
+  isCandidate?: (card: GameCard) => boolean;
 };
 
-const isFanClubCandidate = (card: PokemonCard) => card.stage === 'base' && card.maxHp <= 60;
+const isFanClubCandidate = (card: GameCard) =>
+  isPokemonCard(card) && card.stage === 'base' && card.maxHp <= 60;
+
+/** Une carte (Pokémon ou Dresseur) dans la liste des Invocations. */
+function InvocationCard({ card, onPress }: { card: GameCard; onPress: () => void }) {
+  if (isPokemonCard(card)) {
+    return (
+      <Pressable onPress={onPress} style={sharedStyles.handPokemonPressable}>
+        <PokemonHandCard card={card} />
+      </Pressable>
+    );
+  }
+  return <TrainerHandCard card={card} disabled={false} isSelected={false} onPress={onPress} />;
+}
 
 export function InvocationSetupScreen({
   cardSeries,
@@ -35,7 +50,8 @@ export function InvocationSetupScreen({
   ruleText = 'Pokémon de Base ayant 60 PV ou moins',
   isCandidate = isFanClubCandidate,
 }: InvocationSetupScreenProps) {
-  const candidates = cardSeries.pokemon.filter(isCandidate);
+  // Pokémon, et cartes Dresseur pour les Invocations du code des cartes (kind: 'supporter'…)
+  const candidates: GameCard[] = [...cardSeries.pokemon, ...cardSeries.trainers].filter(isCandidate);
 
   return (
     <ScrollView
@@ -52,11 +68,11 @@ export function InvocationSetupScreen({
       </Text>
       {requiredCount > 1 ? (
         <Text style={sharedStyles.actionInfo}>
-          Tu peux choisir plusieurs fois le même Pokémon.
+          Tu peux choisir plusieurs fois la même carte.
         </Text>
       ) : (
         <Text style={sharedStyles.actionInfo}>
-          À chaque utilisation de l&apos;attaque, ce Pokémon sera invoqué (sans limite).
+          À chaque utilisation, cette carte sera invoquée (sans limite).
         </Text>
       )}
 
@@ -84,12 +100,7 @@ export function InvocationSetupScreen({
                       { width: `${100 / setupPokemonPerRow}%` as `${number}%` },
                     ]}
                   >
-                    <Pressable
-                      onPress={() => onAddCard(card)}
-                      style={sharedStyles.handPokemonPressable}
-                    >
-                      <PokemonHandCard card={card} />
-                    </Pressable>
+                    <InvocationCard card={card} onPress={() => onAddCard(card)} />
                     {count > 0 && (
                       <Text style={sharedStyles.actionInfo}>Choisi x{count}</Text>
                     )}
@@ -103,7 +114,7 @@ export function InvocationSetupScreen({
 
       {candidates.length === 0 && (
         <Text style={sharedStyles.actionInfo}>
-          Aucun Pokémon de cette série ne correspond à cette règle.
+          Aucune carte de cette série ne correspond à cette règle.
         </Text>
       )}
 
@@ -112,13 +123,9 @@ export function InvocationSetupScreen({
       </Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {invocationCards.map((card, index) => (
-          <Pressable
-            key={`${card.id}-${index}`}
-            onPress={() => onRemoveCard(index)}
-            style={sharedStyles.handPokemonPressable}
-          >
-            <PokemonHandCard card={card} />
-          </Pressable>
+          <View key={`${card.id}-${index}`}>
+            <InvocationCard card={card} onPress={() => onRemoveCard(index)} />
+          </View>
         ))}
       </View>
 

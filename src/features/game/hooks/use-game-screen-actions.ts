@@ -7,6 +7,7 @@ import {
   isHealBlocked,
   isPokemonCard,
   isTalentNegated,
+  pokemonOnly,
 } from '@/features/game/rules';
 import type { AttackEffect, EnergyType } from '@/features/game/types';
 import { applyKOEnergyMove } from './cell-press/apply-ko-energy-move';
@@ -433,7 +434,7 @@ if (!hasFreeBoardSpace) {
       }
 
       const choices = currentPlayer === 1 ? player1SummonChoices : player2SummonChoices;
-      const chosen = choices[selectedPokemon.card.id] ?? [];
+      const chosen = pokemonOnly(choices[selectedPokemon.card.id]);
 
       if (chosen.length === 0) {
         setMessage(`${talent.name} : aucune Invocation n'a été choisie pour ${selectedPokemon.card.name} à la préparation.`);

@@ -17,8 +17,11 @@ import type { EnergyType, Player, SpecialCondition } from './core';
 export type ScriptAction =
   // soigne `amount` PV (jamais au-dessus des PV max, jamais les joueurs)
   | 'heal'
-  // place `amount` dégâts (marqueurs : ni faiblesse ni résistance), peut mettre K.O.
+  // inflige `amount` dégâts : passent par les résistances, talents de réduction et immunités
+  // (quand ils viennent d'un Pokémon adverse), peut mettre K.O.
   | 'damage'
+  // place `amount` MARQUEURS de dégâts (1 = 10 dégâts) : rien ne les réduit, peut mettre K.O.
+  | 'counters'
   // attache `amount` Énergie(s) `energyType` (par défaut : le type du Pokémon)
   | 'attachEnergy'
   // défausse `amount` Énergie(s) (de type `energyType` si précisé ; 99 = toutes)
@@ -66,7 +69,46 @@ export type ScriptAction =
   | 'blockAttack'
   // dégâts EN PLUS pour l'attaque elle-même (seulement dans le script d'une attaque),
   // comptés avant les dégâts, avec résistance / faiblesse ; souvent avec `per`
-  | 'attackDamage';
+  | 'attackDamage'
+  // ----- Attaque (vérifiés AVANT la frappe, seulement dans le script d'une attaque) -----
+  // l'attaque ne fait rien (avec `if`, ex : si l'actif adverse a 200 PV ou plus)
+  | 'attackFails'
+  // l'attaque ignore les réductions de dégâts et résistances de la cible (avec `if` possible)
+  | 'attackIgnoresReductions'
+  // ----- Effets qui durent (suite) -----
+  // le Poison de ce Pokémon inflige `amount` dégâts EN PLUS à chaque fin de tour
+  | 'poisonDamage'
+  // la Brûlure de ce Pokémon inflige `amount` dégâts EN PLUS
+  | 'burnDamage'
+  // peut battre en retraite même Endormi ou Paralysé
+  | 'retreatDespiteConditions'
+  // déclencheur : quand ce Pokémon est joué (posé, évolué, invoqué), lance `script`
+  // (à mettre dans un talent passif, avec target: { who: 'self' })
+  | 'whenPlayed'
+  // ----- Divers -----
+  // échange les dégâts (marqueurs) de `target` et de `to`
+  | 'swapDamage'
+  // termine le tour (après la fin du script)
+  | 'endTurn';
+
+/**
+ * Condition « si … » : on compte comme pour `per`, puis on compare.
+ * Ex. « si l'actif adverse est Empoisonné » :
+ * { count: 'pokemon', side: 'opponent', who: 'active', filter: { conditions: ['poison'] } }
+ * (`min` vaut 1 par défaut ; `max: 0` = « s'il n'y en a AUCUN »)
+ */
+export type ScriptCondition = ScriptCount & {
+  min?: number;
+  max?: number;
+  // Comparer avec UN AUTRE compte (même écriture que `per`) :
+  // sameAs = autant que ; moreThan = plus que ; lessThan = moins que ;
+  // atLeast = au moins autant que ; atMost = au plus autant que.
+  sameAs?: ScriptCount;
+  moreThan?: ScriptCount;
+  lessThan?: ScriptCount;
+  atLeast?: ScriptCount;
+  atMost?: ScriptCount;
+};
 
 /**
  * « Pour chaque … » : multiplie `amount` par ce nombre.
@@ -87,7 +129,13 @@ export type ScriptCount = {
     // marqueurs de dégâts (1 marqueur = 10 dégâts) sur les Pokémon (`who`, `filter`)
     | 'damageCounters'
     // Outils attachés aux Pokémon (`who`, `filter`)
-    | 'tools';
+    | 'tools'
+    // coût de retraite des Pokémon (`who`, `filter`)
+    | 'retreatCost'
+    // états spéciaux des Pokémon (`who`, `filter`) : 2 si Empoisonné et Brûlé…
+    | 'conditions'
+    // dégâts infligés par CETTE attaque au Pokémon visé (dans le script d'une attaque)
+    | 'damageDealt';
   // 'own' (par défaut), 'opponent' ou 'both'
   side?: 'own' | 'opponent' | 'both';
   // 'all' (par défaut), 'self' (ce Pokémon) ou 'active' (l'actif de la colonne)
@@ -149,7 +197,18 @@ export type ScriptPrevent =
 
 /** Effet qui dure, posé sur un Pokémon (ou un joueur). */
 export type ScriptModifier = {
-  kind: 'retreatCost' | 'maxHp' | 'resistance' | 'boost' | 'immunity' | 'prevent' | 'whenDamaged';
+  kind:
+    | 'retreatCost'
+    | 'maxHp'
+    | 'resistance'
+    | 'boost'
+    | 'immunity'
+    | 'prevent'
+    | 'whenDamaged'
+    | 'poisonDamage'
+    | 'burnDamage'
+    | 'retreatDespiteConditions'
+    | 'whenPlayed';
   amount?: number;
   against?: ScriptImmunity[];
   prevent?: ScriptPrevent[];
@@ -181,6 +240,14 @@ export type ScriptTarget = {
   count?: number;
   // contraintes (mêmes réglages que les cartes Dresseur, plus quelques-uns)
   filter?: ScriptTargetFilter;
+  // switch, dans `to` : true = peut aussi aller sur une case VIDE
+  // (par défaut, un switch échange seulement avec un autre Pokémon de son camp)
+  emptyCells?: boolean;
+  // qui fait le choix : 'self' (le joueur de la carte, par défaut) ou 'opponent' (l'adversaire)
+  chooser?: 'self' | 'opponent';
+  // switch, dans `to` : true = n'importe quelle case de son camp
+  // (par défaut, l'échange se fait sur la même ligne, d'une colonne à l'autre, comme Guzma)
+  anyRow?: boolean;
 };
 
 export type ScriptTargetFilter = TrainerTargetFilter & {
@@ -199,8 +266,17 @@ export type ScriptBlock = {
   target?: ScriptTarget;
   // Lancer de pièces avant le bloc (avec le compteur du Pokémon, ou de la carte Dresseur) :
   // need 'face' (au moins une FACE, par défaut), 'allFace' (que des FACE),
-  // 'perFace' (amount × nombre de FACE).
-  coin?: { count?: number; need?: 'face' | 'allFace' | 'perFace' };
+  // 'perFace' (amount × nombre de FACE), et pareil côté PILE :
+  // 'tails' (au moins une PILE), 'allTails' (que des PILE), 'perTails' (amount × nombre de PILE).
+  // useLastFlip: true = ne relance pas, reprend le dernier lancer de ce script (pour faire « sinon »).
+  coin?: {
+    count?: number;
+    need?: 'face' | 'allFace' | 'perFace' | 'tails' | 'allTails' | 'perTails';
+    useLastFlip?: boolean;
+  };
+  // Condition « si … » : le bloc ne s'applique que si le compte est entre `min` et `max`.
+  // Une liste = toutes les conditions doivent être vraies.
+  if?: ScriptCondition | ScriptCondition[];
   // Panneau OUI / NON avant le bloc (true, ou le texte de la question).
   optional?: boolean | string;
 
@@ -225,6 +301,10 @@ export type ScriptBlock = {
   pokemonName?: string;
   // summon : OU un Pokémon au choix parmi ceux qui respectent ces contraintes
   pokemon?: ScriptPokemonFilter;
+  // summon : ce qu'on invoque : 'pokemon' (par défaut, sur le plateau), ou une carte Dresseur
+  // 'supporter' / 'objet' / 'outil' (dans la MAIN). Choisie à la préparation, comme les Pokémon.
+  // `cards` ajoute des contraintes (ex : { names: ['Potion'] }), `target.count` = combien.
+  kind?: 'pokemon' | 'supporter' | 'objet' | 'outil';
   // summon : Invocation (par défaut) ou Pokémon normal
   invocation?: boolean;
   // attachEnergy : prendre les Énergies dans la pile de défausse du joueur
@@ -236,6 +316,8 @@ export type ScriptBlock = {
   per?: ScriptCount;
   // prevent avec 'attack' : on choisit UNE attaque du Pokémon ciblé
   chooseAttack?: boolean;
+  // condition 'poison' : nombre de marqueurs posés à chaque fin de tour (au lieu de 1)
+  poisonCounters?: number;
 };
 
 /** Script en cours (état de la partie). */
@@ -254,6 +336,8 @@ export type PendingScript = {
   optionalAnswer?: boolean;
   coinKey?: string;
   coinResult?: CoinSide[] | null;
+  // dernier lancer de pièces du script (coin.useLastFlip)
+  lastCoinResult?: CoinSide[] | null;
   chosenCells?: string[];
   turnId: number;
   // whenDamaged : case du Pokémon qui a attaqué
@@ -264,6 +348,10 @@ export type PendingScript = {
   pickedCards?: number;
   // blockAttack : attaque choisie
   chosenAttack?: string | null;
+  // joueur qui fait le choix en cours (chooser: 'opponent'), sinon `player`
+  chooser?: Player | null;
+  // endTurn : le tour se termine à la fin du script
+  endTurnAfter?: boolean;
   // script suivant à lancer après celui-ci (déclencheurs en file d'attente)
   then?: PendingScript | null;
 };

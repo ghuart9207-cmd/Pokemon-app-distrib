@@ -1,13 +1,14 @@
 import { Text, View } from 'react-native';
 
 import { PokemonHandCard } from '@/features/game/components/cards/pokemon-hand-card';
-import { getSummonChoiceEffect } from '@/features/game/rules';
+import { TrainerHandCard } from '@/features/game/components/cards/trainer-hand-card';
+import { getSummonChoiceEffect, isPokemonCard } from '@/features/game/rules';
 import type { SummonChoices } from '@/features/game/rules';
-import type { PokemonCard } from '@/features/game/types';
+import type { GameCard } from '@/features/game/types';
 import { sharedStyles } from '@/features/game/styles/shared-styles';
 
 type SummonChoicePreviewProps = {
-  card: PokemonCard;
+  card: GameCard;
   summonChoices: SummonChoices;
 };
 
@@ -28,7 +29,11 @@ export function SummonChoicePreview({ card, summonChoices }: SummonChoicePreview
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
           {chosen.map((chosenCard, index) => (
             <View key={`${chosenCard.id}-${index}`} style={sharedStyles.handPokemonPressable}>
-              <PokemonHandCard card={chosenCard} />
+              {isPokemonCard(chosenCard) ? (
+                <PokemonHandCard card={chosenCard} />
+              ) : (
+                <TrainerHandCard card={chosenCard} disabled isSelected={false} onPress={() => {}} />
+              )}
             </View>
           ))}
         </View>
