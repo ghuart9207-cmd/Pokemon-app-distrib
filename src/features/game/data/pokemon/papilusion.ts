@@ -20,22 +20,13 @@ export const papilusion: PokemonCard = {
         plante: 1,
       },
 
-      effects: [
-        // Soigne tous les dégâts de chacun de vos Pokémon.
-        {
-          type: 'healAllOwnPokemon',
-          amount: 0,
-        },
-        // Retourne dans la main (reposé comme pose normale du tour, avec ses 2 Énergies).
-        {
-          type: 'returnSelfToHand',
-          amount: 0,
-          returnToHandReplacement: 'normal',
-        },
+      script: [
+        { action: 'heal', amount: 999, target: { side: 'own', who: 'chosen', count:1} },
+        { action: 'returnToHand', target: { side: 'own', who: 'self' } },
       ],
 
       effectText:
-        'Soignez tous les dégâts de chacun de vos Pokémon. Remettez ce Pokémon ainsi que les cartes Outils Pokémon lui étant attaché dans votre main, avec ses énergies.',
+        'Soignez tous les dégâts de un de vos Pokémon. Remettez ce Pokémon ainsi que les cartes Outils Pokémon lui étant attaché dans votre main, avec ses énergies.',
     },
 
     {

@@ -1,6 +1,11 @@
 import type { BoardState, EnergyType, Player, SetState } from '@/features/game/types';
 import { getEffectiveRetreatCost } from '@/features/game/rules/retreat-cost-rules';
-import { isRetreatForbiddenThisRound, isScriptPrevented, isTalentNegated } from '@/features/game/rules';
+import {
+  hasScriptModifier,
+  isRetreatForbiddenThisRound,
+  isScriptPrevented,
+  isTalentNegated,
+} from '@/features/game/rules';
 
 type UseGameRetreatOptions = {
   board: BoardState;
@@ -39,7 +44,9 @@ export function useGameRetreat({
 
     // Outil : peut battre en retraite même Paralysé ou Endormi.
     const ignoresConditions =
-      pokemon.attachedTool?.effect === 'toolRetreatMinusOneIgnoreConditions';
+      pokemon.attachedTool?.effect === 'toolRetreatMinusOneIgnoreConditions' ||
+      // Code des cartes : retreatDespiteConditions
+      hasScriptModifier(pokemon, 'retreatDespiteConditions');
 
     if (pokemon.asleep && !ignoresConditions) {
       setMessage(`${pokemon.card.name} est endormi et ne peut pas battre en retraite.`);

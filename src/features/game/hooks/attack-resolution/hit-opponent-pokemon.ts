@@ -1,4 +1,4 @@
-import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, doesTalentBurnAttacker, burnAttackingPokemon, getCoinCheckForTarget, doesToolAttackerShieldPreventDamage, getOutgoingReductionForTarget, hasScriptImmunity, revertImmuneConditions, } from '@/features/game/rules';
+import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, doesTalentBurnAttacker, burnAttackingPokemon, getCoinCheckForTarget, doesToolAttackerShieldPreventDamage, getOutgoingReductionForTarget, hasScriptAttackFlag, hasScriptImmunity, revertImmuneConditions, } from '@/features/game/rules';
 import type {
   Attack,
   AttackEffect,
@@ -322,10 +322,22 @@ const damagePrevented =
   // Réduction de dégâts
   // L'attaque peut ignorer les réductions de dégâts de la cible.
 const ignoresTargetDamageReduction =
-  resolvedAttack.effects?.some(
+  (resolvedAttack.effects?.some(
     (effect: AttackEffect) =>
       effect.type === 'ignoreTargetDamageReduction'
-  ) ?? false;
+  ) ?? false) ||
+  // Code des cartes : attackIgnoresReductions
+  hasScriptAttackFlag(resolvedAttack, 'attackIgnoresReductions', {
+    board,
+    player: attacker.owner,
+    sourceCell: selectedPokemonCell,
+    player1Discard: context.player1Discard,
+    player2Discard: context.player2Discard,
+    player1Hand: context.player1Hand,
+    player2Hand: context.player2Hand,
+    player1DiscardEnergies: context.player1DiscardEnergies,
+    player2DiscardEnergies: context.player2DiscardEnergies,
+  });
 
 // Réduction de dégâts, notamment celle de Frison.
 const activeDamageReduction =
@@ -351,6 +363,12 @@ const activeDamageReduction =
           0,
           attackDamage - activeDamageReduction - fireWaterTalentReduction
         );
+
+  // Code des cartes : dégâts infligés par cette attaque (per / if : count 'damageDealt').
+  {
+    const attackerNow = newBoard[selectedPokemonCell];
+    if (attackerNow) newBoard[selectedPokemonCell] = { ...attackerNow, lastAttackDamage: damageToTarget };
+  }
 
 
         

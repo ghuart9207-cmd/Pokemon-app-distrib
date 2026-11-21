@@ -13,6 +13,8 @@ export type PlayerAttackBonus = {
 
 export type PlayerStatusState = {
   poisoned: boolean;
+  // Code des cartes : marqueurs du Poison à chaque fin de tour (1 par défaut).
+  poisonCounters?: number;
   poisonSourcePlayer: Player | null;
 
   burned: boolean;
@@ -54,6 +56,10 @@ export type PokemonInPlay = {
 
   poisoned: boolean;
   poisonSourcePlayer: Player | null;
+  // Code des cartes : marqueurs posés par le Poison à chaque fin de tour (1 par défaut).
+  poisonCounters?: number;
+  // Code des cartes : dégâts infligés par sa dernière attaque (count 'damageDealt').
+  lastAttackDamage?: number;
 
   burned: boolean;
   burnSourcePlayer: Player | null;

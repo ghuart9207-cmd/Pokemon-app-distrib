@@ -30,7 +30,9 @@ export function getOnPlayConditions(card: PokemonCard): SpecialCondition[] {
 export function applySpecialConditions(
   target: PokemonInPlay,
   conditions: SpecialCondition[],
-  sourcePlayer: Player
+  sourcePlayer: Player,
+  // Code des cartes : marqueurs du Poison à chaque fin de tour (1 par défaut)
+  poisonCounters?: number
 ): PokemonInPlay {
   let updated = { ...target };
 
@@ -38,7 +40,7 @@ export function applySpecialConditions(
   for (const condition of filterImmuneConditions(target, conditions, sourcePlayer)) {
     switch (condition) {
       case 'poison':
-        updated = { ...updated, poisoned: true, poisonSourcePlayer: sourcePlayer };
+        updated = { ...updated, poisoned: true, poisonSourcePlayer: sourcePlayer, poisonCounters };
         break;
       case 'burn':
         updated = {
@@ -83,12 +85,14 @@ export function getPlayerApplicableConditions(
 export function applySpecialConditionsToPlayer(
   status: PlayerStatusState,
   conditions: SpecialCondition[],
-  sourcePlayer: Player
+  sourcePlayer: Player,
+  // Code des cartes : marqueurs du Poison à chaque fin de tour (1 par défaut)
+  poisonCounters?: number
 ): PlayerStatusState {
   let updated = { ...status };
 
   if (conditions.includes('poison')) {
-    updated = { ...updated, poisoned: true, poisonSourcePlayer: sourcePlayer };
+    updated = { ...updated, poisoned: true, poisonSourcePlayer: sourcePlayer, poisonCounters };
   }
 
   if (conditions.includes('burn')) {

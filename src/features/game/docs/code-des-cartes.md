@@ -5,6 +5,122 @@ Il s'écrit dans `script: [ ... ]` : une liste de **blocs**, appliqués dans l'o
 
 Les anciens effets (`effects`, `effect: 'heal30'`…) marchent toujours : le code s'ajoute à côté.
 
+## ⭐ Tout se combine : le modèle d'un bloc
+
+Chaque bloc accepte **toutes** ces options en même temps. Une contrainte (`filter`) marche **partout** où il y a des Pokémon :
+dans `target`, `to`, `per`, `if` et `from`. Tu n'as besoin de moi que pour une **nouvelle** variable, jamais pour en combiner.
+
+```ts
+{
+  action: '…',            // CE QUI SE PASSE (liste des actions plus bas)
+  amount: 20,             // combien
+  per: { … },             // … pour chaque X (multiplie amount)
+  if: { … },              // … seulement si Y (ou une liste : [ {…}, {…} ] = toutes vraies)
+  target: { side, who, count, filter },   // QUI le reçoit
+  to: { side, who, filter },              // OÙ ça arrive (déplacements)
+  coin: { count, need, useLastFlip },     // pièces
+  optional: true,         // OUI / NON
+  duration: '…',          // COMBIEN DE TEMPS (effets qui durent)
+  from: { … },            // CONTRE QUI (résistance, immunité, riposte)
+  energyType, conditions, prevent, against, attackName, chooseAttack, cards, pokemon, pokemonName, script, …
+}
+```
+
+Ordre de traitement d'un bloc : **if → OUI/NON → pièces → per → cibles → destination → effet**.
+
+**Toutes les actions** (détails plus bas) :
+`damage`, `counters`, `heal`, `attachEnergy`, `discardEnergy`, `condition`, `removeConditions`,
+`retreatCost`, `maxHp`, `resistance`, `boost`, `immunity`, `prevent`, `whenDamaged`,
+`switch`, `moveEnergy`, `moveDamage`, `summon`, `returnToHand`, `discardTool`, `returnTool`, `recoverCards`,
+`blockAttack`, `attackDamage`, `attackFails`, `attackIgnoresReductions`,
+`poisonDamage`, `burnDamage`, `retreatDespiteConditions`, `whenPlayed`, `swapDamage`, `endTurn`.
+
+**Tout ce qu'on peut compter** (`per` et `if`) : `discard`, `discardEnergy`, `hand`, `pokemon`, `energy`, `damageCounters`, `tools`, `retreatCost`, `conditions`, `damageDealt`.
+
+### Dégâts ou marqueurs ?
+
+| | `damage` | `counters` | `attackDamage` |
+|---|---|---|---|
+| `amount` | dégâts | nombre de marqueurs (×10) | dégâts |
+| Quand | après l'attaque | après l'attaque | avec l'attaque |
+| Résistance, talents qui réduisent les dégâts, immunités | oui (si ça vient d'un Pokémon adverse) | non, rien ne les réduit | oui |
+| Cible | n'importe laquelle (`target`) | n'importe laquelle (`target`) | le Pokémon que vise l'attaque |
+
+### Poison plus fort (`poisonCounters`)
+
+Sur un bloc `condition` avec `'poison'`, `poisonCounters` = nombre de marqueurs posés à chaque fin de tour (1 par défaut) :
+
+```ts
+// L'actif adverse est Empoisonné : 10 marqueurs (100 dégâts) à chaque fin de tour au lieu d'1.
+{ action: 'condition', conditions: ['poison'], poisonCounters: 10, target: { side: 'opponent', who: 'active' } }
+```
+
+### `if` : « si … »
+
+`if` compte exactement comme `per` (mêmes `count`, `side`, `who`, `filter`, `cards`, `energyType`) puis compare :
+
+| Écriture | Sens |
+|---|---|
+| `if: { count: 'pokemon', side: 'opponent', who: 'active', filter: { conditions: ['poison'] } }` | si l'actif adverse est Empoisonné (au moins 1) |
+| `if: { count: 'energy', who: 'self', energyType: 'eau', min: 4 }` | si ce Pokémon a au moins 4 Énergies Eau |
+| `if: { count: 'discard', side: 'opponent', cards: { category: ['supporter'] }, max: 0 }` | si l'adversaire n'a AUCUN Supporter dans sa défausse |
+| `if: { count: 'pokemon', filter: { pokemonTypes: ['feu'] }, min: 2, max: 3 }` | si vous avez 2 ou 3 Pokémon Feu en jeu |
+| `if: [ {…}, {…} ]` | si les DEUX sont vraies |
+| `if: { count: 'energy', who: 'self', sameAs: { count: 'energy', side: 'opponent', who: 'active' } }` | si ce Pokémon a AUTANT d'Énergies que l'actif adverse |
+| `moreThan: {…}` / `lessThan: {…}` / `atLeast: {…}` / `atMost: {…}` | PLUS que / MOINS que / au moins autant / au plus autant qu'un autre compte |
+
+```ts
+// 50 dégâts ; +80 si ce Pokémon et l'actif adverse ont le même nombre d'Énergies attachées
+damage: 50,
+script: [
+  { action: 'attackDamage', amount: 80,
+    if: { count: 'energy', who: 'self', sameAs: { count: 'energy', side: 'opponent', who: 'active' } } },
+],
+```
+
+### Pièces : face, pile, « sinon »
+
+| Écriture | Sens |
+|---|---|
+| `coin: { count: 1 }` | si FACE |
+| `coin: { count: 1, need: 'tails' }` | si PILE |
+| `coin: { count: 3, need: 'allFace' }` / `'allTails'` | si que des FACE / que des PILE |
+| `coin: { count: 3, need: 'perFace' }` / `'perTails'` | amount × nombre de FACE / de PILE |
+| `coin: { need: 'tails', useLastFlip: true }` | **sinon** : reprend le lancer du bloc d'avant (pas de nouveau lancer) |
+
+```ts
+// « Lancez une pièce. Si c'est face, l'actif adverse est Paralysé. Si c'est pile, ce Pokémon s'inflige 20 dégâts. »
+script: [
+  { action: 'condition', conditions: ['paralyze'], target: { side: 'opponent', who: 'active' }, coin: { count: 1 } },
+  { action: 'damage', amount: 20, target: { who: 'self' }, coin: { need: 'tails', useLastFlip: true } },
+],
+```
+
+### Toutes les contraintes de `filter`
+
+| Contrainte | Code |
+|---|---|
+| Type | `pokemonTypes: ['feu', 'eau']` |
+| Nom (début) | `pokemonNames: ['Pikachu']` |
+| Stade | `stages: ['base', 'niveau1', 'niveau2', 'mega_ex']` |
+| GX / EX | `variants: ['gx', 'ex']` |
+| Actif / banc | `position: 'active'` ou `'bench'` |
+| Blessé | `damaged: true` |
+| PV restants | `hpAtMost: 50`, `hpAtLeast: 100` |
+| PV max | `maxHpAtMost: 60`, `maxHpAtLeast: 200` |
+| Énergies | `hasEnergy: true`, `hasEnergyType: 'feu'`, `hasAnyEnergyType: ['feu', 'eau']`, `energiesAtLeast: 2`, `energiesAtMost: 0` |
+| États spéciaux | `conditions: ['poison', 'burn']`, `hasCondition: true` / `false` |
+| Outil | `hasTool: true` / `false` |
+| Invocation | `isInvocation: true` / `false` |
+| A un talent | `hasTalent: true` / `false` |
+| Pas lui-même | `excludeSelf: true` |
+
+### Les seules limites
+
+- `attackDamage` : seulement dans une **attaque**, sans pièce ni OUI/NON (calculé avant la frappe) ; `per` et `if` marchent.
+- Talents **passifs** : seulement les effets qui durent ; leurs `if` / `per` voient le plateau, pas la main ni la défausse.
+- `whenDamaged` ne se déclenche pas encore avec les attaques où l'on choisit librement le Pokémon adverse.
+
 ## Où l'écrire
 
 ```ts
@@ -39,7 +155,8 @@ talent: { name: 'Mon talent', type: 'passive', effect: 'script', description: '�
 | Variable | Code |
 |---|---|
 | Soin / PV | `action: 'heal', amount: 30` |
-| Dégâts / marqueurs (10 = 1 marqueur, ni faiblesse ni résistance, peut mettre K.O.) | `action: 'damage', amount: 20` |
+| Dégâts (réduits par les résistances, talents de réduction et immunités de la cible) | `action: 'damage', amount: 20` |
+| Marqueurs de dégâts, comme Errance Nocturne de Téraclope (`amount` = nombre de marqueurs ; RIEN ne les réduit) | `action: 'counters', amount: 2` (= 20 dégâts) |
 | Ajouter des Énergies | `action: 'attachEnergy', amount: 2, energyType: 'feu'` (sans `energyType` : le type du Pokémon) |
 | Perte / défausse d'Énergies | `action: 'discardEnergy', amount: 1, energyType: 'eau'` (`amount: 99` = toutes) |
 | Effets spéciaux (états) | `action: 'condition', conditions: ['poison', 'burn']` (`poison`, `burn`, `paralyze`, `sleep`, `confuse`) |
@@ -71,6 +188,7 @@ Toutes facultatives, elles s'additionnent.
 | Stade | `filter: { stages: ['base'] }` |
 | GX / EX | `filter: { variants: ['gx', 'ex'] }` |
 | Pokémon blessé | `filter: { damaged: true }` |
+| Avec un état spécial | `filter: { conditions: ['poison', 'burn'] }` ou `filter: { hasCondition: true }` |
 | Avec au moins une Énergie | `filter: { hasEnergy: true }` |
 | Avec une Énergie d'un type | `filter: { hasEnergyType: 'plante' }` |
 | Seulement l'actif / seulement le banc | `filter: { position: 'active' }` / `filter: { position: 'bench' }` |
@@ -233,7 +351,7 @@ talent: { name: 'Intimidation', type: 'passive', effect: 'script', description: 
 
 | Variable | Code |
 |---|---|
-| Déplacement d'un Pokémon | `action: 'switch'` : `target` = le Pokémon, puis on clique sur la case d'arrivée (vide : il s'y pose ; occupée : ils échangent) |
+| Déplacement d'un Pokémon | `action: 'switch'` : `target` = le Pokémon, puis on clique sur le Pokémon avec qui il échange (`to: { emptyCells: true }` : une case vide est aussi possible) |
 | Déplacement d'Énergies | `action: 'moveEnergy', amount: 1, energyType: 'feu'` : de `target` vers `to` (`amount: 99` = toutes) |
 | Déplacement de marqueurs (dégâts) | `action: 'moveDamage', amount: 20` : de `target` vers `to` (10 = 1 marqueur, `99` = tous) |
 | Apparition / invocation | `action: 'summon', pokemonName: 'Ouisticram'` : sur une case vide de la ligne de jeu (B1-B4 / C1-C4), comme les autres Invocations (`invocation: false` = Pokémon normal, `amount: 1` = avec 1 Énergie) |
@@ -251,7 +369,7 @@ Pour `switch`, `moveEnergy` et `moveDamage`, `target` = **d'où ça part** et `t
 
 - `moveEnergy` : par défaut vers **un de vos Pokémon** choisi ;
 - `moveDamage` : par défaut vers **un Pokémon adverse** choisi ;
-- `switch` : toujours dans le camp du Pokémon déplacé ; `to: { filter: { position: 'active' } }` = seulement vers l'avant (`'bench'` = vers l'arrière).
+- `switch` : échange toujours avec un autre Pokémon du même camp ; `to: { emptyCells: true }` = peut aussi aller sur une case vide ; `to: { filter: { position: 'active' } }` = seulement vers l'avant (`'bench'` = vers l'arrière).
 
 Avec `to: { who: 'self' }`, `to: { who: 'active' }` ou `to: { who: 'attacker' }`, la destination est choisie toute seule.
 
@@ -292,6 +410,13 @@ script: [ { action: 'switch', target: { who: 'self' }, to: { filter: { position:
 // Dresseur (Guzma) : « Échangez le Pokémon actif de votre adversaire avec un de ses Pokémon de banc. »
 script: [ { action: 'switch', target: { side: 'opponent', who: 'chosen', filter: { position: 'active' } },
             to: { filter: { position: 'bench' } } } ],
+
+// Attaque : « Échangez un Pokémon de banc de votre adversaire avec son Pokémon actif. 30 dégâts au nouveau Pokémon actif. »
+script: [
+  { action: 'switch', target: { side: 'opponent', who: 'active' },
+    to: { filter: { position: 'bench' } } },
+  { action: 'damage', amount: 30, target: { side: 'opponent', who: 'active' } },
+],
 
 // Attaque : « Déplacez toutes les Énergies Eau de vos Pokémon de banc vers ce Pokémon. »
 script: [ { action: 'moveEnergy', amount: 99, energyType: 'eau',
@@ -357,6 +482,24 @@ Seulement dans le `script` d'une **attaque** : ces dégâts s'ajoutent aux dég�
 `prevent: ['attack']` + `chooseAttack: true` : un panneau propose les attaques du Pokémon ciblé, seule celle choisie est bloquée.
 Avec `attackName: 'Lance-Flammes'` à la place, c'est toujours cette attaque. (`action: 'blockAttack'` est un raccourci.)
 
+### Conditions (« si … ») avec `per`
+
+Pour un bonus **seulement si** quelque chose est vrai, on compte le Pokémon concerné avec un `filter` :
+le compte vaut 1 (vrai) ou 0 (faux, le bloc ne fait rien).
+
+```ts
+// +80 dégâts si l'actif adverse est Empoisonné ou Brûlé
+{ action: 'attackDamage', amount: 80,
+  per: { count: 'pokemon', side: 'opponent', who: 'active', filter: { conditions: ['poison', 'burn'] } } },
+
+// Soignez 30 dégâts à ce Pokémon si l'actif adverse a un état spécial (n'importe lequel)
+{ action: 'heal', amount: 30, target: { who: 'self' },
+  per: { count: 'pokemon', side: 'opponent', who: 'active', filter: { hasCondition: true } } },
+```
+
+Contraintes d'états spéciaux (dans n'importe quel `filter`) : `conditions: ['poison', 'burn', 'paralyze', 'sleep', 'confuse']`
+(au moins un de ceux-là), `hasCondition: true` (n'importe lequel) ou `hasCondition: false` (aucun).
+
 ### Exemple complet
 
 « Choisissez une des attaques du Pokémon actif de votre adversaire : il ne pourra pas l'utiliser pendant son prochain tour.
@@ -389,12 +532,146 @@ script: [
   target: { who: 'self' }, coin: { count: 1 } },
 
 // Placez 1 marqueur sur l'actif adverse pour chaque Supporter dans votre défausse
-{ action: 'damage', amount: 10, per: { count: 'discard', cards: { category: ['supporter'] } },
+{ action: 'counters', amount: 1, per: { count: 'discard', cards: { category: ['supporter'] } },
   target: { side: 'opponent', who: 'active' } },
 ```
 
 (Les anciens effets `damagePerOpponentDiscardCard` / `damagePerOwnDiscardCard` dans `effects` marchent aussi.)
 
-## À venir
+## Variables ajoutées pour couvrir tous les effets du jeu
 
-Dis-moi les variables que tu veux ajouter : elles se rangent dans le même format (`action`, `target`, contraintes).
+| Variable | Code |
+|---|---|
+| L'attaque ne fait rien (si …) | `{ action: 'attackFails', if: { … } }` (vérifié avant la frappe) |
+| L'attaque ignore résistances et réductions | `{ action: 'attackIgnoresReductions' }` (avec `if` possible) |
+| Poison plus fort | `{ action: 'poisonDamage', amount: 20, target: … }` (+20 à chaque fin de tour) |
+| Brûlure plus forte | `{ action: 'burnDamage', amount: 40, target: … }` |
+| Retraite même Endormi / Paralysé | `{ action: 'retreatDespiteConditions', target: { who: 'self' } }` |
+| Quand ce Pokémon est joué (posé, évolué, invoqué) | talent passif : `{ action: 'whenPlayed', target: { who: 'self' }, script: [ … ] }` |
+| Échanger les dégâts de deux Pokémon | `{ action: 'swapDamage', target: { who: 'self' }, to: { side: 'opponent', who: 'active' } }` |
+| Terminer le tour | `{ action: 'endTurn' }` (à la fin du script) |
+| C'est l'adversaire qui choisit | `target: { …, chooser: 'opponent' }` (ou dans `to`) |
+| Compter le coût de retraite | `per: { count: 'retreatCost', side: 'opponent', who: 'active' }` |
+| Compter les états spéciaux | `per: { count: 'conditions', side: 'opponent', who: 'active' }` |
+| Dégâts infligés par cette attaque | `per: { count: 'damageDealt' }` |
+
+### Outils en code
+
+Un Outil peut aussi avoir un script : `subtype: 'outil', effect: 'script', script: [ … ]`.
+On l'attache comme les autres Outils ; ses blocs agissent **tant qu'il est attaché** (comme un talent passif),
+avec `who: 'self'` = le Pokémon qui le porte. `target` (sur la carte, pas dans le script) limite à qui on peut l'attacher.
+
+```ts
+// Outil : « Le Pokémon auquel cet Outil est attaché a +40 PV. Ne s'attache qu'aux Pokémon de Niveau 1. »
+export const haltere: TrainerCard = {
+  id: 'haltere-001', name: 'Haltère', category: 'objet', subtype: 'outil', description: '…',
+  target: { stages: ['niveau1'] },
+  effect: 'script',
+  script: [ { action: 'maxHp', amount: 40, target: { who: 'self' } } ],
+};
+
+// Outil : « Coût de retraite -1, et peut battre en retraite même Endormi ou Paralysé. »
+script: [
+  { action: 'retreatCost', amount: -1, target: { who: 'self' } },
+  { action: 'retreatDespiteConditions', target: { who: 'self' } },
+],
+
+// Outil : « Si ce Pokémon subit les dégâts d'une attaque, placez 2 marqueurs sur l'attaquant. »
+script: [ { action: 'whenDamaged', target: { who: 'self' },
+            script: [ { action: 'counters', amount: 2, target: { who: 'attacker' } } ] } ],
+```
+
+## Correspondance : anciens effets → code des cartes
+
+Les anciens effets marchent toujours, et peuvent être **mélangés** avec un `script` sur la même attaque.
+Voici comment chacun s'écrit avec le code des cartes.
+
+### Attaques (`effects`)
+
+| Ancien effet | Code des cartes |
+|---|---|
+| heal | `{ action: 'heal', amount: 30, target: { who: 'self' } }` |
+| healPokemonByType / healAllOwnPokemon | `{ action: 'heal', amount: 20, target: { side: 'own', who: 'all', filter: { pokemonTypes: ['eau'] } } }` |
+| healSelfPerOpponentActiveEnergy | `{ action: 'heal', amount: 10, target: { who: 'self' }, per: { count: 'energy', side: 'opponent', who: 'active' } }` |
+| healSelfByDamageDealt | `{ action: 'heal', amount: 1, target: { who: 'self' }, per: { count: 'damageDealt' } }` |
+| discardEnergy / discardTypedEnergy | `{ action: 'discardEnergy', amount: 1, energyType: 'feu', target: { who: 'self' } }` |
+| discardOpponentActiveEnergy | `{ action: 'discardEnergy', amount: 1, target: { side: 'opponent', who: 'active' } }` |
+| discardAllEnergyAndToolsFromBothActives | `discardEnergy` 99 + `discardTool`, `target: { side: 'both', who: 'active' }` |
+| recoverEnergy / recoverEnergyToBench | `{ action: 'attachEnergy', fromDiscard: true, target: … }` |
+| switchWithBench | `{ action: 'switch', target: { who: 'self' }, to: { filter: { position: 'bench' } } }` |
+| recoil / damageOneOwnBenchPokemon / ownBenchDamage | `{ action: 'damage' (ou 'counters'), target: { who: 'self' } }` / `{ side: 'own', who: 'chosen', filter: { position: 'bench' } }` |
+| selfDamageEqualToDamageTaken | `{ action: 'counters', amount: 1, target: { who: 'self' }, per: { count: 'damageCounters', who: 'self' } }` |
+| poison / burn / paralyze / confuse / sleep | `{ action: 'condition', conditions: ['poison'], target: { side: 'opponent', who: 'active' } }` |
+| discardAllEnergyForBonus / discardAllTypedEnergyForBonus | `attackDamage` avec `per: { count: 'energy', who: 'self' }` + `discardEnergy` 99 |
+| bonusDamagePerTargetRetreatCost | `{ action: 'attackDamage', amount: 20, per: { count: 'retreatCost', side: 'opponent', who: 'active' } }` |
+| reduceDamagePerTargetRetreatCost | `{ action: 'resistance', amount: 10, per: { count: 'retreatCost', … }, target: { who: 'self' } }` |
+| reduceDamageNextOpponentTurn / takeExtraDamageNextTurn | `{ action: 'resistance', amount: 30 (ou -30), target: { who: 'self' } }` |
+| ignoreTargetDamageReduction / fixedDamage | `{ action: 'attackIgnoresReductions' }` |
+| setNextTurnAttackBaseDamage | `{ action: 'boost', amount: 60, duration: 'ownNextTurn', attackName: '…', target: { who: 'self' } }` |
+| healAllOwnAndReturnSelf / returnSelfToHand | `heal` (all) + `{ action: 'returnToHand', target: { who: 'self' } }` |
+| bonusDamage | `{ action: 'attackDamage', amount: 30 }` |
+| bonusDamageIfSelfDamaged | `attackDamage` + `if: { count: 'damageCounters', who: 'self' }` |
+| bonusDamageIfTargetType / IfTargetGx / IfTargetEvolved / IfTargetNotEvolved | `attackDamage` + `if: { count: 'pokemon', side: 'opponent', who: 'active', filter: { pokemonTypes / variants / stages } }` |
+| bonusDamageIfExtraEnergy | `attackDamage` + `if: { count: 'energy', who: 'self', min: coût + X }` |
+| bonusDamageIfOpponentHasTypeInPlay | `attackDamage` + `if: { count: 'pokemon', side: 'opponent', filter: { pokemonTypes: ['psy'] } }` |
+| bonusDamageIfToolAttached / IfAttachedEnergy / IfDefenderHasEnergy / IfTargetPoisoned / IfOpponentActiveHasCondition | `attackDamage` + `if` avec `filter: { hasTool / hasEnergy / conditions … }` |
+| bonusDamagePerOpponentActiveSpecialCondition | `attackDamage` + `per: { count: 'conditions', side: 'opponent', who: 'active' }` |
+| damagePerAttachedEnergy / damagePerOpponentActiveEnergy | `attackDamage` + `per: { count: 'energy', … }` |
+| damagePerSelfDamageCounter | `attackDamage` + `per: { count: 'damageCounters', who: 'self' }` |
+| damagePerAllBenchPokemon / bonusDamagePerOpponentBenchPokemon | `attackDamage` + `per: { count: 'pokemon', side: 'both' (ou 'opponent'), filter: { position: 'bench' } }` |
+| damagePerOpponentTrainerInHand / damagePerOwnCardInHand | `attackDamage` + `per: { count: 'hand', … }` |
+| damagePerOpponentDiscardCard / bonusDamagePerOwnDiscardCard | `attackDamage` + `per: { count: 'discard', cards: … }` |
+| failsIfOpponentActiveMaxHpAtLeast | `{ action: 'attackFails', if: { count: 'pokemon', side: 'opponent', who: 'active', filter: { maxHpAtLeast: 200 } } }` |
+| knockOutIfOpponentActiveIsBase | `{ action: 'counters', amount: 99, target: { side: 'opponent', who: 'active', filter: { stages: ['base'] } } }` |
+| summonFromAnyDiscard | (ancien effet seulement) |
+| discardOpponentActiveTool | `{ action: 'discardTool', target: { side: 'opponent', who: 'active' } }` |
+| freeRetreatNextOwnTurn | `{ action: 'retreatCost', amount: -99, duration: 'ownNextTurn', target: { who: 'self' } }` |
+| moveCountersFromOwnToOpponentActive | `{ action: 'moveDamage', amount: 99, target: { side: 'own', who: 'chosen' }, to: { side: 'opponent', who: 'active' } }` |
+| swapDamageCountersWithOpponentActive | `{ action: 'swapDamage', target: { who: 'self' }, to: { side: 'opponent', who: 'active' } }` |
+| reduceTargetAttackDamageNextTurn | `{ action: 'boost', amount: -40, duration: 'opponentNextTurn', target: { side: 'opponent', who: 'active' } }` |
+| gatherEnergyFromBench / transferAllEnergiesToBench / attachEnergyToBench / moveOwnEnergyToBench | `moveEnergy` / `attachEnergy` |
+| coinCheckBeforeTargetAttackNextTurn | (ancien effet seulement) |
+| forceOpponentActiveSwitch | `{ action: 'switch', target: { side: 'opponent', who: 'active', chooser: 'opponent' }, to: { filter: { position: 'bench' } } }` |
+| preventAllAttackDamage(AndEffects)NextOpponentTurn | `{ action: 'immunity', against: ['damage'] (+ 'effects'), target: { who: 'self' } }` |
+| preventDamageFromStageOrVariantNextOpponentTurn | `immunity` + `from: { stages / variants }` |
+| preventOpponentPlayingItemsNextTurn | `{ action: 'prevent', prevent: ['items'], target: { side: 'opponent', who: 'player' } }` |
+| preventTargetRetreatNextTurn / blockEnergyAttachmentFromHand / preventTargetHealingNextOpponentTurn | `prevent: ['retreat'] / ['energy'] / ['heal']` |
+| blocksNextOwnTurn / blocksAllAttacksNextOwnTurn | `{ action: 'prevent', prevent: ['attack'], attackName: '…' (ou rien), duration: 'ownNextTurn', target: { who: 'self' } }` |
+| damageEveryoneIgnoringEffects / damageAllOpponentPokemonAndPlayer | `counters` avec `target: { side: 'both', who: 'all' }` + `who: 'player'` |
+| damageAllPokemonWithTalent | `counters` + `target: { side: 'both', who: 'all', filter: { hasTalent: true } }` |
+| summonPokemon / summonFromInvocationPool | `summon` (`pokemonName` / `pokemon`) |
+| retaliateDamageNextOpponentTurn | `whenDamaged` + `counters` sur `who: 'attacker'` |
+| coinCount + coinDamageEffects / damagePerFace / damagePerPile / failsOn | garder ces réglages sur l'attaque (ils se mélangent avec `script`) |
+
+### Talents
+
+| Ancien effet | Code des cartes (talent `type: 'passive', effect: 'script'` sauf mention) |
+|---|---|
+| blockBaseAttacks | `{ action: 'prevent', prevent: ['attack'], target: { side: 'opponent', who: 'all', filter: { stages: ['base'] } } }` |
+| preventDamageFromType / preventAllEffectsFromExGx | `immunity` + `from: { pokemonTypes / variants }` |
+| reduceDamageFromFireWater / reduceAllAttackDamage | `resistance` (+ `from`) |
+| reduceOpposingColumnAttackDamage | `{ action: 'boost', amount: -30, target: { side: 'opponent', who: 'active' } }` |
+| preventDamageToTypeFromToolAttackers | `immunity` + `from: { hasTool: true }`, `target: { side: 'own', who: 'all', filter: { pokemonTypes: ['metal'] } }` |
+| freeRetreatForOwnBasePokemon | `{ action: 'retreatCost', amount: -99, target: { side: 'own', who: 'all', filter: { stages: ['base'] } } }` |
+| damageOpponentOnPlay / paralyzeOpponentOnPlay / applyConditionsToOpponentOnPlay | `whenPlayed` + `damage` / `condition` |
+| gatherEnergyOnPlayThenSwitch | `whenPlayed` + `moveEnergy` + `switch` |
+| preventAllAttackDamageAndEffectsOnPlayUntilOpponentTurnEnd | `whenPlayed` + `immunity` (`against: ['damage', 'effects']`) |
+| burnAttackerWhenDamagedWhileActive | `whenDamaged` (target self, `position: 'active'`) + `condition` burn sur `attacker` |
+| negateOpponentGxExTalents | `{ action: 'prevent', prevent: ['talent'], target: { side: 'opponent', who: 'active', filter: { variants: ['gx', 'ex'] } } }` |
+| increaseOpponentPoisonDamage | `{ action: 'poisonDamage', amount: 10, target: { side: 'opponent', who: 'all' } }` |
+| increaseOpponentBurnDamage (Simiabraz) | `{ action: 'burnDamage', amount: 40, target: { side: 'opponent', who: 'all' } }` (20 + 40 = 60) |
+| attachEnergyOncePerTurn / healOwnPokemonOncePerTurn / healAllOwnPokemonOncePerTurn / moveDamageCounterOncePerTurn / summonOncePerTurn / returnToolToHandOncePerTurn / switchWithBenchOncePerTurn | talent `type: 'activated', effect: 'script'` avec `attachEnergy` / `heal` / `moveDamage` / `summon` / `returnTool` / `switch` |
+| surviveKOOnCoin, invertImposedAttackCoinFlipOncePerTurn, freeRetreatOnFirstTurn, swapWithCardFromHand, useBasicPokemonDiscardAttacks, recoverFromDiscardOncePerGame | (anciens effets seulement) |
+
+### Dresseurs
+
+| Ancien effet | Code des cartes |
+|---|---|
+| heal30 / heal20 / healPokemon / healWaterEnergy50 / healPokemonWithEnergyType | `heal` + `filter` |
+| attachEnergy / attach2FireEndTurn | `attachEnergy` (+ `{ action: 'endTurn' }`) |
+| returnPokemonToHand / coinReturnPokemonToHand | `returnToHand` (+ `coin`) |
+| bothPlayersSwitch / forceOpponentThenSelfSwitch | deux `switch` ; celui de l'adversaire avec `chooser: 'opponent'` |
+| summonTwoBase60 | `summon` + `pokemon: { maxHp: 60 }`, `count: 2` |
+| boostPokemonAttackThisTurn (Cynthia) | `{ action: 'boost', amount: 100, attackName: '…', duration: 'thisTurn', target: { side: 'own', who: 'all', filter: { pokemonNames: ['…'] } } }` |
+| toolHp40 / toolRetreatMinusOneIgnoreConditions | Outil en code (voir plus haut) |
+| moveEnergyOnKO | (ancien effet seulement) |

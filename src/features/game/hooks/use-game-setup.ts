@@ -127,7 +127,7 @@ export function useGameSetup({
   const [invocationSetupSummoner, setInvocationSetupSummoner] = useState<GameCard | null>(
     null
   );
-  const [summonChoiceDraft, setSummonChoiceDraft] = useState<PokemonCard[]>([]);
+  const [summonChoiceDraft, setSummonChoiceDraft] = useState<GameCard[]>([]);
 
   // En ligne : joueurs qui ont déjà envoyé leur deck, et fonction d'envoi.
   const [setupSubmitted, setSetupSubmitted] = useState<Record<Player, boolean>>({
@@ -379,19 +379,22 @@ export function useGameSetup({
     return player === 1 ? player1SetupCards : player2SetupCards;
   }
 
-  /** Les Pokémon possibles pour l'Invocation en cours de choix. */
-  function getSummonChoiceCandidates(): PokemonCard[] {
+  /** Les cartes possibles (Pokémon, ou Dresseurs pour le code des cartes) pour l'Invocation en cours de choix. */
+  function getSummonChoiceCandidates(): GameCard[] {
     const rule = invocationSetupSummoner ? getSummonChoiceEffect(invocationSetupSummoner) : null;
     if (!rule) return [];
-    return cardSeries.pokemon.filter((card) => isValidAttackInvocation(card, rule));
+    return [...cardSeries.pokemon, ...cardSeries.trainers].filter((card) => isValidAttackInvocation(card, rule));
   }
 
-  function addInvocationSetupCard(card: PokemonCard) {
+  function addInvocationSetupCard(card: GameCard) {
     if (!invocationSetupPlayer) {
       return;
     }
 
-    if (!cardSeries.pokemon.some((seriesCard) => seriesCard.id === card.id)) {
+    const inSeries = isPokemonCard(card)
+      ? cardSeries.pokemon.some((seriesCard) => seriesCard.id === card.id)
+      : cardSeries.trainers.some((seriesCard) => seriesCard.id === card.id);
+    if (!inSeries) {
       setMessage(`${card.name} ne fait pas partie de la série ${cardSeries.label}.`);
       return;
     }
@@ -417,6 +420,9 @@ export function useGameSetup({
       );
       return;
     }
+
+    // Fan Club Pokémon : seulement des Pokémon.
+    if (!isPokemonCard(card)) return;
 
     const setCards =
       invocationSetupPlayer === 1 ? setPlayer1InvocationCards : setPlayer2InvocationCards;
@@ -517,7 +523,7 @@ export function useGameSetup({
     const choices: SummonChoices = Object.fromEntries(
       Object.entries(payload.summonChoiceIds).map(([summonerId, ids]) => [
         summonerId,
-        ids.map(findPokemon).filter((card): card is PokemonCard => card !== undefined),
+        ids.map(findCard).filter((card): card is GameCard => card !== undefined),
       ])
     );
 
@@ -577,7 +583,7 @@ export function useGameSetup({
       choices: Object.fromEntries(
         Object.entries(deck.summonChoiceIds).map(([summonerId, ids]) => [
           summonerId,
-          ids.map(findPokemon).filter((card): card is PokemonCard => card !== undefined),
+          ids.map(findCard).filter((card): card is GameCard => card !== undefined),
         ])
       ) as SummonChoices,
     };

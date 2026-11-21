@@ -193,11 +193,11 @@ export function applyAction(action: OnlineAction, game: GameApi): void {
     }
     case 'scriptOptional':
       // Seul le joueur du script répond à sa question.
-      if (!game.pendingScript || game.pendingScript.player !== action.from) return;
+      if (!game.pendingScript || (game.pendingScript.chooser ?? game.pendingScript.player) !== action.from) return;
       return game.answerScriptOptional(Boolean(first));
     case 'scriptCard':
       // Seul le joueur du script choisit la carte de sa défausse.
-      if (!game.pendingScript || game.pendingScript.player !== action.from) return;
+      if (!game.pendingScript || (game.pendingScript.chooser ?? game.pendingScript.player) !== action.from) return;
       return game.answerScriptCard(Number(first));
     case 'undoTurn':
       // Seul le joueur dont c'est le tour peut annuler son tour.
@@ -257,7 +257,7 @@ export function getActiveSeats(game: GameApi): Seat[] {
   addSeat(game.pendingKOSurvival?.player);
   addSeat(game.pendingBothPlayersSwitch?.controlledBy);
   addSeat(game.pendingDragonEnergyChoices[0]?.player);
-  addSeat(game.pendingScript?.player);
+  addSeat(game.pendingScript ? (game.pendingScript.chooser ?? game.pendingScript.player) : undefined);
 
   return [...seats];
 }
@@ -267,7 +267,7 @@ export function getActiveSeats(game: GameApi): Seat[] {
  * pas forcément le joueur dont c'est le tour (sinon null : règles habituelles).
  */
 export function getCellPressOwner(game: GameApi): Seat | null {
-  if (game.pendingScript) return game.pendingScript.player;
+  if (game.pendingScript) return game.pendingScript.chooser ?? game.pendingScript.player;
   if (game.pendingBothPlayersSwitch) return game.pendingBothPlayersSwitch.controlledBy;
   if (game.pendingOpponentActiveSwitch) return game.pendingOpponentActiveSwitch.player;
   if (game.pendingKOEnergyMove) return game.pendingKOEnergyMove.player;

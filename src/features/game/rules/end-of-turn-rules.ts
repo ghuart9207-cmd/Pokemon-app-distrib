@@ -1,7 +1,7 @@
 import type { Player, PlayerStatusState, PokemonInPlay } from '@/features/game/types';
 import { canAttachEnergyFromSource } from
   './energy-attachment-rules';
-import { advanceModifierList, advancePokemonModifiers } from './script-modifiers';
+import { advanceModifierList, advancePokemonModifiers, getScriptModifierTotal } from './script-modifiers';
 
 export function resolvePokemonEndOfTurn(
   pokemon: PokemonInPlay,
@@ -39,10 +39,13 @@ const canReceivePassiveEnergy =
   updatedPokemon.poisoned &&
   updatedPokemon.poisonSourcePlayer === currentPlayer
 ) {
+  // Code des cartes : poisonCounters = nombre de marqueurs (1 par défaut).
+  const basePoison = (updatedPokemon.poisonCounters ?? 1) * 10;
+  // Code des cartes : poisonDamage (talents / effets qui renforcent le Poison).
   const poisonDamage =
-    updatedPokemon.owner !== currentPlayer
-      ? 10 + poisonDamageBonus
-      : 10;
+    (updatedPokemon.owner !== currentPlayer
+      ? basePoison + poisonDamageBonus
+      : basePoison) + getScriptModifierTotal(updatedPokemon, 'poisonDamage');
 
   updatedPokemon = {
     ...updatedPokemon,
@@ -60,7 +63,9 @@ const canReceivePassiveEnergy =
       ...updatedPokemon,
       currentHp:
         updatedPokemon.currentHp -
-        (updatedPokemon.owner !== currentPlayer ? opponentBurnDamage : 20),
+        (updatedPokemon.owner !== currentPlayer ? opponentBurnDamage : 20) -
+        // Code des cartes : burnDamage (talents / effets qui renforcent la Brûlure).
+        getScriptModifierTotal(updatedPokemon, 'burnDamage'),
       burnTriggersRemaining: remaining,
       burned: remaining > 0,
       burnSourcePlayer: remaining === 0 ? null : updatedPokemon.burnSourcePlayer,
@@ -228,7 +233,8 @@ export function resolvePlayerEndOfTurnStatus(
   let damage = 0;
 
   if (status.poisoned && status.poisonSourcePlayer === currentPlayer) {
-  damage += 10 + poisonDamageBonus;
+  // Code des cartes : poisonCounters = nombre de marqueurs (1 par défaut).
+  damage += (status.poisonCounters ?? 1) * 10 + poisonDamageBonus;
 }
 
   if (

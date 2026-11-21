@@ -427,7 +427,7 @@ onActivateTalent={props.onActivateTalent}
 
 {/* Code des cartes : OUI / NON ou choix de cible (en ligne : seulement chez le bon joueur). */}
 {props.pendingScript &&
-  (props.localPlayer === undefined || props.localPlayer === props.pendingScript.player) && (
+  (props.localPlayer === undefined || props.localPlayer === (props.pendingScript.chooser ?? props.pendingScript.player)) && (
     <ScriptPrompt
       pending={props.pendingScript}
       onAnswer={props.onAnswerScriptOptional}

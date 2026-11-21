@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   applySpecialConditions,
@@ -14,8 +14,12 @@ import {
   getPokemonMaxHp,
   getRecoverableCards,
   type SummonChoices,
+  isPokemonCard,
+  pokemonOnly,
   getScriptMaxHpBonus,
+  getTalentDamageReduction,
   computeScriptCount,
+  isScriptConditionMet,
   hasScriptImmunity,
   isActivePokemonCell,
   isHealBlocked,
@@ -63,6 +67,12 @@ type UseGameScriptsOptions = {
   setPlayer2Hand: SetState<GameCard[]>;
   // série de la partie (summon avec pokemonName)
   cardSeries: CardSeriesInfo;
+  // action endTurn
+  endTurn: () => void;
+  // plateau remis par « Annuler le tour » : pas de déclencheur
+  ignoreTriggerBoardRef?: { current: unknown };
+  // déclencheurs actifs seulement pendant le combat
+  triggersActive?: boolean;
   // Invocations choisies à la préparation (summon avec `pokemon`)
   player1SummonChoices: SummonChoices;
   player2SummonChoices: SummonChoices;
@@ -76,7 +86,7 @@ type UseGameScriptsOptions = {
 const PLAYER_TARGET = (player: Player) => `joueur-${player}`;
 
 /** Actions qui demandent une case d'arrivée (`to`). */
-const DESTINATION_ACTIONS: ScriptBlock['action'][] = ['switch', 'moveEnergy', 'moveDamage'];
+const DESTINATION_ACTIONS: ScriptBlock['action'][] = ['switch', 'moveEnergy', 'moveDamage', 'swapDamage'];
 
 /** Lignes d'un joueur, de l'avant vers l'arrière. */
 const ROWS: Record<Player, string[]> = { 1: ['B', 'A'], 2: ['C', 'D'] };
@@ -112,6 +122,11 @@ function findPokemonCardByName(name: string, series: CardSeriesInfo) {
 /** Camp par défaut d'une action. */
 const getDefaultSide = getDefaultScriptSide;
 
+/** Identifiant d'origine d'une carte (une copie invoquée a « ~inv… » en plus). */
+function baseCardId(id: string): string {
+  return id.split('~')[0];
+}
+
 /** Ajoute `next` à la fin de la file de scripts `current`. */
 function appendScript(current: PendingScript | null, next: PendingScript): PendingScript {
   if (!current) return next;
@@ -134,6 +149,74 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingScript]);
 
+  // endTurn : on termine le tour quand plus aucun script n'attend.
+  const [endTurnRequested, setEndTurnRequested] = useState(false);
+  useEffect(() => {
+    if (endTurnRequested && !pendingScript) {
+      setEndTurnRequested(false);
+      options.endTurn();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endTurnRequested, pendingScript]);
+
+  // whenPlayed : un Pokémon vient d'être joué (posé, évolué, invoqué) ;
+  // son talent passif peut contenir { action: 'whenPlayed', script: [...] }.
+  const playedBoardRef = useRef<BoardState>(board);
+  useEffect(() => {
+    const previous = playedBoardRef.current;
+    playedBoardRef.current = board;
+    if (previous === board) return;
+    if (options.triggersActive === false || options.ignoreTriggerBoardRef?.current === board) return;
+
+    // Combien de fois chaque carte est en jeu (pour ne pas confondre avec un simple déplacement).
+    const countCards = (state: BoardState) => {
+      const counts: Record<string, number> = {};
+      for (const pokemon of Object.values(state)) {
+        if (pokemon) counts[`${pokemon.owner}-${pokemon.card.id}`] = (counts[`${pokemon.owner}-${pokemon.card.id}`] ?? 0) + 1;
+      }
+      return counts;
+    };
+    const before = countCards(previous);
+    const after = countCards(board);
+    const seen: Record<string, number> = {};
+    const triggers: PendingScript[] = [];
+
+    for (const [cell, pokemon] of Object.entries(board)) {
+      if (!pokemon) continue;
+      const key = `${pokemon.owner}-${pokemon.card.id}`;
+      const old = previous[cell];
+      const isNewHere = !old || old.owner !== pokemon.owner || old.card.id !== pokemon.card.id;
+      if (!isNewHere) continue;
+      // nouvelle carte en jeu (pas un déplacement) ?
+      seen[key] = (seen[key] ?? 0) + 1;
+      if ((after[key] ?? 0) - (before[key] ?? 0) < seen[key]) continue;
+
+      const talent = pokemon.card.talent;
+      if (!talent || talent.type !== 'passive' || talent.effect !== 'script') continue;
+      if (isTalentNegatedAt(board, cell, pokemon.owner, pokemon.card)) continue;
+
+      for (const block of talent.script ?? []) {
+        if (block.action !== 'whenPlayed' || !block.script?.length) continue;
+        triggers.push({
+          player: pokemon.owner,
+          sourceName: `${pokemon.card.name} (${talent.name})`,
+          sourceCell: cell,
+          trainerCard: null,
+          blocks: block.script,
+          index: 0,
+          stage: 'run',
+          chosenCells: [],
+          turnId: options.turnId,
+        });
+      }
+    }
+
+    if (triggers.length > 0) {
+      setPendingScript((current: PendingScript | null) => triggers.reduce<PendingScript | null>(appendScript, current));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board]);
+
   // Talents passifs « script » : leurs effets suivent le plateau tout seuls.
   useEffect(() => {
     const synced = syncAuraModifiers(board);
@@ -148,6 +231,7 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     const previous = previousBoardRef.current;
     previousBoardRef.current = board;
     if (previous === board) return;
+    if (options.triggersActive === false || options.ignoreTriggerBoardRef?.current === board) return;
 
     const attackerCell = Object.keys(board).find((cell) => {
       const before = previous[cell];
@@ -306,7 +390,7 @@ export function useGameScripts(options: UseGameScriptsOptions) {
 
   /** Bloc « destination » : la cible devient `to` (camp par défaut selon l'action). */
   function destinationBlock(block: ScriptBlock): ScriptBlock {
-    const defaultSide = block.action === 'moveDamage' ? 'opponent' : 'own';
+    const defaultSide = block.action === 'moveDamage' || block.action === 'swapDamage' ? 'opponent' : 'own';
     return {
       ...block,
       action: 'removeConditions',
@@ -324,16 +408,29 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     if (block.action === 'switch') {
       const source = sources[0] ? working[sources[0]] : null;
       if (!source) return [];
-      const position = block.to?.filter?.position;
+      const position = block.to?.anyRow ? block.to?.filter?.position : undefined;
 
-      return ROWS[source.owner].flatMap((row) =>
+      // Comme Guzma et Corde Sortie : l'échange se fait sur la MÊME LIGNE (d'une colonne à l'autre).
+      // to.anyRow: true = n'importe quelle case de son camp.
+      const sourceRow = sources[0][0];
+      const rows = block.to?.anyRow ? ROWS[source.owner] : [sourceRow];
+      // Sur une même ligne, « actif / banc » n'a pas de sens : on ignore `position` dans `to`.
+      const destinationFilter =
+        block.to?.anyRow || !block.to?.filter ? block.to?.filter : { ...block.to.filter, position: undefined };
+
+      return rows.flatMap((row) =>
         [1, 2, 3, 4]
           .map((column) => `${row}${column}`)
           .filter((cell) => {
             if (cell === sources[0]) return false;
             const other = working[cell];
-            if (!other) return emptyCellMatches(working, cell, source.owner, position, sources[0]);
-            return matchesPokemonFilter(other, block.to?.filter, working, cell);
+            if (!other) {
+              // Par défaut, on échange seulement avec un Pokémon ;
+              // to.emptyCells: true = peut aussi aller sur une case vide.
+              if (block.to?.emptyCells !== true) return false;
+              return emptyCellMatches(working, cell, source.owner, position, sources[0]);
+            }
+            return matchesPokemonFilter(other, destinationFilter, working, cell);
           })
       );
     }
@@ -354,7 +451,14 @@ export function useGameScripts(options: UseGameScriptsOptions) {
 
     if (who === 'player') {
       // Les joueurs ne sont jamais soignés et ne portent pas d'Énergies.
-      if (block.action !== 'damage' && block.action !== 'condition' && block.action !== 'prevent') return [];
+      if (
+        block.action !== 'damage' &&
+        block.action !== 'counters' &&
+        block.action !== 'condition' &&
+        block.action !== 'prevent'
+      ) {
+        return [];
+      }
       return players.map(PLAYER_TARGET);
     }
 
@@ -372,12 +476,18 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     }
 
     if (who === 'active' && script.sourceCell) {
-      return players
-        .map((player) => activeCellInSourceColumn(working, script.sourceCell!, player))
-        .filter((cell): cell is string => {
-          const pokemon = cell ? working[cell] : null;
-          return !!cell && !!pokemon && matchesFilter(script, block, working, cell, pokemon);
-        });
+      // Sur ce plateau, quand la colonne est vide, c'est le JOUEUR qui fait office d'actif
+      // (dégâts, marqueurs et états spéciaux seulement, et sans contrainte `filter`).
+      const playerCanBeHit =
+        (block.action === 'damage' || block.action === 'counters' || block.action === 'condition') &&
+        !block.target?.filter;
+
+      return players.flatMap((player) => {
+        const cell = activeCellInSourceColumn(working, script.sourceCell!, player);
+        const pokemon = cell ? working[cell] : null;
+        if (cell && pokemon) return matchesFilter(script, block, working, cell, pokemon) ? [cell] : [];
+        return playerCanBeHit ? [PLAYER_TARGET(player)] : [];
+      });
     }
 
     return Object.entries(working)
@@ -429,16 +539,19 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     if (targetKey.startsWith('joueur-')) {
       const targetPlayer = Number(targetKey.slice(7)) as Player;
 
-      if (block.action === 'damage') {
+      if (block.action === 'damage' || block.action === 'counters') {
+        const total = block.action === 'counters' ? amount * 10 : amount;
         (targetPlayer === 1 ? options.setPlayer1Damage : options.setPlayer2Damage)(
-          (damage) => damage + amount
+          (damage: number) => damage + total
         );
-        return `le joueur ${targetPlayer} subit ${amount} dégâts`;
+        return block.action === 'counters'
+          ? `${amount} marqueur(s) sur le joueur ${targetPlayer}`
+          : `le joueur ${targetPlayer} subit ${total} dégâts`;
       }
 
       if (block.action === 'condition') {
         (targetPlayer === 1 ? options.setPlayer1Status : options.setPlayer2Status)((status) =>
-          applySpecialConditionsToPlayer(status, block.conditions ?? [], script.player)
+          applySpecialConditionsToPlayer(status, block.conditions ?? [], script.player, block.poisonCounters)
         );
         return `le joueur ${targetPlayer} est affecté (${(block.conditions ?? []).join(', ')})`;
       }
@@ -468,7 +581,7 @@ export function useGameScripts(options: UseGameScriptsOptions) {
         const summonerCard =
           script.trainerCard ?? (script.sourceCell ? working[script.sourceCell]?.card : null) ?? null;
         const choices = script.player === 1 ? options.player1SummonChoices : options.player2SummonChoices;
-        const chosen = summonerCard ? (choices[summonerCard.id] ?? []) : [];
+        const chosen = summonerCard ? pokemonOnly(choices[baseCardId(summonerCard.id)]) : [];
         const position = Math.max(0, (script.chosenCells ?? []).indexOf(targetKey));
         card = chosen.length > 0 ? chosen[position % chosen.length] : null;
         if (!card) return `${script.sourceName} : aucune Invocation choisie à la préparation`;
@@ -578,18 +691,34 @@ export function useGameScripts(options: UseGameScriptsOptions) {
         return `${pokemon.card.name} récupère ${healed} PV`;
       }
 
-      case 'damage': {
-        const hpAfter = pokemon.currentHp - amount;
+      case 'damage':
+      case 'counters': {
+        // Marqueurs : `amount` marqueurs = amount × 10, rien ne les réduit.
+        let dealt = block.action === 'counters' ? amount * 10 : amount;
+
+        // Dégâts venant d'un Pokémon ADVERSE : immunités, résistances et talents de réduction.
+        const source = script.sourceCell ? working[script.sourceCell] : null;
+        if (block.action === 'damage' && source && source.owner !== pokemon.owner) {
+          if (pokemon.preventAllAttackDamageAndEffects || hasScriptImmunity(pokemon, 'damage', source, working)) {
+            return `${pokemon.card.name} ne subit aucun dégât (protégé)`;
+          }
+          dealt = Math.max(0, dealt - getTalentDamageReduction(pokemon, source, working));
+        }
+
+        if (dealt <= 0) return `${pokemon.card.name} ne subit aucun dégât`;
+
+        const what = block.action === 'counters' ? `${dealt / 10} marqueur(s)` : `${dealt} dégâts`;
+        const hpAfter = pokemon.currentHp - dealt;
 
         if (hpAfter > 0) {
           working[targetKey] = { ...pokemon, currentHp: hpAfter };
-          return `${pokemon.card.name} subit ${amount} dégâts`;
+          return `${pokemon.card.name} reçoit ${what}`;
         }
 
         // K.O. : pénalité, cartes et Énergies à la défausse.
         const penalty = knockOut(working, targetKey, pokemon);
 
-        return `${pokemon.card.name} subit ${amount} dégâts et est K.O. (+${penalty} au joueur ${pokemon.owner})`;
+        return `${pokemon.card.name} reçoit ${what} et est K.O. (+${penalty} au joueur ${pokemon.owner})`;
       }
 
       case 'attachEnergy': {
@@ -642,7 +771,12 @@ export function useGameScripts(options: UseGameScriptsOptions) {
       }
 
       case 'condition': {
-        working[targetKey] = applySpecialConditions(pokemon, block.conditions ?? [], script.player);
+        working[targetKey] = applySpecialConditions(
+          pokemon,
+          block.conditions ?? [],
+          script.player,
+          block.poisonCounters
+        );
         return `${pokemon.card.name} est affecté (${(block.conditions ?? []).join(', ')})`;
       }
 
@@ -651,6 +785,7 @@ export function useGameScripts(options: UseGameScriptsOptions) {
           ...pokemon,
           poisoned: false,
           poisonSourcePlayer: null,
+          poisonCounters: undefined,
           burned: false,
           burnSourcePlayer: null,
           burnTriggersRemaining: 0,
@@ -764,6 +899,30 @@ export function useGameScripts(options: UseGameScriptsOptions) {
       return `${moved.length} Énergie(s) passent de ${source.card.name} à ${destination.card.name}`;
     }
 
+    if (block.action === 'swapDamage') {
+      const sourceDamage = Math.max(0, getPokemonMaxHp(source) - source.currentHp);
+      const destinationDamage = Math.max(0, getPokemonMaxHp(destination) - destination.currentHp);
+      const newSource: PokemonInPlay = { ...source, currentHp: getPokemonMaxHp(source) - destinationDamage };
+      const newDestination: PokemonInPlay = {
+        ...destination,
+        currentHp: getPokemonMaxHp(destination) - sourceDamage,
+      };
+      const texts = [`${source.card.name} et ${destination.card.name} échangent leurs dégâts`];
+
+      for (const [cell, pokemon] of [
+        [sourceCell, newSource],
+        [toCell, newDestination],
+      ] as const) {
+        if (pokemon.currentHp <= 0) {
+          const penalty = knockOut(working, cell, pokemon);
+          texts.push(`${pokemon.card.name} est K.O. (+${penalty} au joueur ${pokemon.owner})`);
+        } else {
+          working[cell] = pokemon;
+        }
+      }
+      return texts.join(', ');
+    }
+
     if (block.action === 'moveDamage') {
       const wanted = (block.amount ?? 10) * multiplier;
       const damageOnSource = Math.max(0, getPokemonMaxHp(source) - source.currentHp);
@@ -821,22 +980,56 @@ export function useGameScripts(options: UseGameScriptsOptions) {
         index: script.index + 1,
         optionalAnswer: undefined,
         coinKey: undefined,
+        // on garde le dernier lancer (coin.useLastFlip)
+        lastCoinResult: script.coinResult ?? script.lastCoinResult ?? null,
         coinResult: null,
         chosenCells: [],
         toCell: null,
         pickedCards: 0,
         chosenAttack: null,
+        chooser: null,
       };
     };
 
     const pause = (next: PendingScript, question: string) => {
       setBoard(working);
-      setPendingScript(next);
+      // Le choix d'une cible / d'une destination peut revenir à l'adversaire (chooser: 'opponent').
+      const block = next.blocks[next.index];
+      const wantsOpponent =
+        (next.stage === 'target' && block?.target?.chooser === 'opponent') ||
+        (next.stage === 'destination' && (block?.to?.chooser ?? block?.target?.chooser) === 'opponent');
+      setPendingScript({ ...next, chooser: wantsOpponent ? (next.player === 1 ? 2 : 1) : null });
+      const actor = wantsOpponent ? (next.player === 1 ? 2 : 1) : next.player;
+      if (wantsOpponent) question = `Joueur ${actor} : ${question}`;
       setMessage([...texts, question].filter(Boolean).join(' • '));
     };
 
+    // Contexte pour compter (`per`, `if`).
+    const countContext = () => ({
+      board: working,
+      player: script.player,
+      sourceCell: script.sourceCell,
+      player1Discard: options.player1Discard,
+      player2Discard: options.player2Discard,
+      player1Hand: options.player1Hand,
+      player2Hand: options.player2Hand,
+      player1DiscardEnergies: options.player1DiscardEnergies,
+      player2DiscardEnergies: options.player2DiscardEnergies,
+    });
+
     while (script.index < script.blocks.length) {
       const block = script.blocks[script.index];
+
+      // 0) Condition « si … » (vérifiée avant toute question ou pièce)
+      if (
+        block.if &&
+        script.optionalAnswer === undefined &&
+        !script.coinResult &&
+        !isScriptConditionMet(block.if, countContext())
+      ) {
+        finishBlock();
+        continue;
+      }
 
       // 1) Question OUI / NON
       if (block.optional && script.optionalAnswer === undefined) {
@@ -853,7 +1046,18 @@ export function useGameScripts(options: UseGameScriptsOptions) {
       }
 
       // Dégâts de l'attaque en plus : déjà comptés avec les dégâts de l'attaque.
-      if (block.action === 'attackDamage') {
+      if (
+        block.action === 'attackDamage' ||
+        block.action === 'attackFails' ||
+        block.action === 'attackIgnoresReductions'
+      ) {
+        finishBlock();
+        continue;
+      }
+
+      // Fin du tour demandée : elle aura lieu quand le script sera terminé.
+      if (block.action === 'endTurn') {
+        script = { ...script, endTurnAfter: true };
         finishBlock();
         continue;
       }
@@ -862,6 +1066,11 @@ export function useGameScripts(options: UseGameScriptsOptions) {
       let multiplier = 1;
       if (block.coin) {
         const count = block.coin.count ?? 1;
+
+        // « sinon » : on reprend le dernier lancer au lieu de relancer.
+        if (!script.coinResult && block.coin.useLastFlip && script.lastCoinResult) {
+          script = { ...script, coinResult: script.lastCoinResult };
+        }
 
         if (!script.coinResult) {
           if (script.sourceCell && working[script.sourceCell]) {
@@ -877,37 +1086,67 @@ export function useGameScripts(options: UseGameScriptsOptions) {
           return;
         }
 
+        const flipped = script.coinResult.length;
         const faces = script.coinResult.filter((side) => side === 'face').length;
+        const tails = flipped - faces;
         const need = block.coin.need ?? 'face';
-        const success = need === 'allFace' ? faces === count : faces > 0;
+        const success =
+          need === 'allFace'
+            ? faces === flipped
+            : need === 'tails' || need === 'perTails'
+              ? tails > 0
+              : need === 'allTails'
+                ? tails === flipped
+                : faces > 0;
 
         if (!success) {
-          texts.push(`${script.sourceName} : pas assez de FACE, l'effet ne s'applique pas`);
+          const side = need.toLowerCase().includes('tails') ? 'PILE' : 'FACE';
+          texts.push(`${script.sourceName} : pas assez de ${side}, l'effet ne s'applique pas`);
           finishBlock();
           continue;
         }
         if (need === 'perFace') multiplier = faces;
+        if (need === 'perTails') multiplier = tails;
       }
 
       // 2 bis) « Pour chaque … » (`per`)
       if (block.per) {
-        const count = computeScriptCount(block.per, {
-          board: working,
-          player: script.player,
-          sourceCell: script.sourceCell,
-          player1Discard: options.player1Discard,
-          player2Discard: options.player2Discard,
-          player1Hand: options.player1Hand,
-          player2Hand: options.player2Hand,
-          player1DiscardEnergies: options.player1DiscardEnergies,
-          player2DiscardEnergies: options.player2DiscardEnergies,
-        });
+        const count = computeScriptCount(block.per, countContext());
         if (count <= 0) {
           texts.push(`${script.sourceName} : rien à compter, l'effet ne s'applique pas`);
           finishBlock();
           continue;
         }
         multiplier *= count;
+      }
+
+      // 2 bis) Invocation d'une carte Dresseur (kind 'supporter' / 'objet' / 'outil') : dans la MAIN
+      if (block.action === 'summon' && block.kind && block.kind !== 'pokemon') {
+        const summonerCard =
+          script.trainerCard ?? (script.sourceCell ? working[script.sourceCell]?.card : null) ?? null;
+        const choices = script.player === 1 ? options.player1SummonChoices : options.player2SummonChoices;
+        const chosen = (summonerCard ? (choices[baseCardId(summonerCard.id)] ?? []) : []).filter(
+          (card) => !isPokemonCard(card)
+        );
+
+        if (chosen.length === 0) {
+          texts.push(`${script.sourceName} : aucune carte choisie à la préparation`);
+        } else {
+          const wanted = Math.max(1, (block.target?.count ?? chosen.length) * multiplier);
+          // Chaque copie invoquée a son propre identifiant (sinon, jouer l'une retirerait aussi
+          // une carte identique déjà en main). Identique sur les deux écrans en ligne.
+          const cards = Array.from({ length: wanted }, (_, index) => {
+            const card = chosen[index % chosen.length];
+            return { ...card, id: `${baseCardId(card.id)}~inv${options.turnId}-${script.index}-${index}` };
+          });
+          (script.player === 1 ? options.setPlayer1Hand : options.setPlayer2Hand)((hand: GameCard[]) => [
+            ...hand,
+            ...cards,
+          ]);
+          texts.push(`${script.sourceName} : ${cards.map((card) => card.name).join(', ')} arrive(nt) dans la main`);
+        }
+        finishBlock();
+        continue;
       }
 
       // 2 bis) Étape 3 : reprendre des cartes de sa défausse (choix dans un panneau)
@@ -1023,6 +1262,7 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     // Fin du script (puis le suivant de la file d'attente, s'il y en a un)
     setBoard(working);
     setPendingScript(script.then ?? null);
+    if (script.endTurnAfter) setEndTurnRequested(true);
     if (texts.length > 0) setMessage(texts.join(' • '));
   }
 

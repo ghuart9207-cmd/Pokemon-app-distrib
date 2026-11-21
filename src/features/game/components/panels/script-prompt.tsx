@@ -68,7 +68,11 @@ export function ScriptPrompt({
         <Text style={sharedStyles.actionTitle}>✨ {pending.sourceName}</Text>
         <Text style={sharedStyles.actionInfo}>
           {block.action === 'switch'
-            ? "Clique sur la case d'arrivée (case vide, ou un Pokémon pour échanger leur place)."
+            ? block.to?.emptyCells
+              ? "Clique sur la case d'arrivée (case vide, ou un Pokémon pour échanger leur place)."
+              : block.to?.anyRow
+                ? 'Clique sur le Pokémon avec qui il échange sa place.'
+                : 'Clique sur le Pokémon de la même ligne avec qui il échange sa place.'
             : block.action === 'moveEnergy'
               ? "Clique sur le Pokémon qui reçoit les Énergies."
               : 'Clique sur le Pokémon qui reçoit les dégâts.'}
