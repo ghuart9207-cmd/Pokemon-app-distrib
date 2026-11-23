@@ -45,6 +45,7 @@ import { relais } from './trainers/relais';
 import { skateboard } from './trainers/skateboard-evasion';
 import { superRappel } from './trainers/super-rappel';
 import { flo } from './trainers/flo';
+import { bandeauchoix, echangemultiple, fortifiantaquatique, nettoyagedeterrain, potionmax } from './trainers';
 
 
 // Pour ajouter une carte : crée son fichier dans `pokemon/` ou `trainers/`,
@@ -171,4 +172,9 @@ export const ALL_TRAINER_CARDS: TrainerCard[] = [
   fanclubPokemon,
   skateboard,
   flo,
+  fortifiantaquatique,
+  bandeauchoix,
+  nettoyagedeterrain,
+  potionmax,
+  echangemultiple,
 ];

@@ -43,6 +43,7 @@ import type {
     SelectedAttachedTool,
     TrainerCard,
     PendingDragonEnergyChoice,
+  KnockoutRecord,
 } from '@/features/game/types';
 import { styles } from './game-play-screen.styles';
 
@@ -56,6 +57,7 @@ type GamePlayScreenProps = {
   player1Hand: GameCard[];
   player2Hand: GameCard[];
   player1Discard: GameCard[];
+  knockouts?: KnockoutRecord[];
   player2Discard: GameCard[];
   player1DiscardEnergies: EnergyType[];
   player2DiscardEnergies: EnergyType[];
@@ -354,6 +356,7 @@ const dragonPokemon = dragonChoice
 onActivateTalent={props.onActivateTalent}
               round={props.round}
                             player1Discard={props.player1Discard}
+              knockouts={props.knockouts}
               player2Discard={props.player2Discard}
               player1Hand={props.player1Hand}
               player2Hand={props.player2Hand}

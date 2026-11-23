@@ -34,9 +34,12 @@ effectText:
         psy: 1,
       },
 
+      script: [
+        {action: 'prevent', prevent: ['tools'], target: { side: 'opponent', who: 'player' }, duration: 'opponentNextTurn', },
+      ],
       
-      
-
+effectText:
+    "Votre adversaire ne peut pas utiliser de cartes Outils pendant son prochain tour.",
       
 
   

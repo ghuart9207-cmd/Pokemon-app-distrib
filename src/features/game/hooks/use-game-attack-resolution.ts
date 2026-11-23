@@ -650,6 +650,8 @@ let totalDamage =
     player2Hand,
     player1DiscardEnergies,
     player2DiscardEnergies,
+    knockouts: options.knockouts,
+    turnId,
   });
 
     if (discardAllForBonusEffect) {
@@ -817,6 +819,8 @@ const attackForDamage: Attack =
         player2Hand,
         player1DiscardEnergies,
         player2DiscardEnergies,
+        knockouts: options.knockouts,
+        turnId,
       })
     ) {
       setMessage(`${attacker.card.name} utilise ${attack.name}, mais l'attaque ne fait rien.`);

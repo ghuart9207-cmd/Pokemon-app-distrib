@@ -56,7 +56,14 @@ export function ScriptPrompt({
       <View style={sharedStyles.actionBox}>
         <Text style={sharedStyles.actionTitle}>✨ {pending.sourceName}</Text>
         <Text style={sharedStyles.actionInfo}>
-          Clique sur {what} ({chosen + 1}/{needed}).
+          Clique sur {what}
+          {(block.action === 'damage' || block.action === 'counters' || block.action === 'condition') &&
+          (block.target?.who ?? 'chosen') === 'chosen' &&
+          !block.target?.filter &&
+          block.target?.includePlayer !== false
+            ? ' (ou sur le joueur adverse)'
+            : ''}{' '}
+          ({chosen + 1}/{needed}).
         </Text>
       </View>
     );

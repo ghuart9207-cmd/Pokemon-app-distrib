@@ -18,7 +18,7 @@ import { useGameTargeting } from './use-game-targeting';
 import { useGameTrainerActions } from './use-game-trainer-actions';
 import { useGameTurn } from './use-game-turn';
 import {getPassiveEnergyLimit,canAttachEnergyFromSource,} from '@/features/game/rules';
-import type { CardSeries, EnergyType } from '@/features/game/types';
+import type { CardSeries, EnergyType, Player } from '@/features/game/types';
 import { CARD_SERIES, DEFAULT_CARD_SERIES } from '@/features/game/data';
 
 
@@ -239,6 +239,13 @@ if (
     ...screenActions,
     chooseDragonEnergy,
     undoTurn,
+    // Code des cartes : clic sur un joueur pendant un choix de cible.
+    handlePlayerTargetPress: (player: Player) => {
+      if (scripts.handleScriptPlayerPress(player)) return;
+      targeting.handlePlayerTargetPress(player);
+    },
+    canSelectPlayerTarget: (player: Player) =>
+      scripts.canScriptSelectPlayer(player) || targeting.canSelectPlayerTarget(player),
     answerScriptOptional: scripts.answerScriptOptional,
     answerScriptCard: scripts.answerScriptCard,
     scriptCardChoices: scripts.scriptCardChoices,

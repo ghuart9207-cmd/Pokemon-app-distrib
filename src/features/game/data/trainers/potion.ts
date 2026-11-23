@@ -5,6 +5,6 @@ export const potion: TrainerCard = {
   name: 'Potion',
   category: 'objet',
   artwork: require('../../../../../assets/images/potion-card.png'),
-  description: 'Soigne 30 dégâts à un de tes Pokémon.',
+  description: 'Soignez 30 dégâts à un de tes Pokémon.',
   effect: 'heal30',
 };

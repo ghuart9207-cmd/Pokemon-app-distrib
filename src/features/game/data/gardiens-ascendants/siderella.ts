@@ -25,7 +25,7 @@ export const siderella: PokemonCard = {
     { action: 'damage', amount: 30, target: { side: 'opponent', who: 'active' } },
   ],
   effectText:
-    "Échangez l'un des Pokémon de votre adversaire avec son Pokémon Actif. Cette attaque inflige 30 dégâts au nouveau Pokémon Actif.",
+    "Échangez l'un des Pokémon de votre adversaire avec son Pokémon Actif. Cette attaque inflige 30 dégâts au nouveau.",
 },
     {
       name: 'Explosion en Série',

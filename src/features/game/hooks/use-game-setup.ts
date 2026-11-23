@@ -379,11 +379,30 @@ export function useGameSetup({
     return player === 1 ? player1SetupCards : player2SetupCards;
   }
 
+  /**
+   * La carte peut-elle être choisie pour l'Invocation en cours ?
+   * Cartes Dresseur (kind 'supporter' / 'objet' / 'outil') : pas une carte déjà dans le deck,
+   * ni déjà choisie pour une autre Invocation (ni deux fois la même, sauf `ignoreDraft`).
+   */
+  function isSummonCandidate(card: GameCard, ignoreDraft = false): boolean {
+    const rule = invocationSetupSummoner ? getSummonChoiceEffect(invocationSetupSummoner) : null;
+    if (!rule || !isValidAttackInvocation(card, rule)) return false;
+    if (!rule.summonTrainer || !invocationSetupPlayer || !invocationSetupSummoner) return true;
+
+    if (getSetupDeck(invocationSetupPlayer).some((deckCard) => deckCard.id === card.id)) return false;
+
+    const otherChoices: GameCard[] = Object.entries(getSummonChoices(invocationSetupPlayer))
+      .filter(([summonerId]) => summonerId !== invocationSetupSummoner.id)
+      .flatMap(([, chosen]) => chosen);
+    if (otherChoices.some((chosen: GameCard) => chosen.id === card.id)) return false;
+
+    if (!ignoreDraft && summonChoiceDraft.some((chosen: GameCard) => chosen.id === card.id)) return false;
+    return true;
+  }
+
   /** Les cartes possibles (Pokémon, ou Dresseurs pour le code des cartes) pour l'Invocation en cours de choix. */
   function getSummonChoiceCandidates(): GameCard[] {
-    const rule = invocationSetupSummoner ? getSummonChoiceEffect(invocationSetupSummoner) : null;
-    if (!rule) return [];
-    return [...cardSeries.pokemon, ...cardSeries.trainers].filter((card) => isValidAttackInvocation(card, rule));
+    return [...cardSeries.pokemon, ...cardSeries.trainers].filter((card) => isSummonCandidate(card, true));
   }
 
   function addInvocationSetupCard(card: GameCard) {
@@ -409,6 +428,16 @@ export function useGameSetup({
 
       if (!isValidAttackInvocation(card, rule)) {
         setMessage(`${card.name} n'est pas un ${describeAttackInvocationRule(rule)}.`);
+        return;
+      }
+
+      // Carte Dresseur déjà dans le deck ou déjà choisie ailleurs.
+      if (rule.summonTrainer && !isSummonCandidate(card, true)) {
+        setMessage(`${card.name} est déjà dans ton deck ou déjà choisie : choisis-en une autre.`);
+        return;
+      }
+      if (rule.summonTrainer && summonChoiceDraft.some((chosen: GameCard) => chosen.id === card.id) && getSummonChoiceCount(rule) > 1) {
+        setMessage(`${card.name} est déjà choisie.`);
         return;
       }
 
@@ -462,7 +491,7 @@ export function useGameSetup({
       const requiredCount = summonRule ? getSummonChoiceCount(summonRule) : 1;
 
       if (summonChoiceDraft.length !== requiredCount && hasCandidates) {
-        setMessage(`Choisis ${requiredCount} Pokémon.`);
+        setMessage(`Choisis ${requiredCount} ${summonRule?.summonTrainer ? 'carte(s)' : 'Pokémon'}.`);
         return;
       }
 
@@ -475,6 +504,16 @@ export function useGameSetup({
       setSummonChoicesFor(player, nextChoices);
 
       if (startSummonChoiceSetup(player, nextChoices)) {
+        return;
+      }
+
+      // Fan Club Pokémon INVOQUÉ (ex : par Relais Miracle) et pas dans le deck :
+      // on choisit aussi ses 2 Pokémon, comme s'il était dans le deck.
+      const invokedFanClub = (Object.values(nextChoices).flat() as GameCard[])
+        .some((chosen: GameCard) => !isPokemonCard(chosen) && chosen.effect === 'summonTwoBase60');
+      const fanClubCards = player === 1 ? player1InvocationCards : player2InvocationCards;
+      if (invokedFanClub && fanClubCards.length < 2) {
+        startSupporterInvocationSetup(player);
         return;
       }
 
@@ -643,6 +682,7 @@ export function useGameSetup({
     setupSubmitted,
     setSetupSubmitted,
     addInvocationSetupCard,
+    isSummonCandidate,
     confirmInvocationSetup,
     confirmSetupSelection,
     getSetupCounts,

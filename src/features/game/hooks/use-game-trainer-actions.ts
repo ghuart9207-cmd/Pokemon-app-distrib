@@ -115,6 +115,12 @@ if (
       return;
     }
 
+    // Code des cartes : Outils interdits (prevent: ['tools']).
+    if (card.subtype === 'outil' && isPlayerScriptPrevented(currentPlayerStatus, board, currentPlayer, 'tools')) {
+      setMessage(`Joueur ${currentPlayer} : tu ne peux pas jouer de carte Outil pour le moment (effet en cours).`);
+      return;
+    }
+
     if (hasAttackedThisTurn) {
       setMessage('Tu ne peux plus jouer de carte Dresseur après avoir attaqué.');
       return;

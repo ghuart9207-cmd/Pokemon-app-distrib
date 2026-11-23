@@ -19,6 +19,7 @@ import type {
   PendingCoinReturnToHand,
   PendingTrainerEffect,
   PendingScript,
+  KnockoutRecord,
   PendingGeneratedBenchEnergy,
   PendingTalentEnergyAttachment,
   PendingDamageCounterMove,
@@ -142,6 +143,8 @@ export function useGameState() {
     useState<PendingTrainerEffect | null>(null);
   // Code des cartes : script en cours.
   const [pendingScript, setPendingScript] = useState<PendingScript | null>(null);
+  // Code des cartes : journal des Pokémon mis K.O. (count: 'knockedOut').
+  const [knockouts, setKnockouts] = useState<KnockoutRecord[]>([]);
   const [pendingDragonEnergyChoices,setPendingDragonEnergyChoices,] = 
     useState<PendingDragonEnergyChoice[]>([]);
   const [pendingGeneratedBenchEnergy, setPendingGeneratedBenchEnergy] =
@@ -283,6 +286,8 @@ export function useGameState() {
     setPendingTrainerEffect,
     pendingScript,
     setPendingScript,
+    knockouts,
+    setKnockouts,
     pendingGeneratedBenchEnergy,
     setPendingGeneratedBenchEnergy,
     pendingEnergyTransferToBench,

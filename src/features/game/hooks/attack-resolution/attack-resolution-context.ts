@@ -1,5 +1,6 @@
 import type { SummonChoices } from '@/features/game/rules';
 import type {
+  KnockoutRecord,
   Attack,
   BoardState,
   EnergyType,
@@ -40,6 +41,8 @@ player2Discard: GameCard[];
   selectedAttackIndex: number | null;
   selectedPokemonCell: string | null;
   turnId: number;
+  // Code des cartes : journal des K.O.
+  knockouts?: KnockoutRecord[];
   setBoard: SetState<BoardState>;
   setHasAttackedThisTurn: SetState<boolean>;
   setMessage: SetState<string>;
