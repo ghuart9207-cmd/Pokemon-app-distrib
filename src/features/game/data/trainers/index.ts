@@ -10,3 +10,8 @@ export * from './relais';
 export * from './skateboard-evasion';
 export * from './super-rappel';
 export * from './flo';
+export * from './fortifiantaquatique';
+export * from './bandeauchoix';
+export * from './nettoyagedeterrain';
+export * from './potionmax';
+export * from './echangemultiple';

@@ -1,4 +1,4 @@
-import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, doesTalentBurnAttacker, burnAttackingPokemon, getCoinCheckForTarget, doesToolAttackerShieldPreventDamage, getOutgoingReductionForTarget, hasScriptAttackFlag, hasScriptImmunity, revertImmuneConditions, } from '@/features/game/rules';
+import { getKOPenalty, getPokemonMaxHp, getToolAttachedAttackBonus, getOpponentActiveSpecialConditionBonus, getTalentDamageReduction, getRetaliationDamage, isAttackDamagePreventedByEffect, isHealBlocked, getTargetTypeBonusDamage, doesTalentBurnAttacker, burnAttackingPokemon, getCoinCheckForTarget, doesToolAttackerShieldPreventDamage, getOutgoingReductionForTarget, hasScriptAttackFlag, hasScriptImmunity, getScriptBoostVs, revertImmuneConditions, } from '@/features/game/rules';
 import type {
   Attack,
   AttackEffect,
@@ -267,6 +267,11 @@ const attackEffectsPrevented =
     target.card.variant === 'gx'
   ) {
     attackDamage += attack.bonusDamageIfTargetGx;
+  }
+
+  // Code des cartes : boost « seulement contre … » (ex : Bandeau Choix contre les GX / EX).
+  if (!isFixedDamageAttack && attackDamage > 0) {
+    attackDamage += getScriptBoostVs(attacker, target, attack.name, board);
   }
 
   // Bonus selon le type du Pokémon ciblé (ex : +30 contre un Pokémon Eau).

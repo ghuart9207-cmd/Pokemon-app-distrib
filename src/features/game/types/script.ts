@@ -1,4 +1,5 @@
 import type { TrainerCard, TrainerTargetFilter } from './cards';
+import type { PokemonInPlay } from './board';
 import type { CoinSide } from './coins';
 import type { EnergyType, Player, SpecialCondition } from './core';
 
@@ -135,7 +136,9 @@ export type ScriptCount = {
     // états spéciaux des Pokémon (`who`, `filter`) : 2 si Empoisonné et Brûlé…
     | 'conditions'
     // dégâts infligés par CETTE attaque au Pokémon visé (dans le script d'une attaque)
-    | 'damageDealt';
+    | 'damageDealt'
+    // Pokémon mis K.O. (`turn` = quel tour, `side`, `filter`)
+    | 'knockedOut';
   // 'own' (par défaut), 'opponent' ou 'both'
   side?: 'own' | 'opponent' | 'both';
   // 'all' (par défaut), 'self' (ce Pokémon) ou 'active' (l'actif de la colonne)
@@ -143,6 +146,8 @@ export type ScriptCount = {
   filter?: ScriptTargetFilter;
   cards?: ScriptCardFilter;
   energyType?: EnergyType;
+  // knockedOut : 'this' (ce tour), 'last' (le tour d'avant, par défaut), 'both' (les deux)
+  turn?: 'this' | 'last' | 'both';
 };
 
 /** Pokémon proposés par `summon` (au choix, dans la série de la partie). */
@@ -193,7 +198,9 @@ export type ScriptPrevent =
   | 'heal'
   | 'energy'
   | 'items'
-  | 'supporters';
+  | 'supporters'
+  // seulement les cartes Outil (les autres Objets restent permis)
+  | 'tools';
 
 /** Effet qui dure, posé sur un Pokémon (ou un joueur). */
 export type ScriptModifier = {
@@ -214,6 +221,7 @@ export type ScriptModifier = {
   prevent?: ScriptPrevent[];
   from?: ScriptTargetFilter;
   attackName?: string;
+  vs?: ScriptTargetFilter;
   script?: ScriptBlock[];
   sourceName: string;
   sourcePlayer: Player;
@@ -235,7 +243,8 @@ export type ScriptTarget = {
   // 'player' : le joueur lui-même (dégâts, Poison / Brûlure, prevent items / supporters)
   // 'attacker': le Pokémon qui vient d'attaquer (seulement dans un script whenDamaged)
   // Par défaut : 'chosen'.
-  who?: 'self' | 'active' | 'chosen' | 'all' | 'player' | 'attacker';
+  // 'previous' : la (les) même(s) cible(s) que le bloc d'avant (sans redemander)
+  who?: 'self' | 'active' | 'chosen' | 'all' | 'player' | 'attacker' | 'previous';
   // pour 'chosen' : nombre de Pokémon à choisir (différents)
   count?: number;
   // contraintes (mêmes réglages que les cartes Dresseur, plus quelques-uns)
@@ -245,6 +254,9 @@ export type ScriptTarget = {
   emptyCells?: boolean;
   // qui fait le choix : 'self' (le joueur de la carte, par défaut) ou 'opponent' (l'adversaire)
   chooser?: 'self' | 'opponent';
+  // who: 'chosen' avec damage / counters / condition : le joueur adverse peut aussi être choisi
+  // (par défaut ; false = seulement des Pokémon)
+  includePlayer?: boolean;
   // switch, dans `to` : true = n'importe quelle case de son camp
   // (par défaut, l'échange se fait sur la même ligne, d'une colonne à l'autre, comme Guzma)
   anyRow?: boolean;
@@ -291,6 +303,8 @@ export type ScriptBlock = {
   from?: ScriptTargetFilter;
   // boost : seulement cette attaque
   attackName?: string;
+  // boost : seulement contre ces Pokémon (ex : { variants: ['gx', 'ex'] })
+  vs?: ScriptTargetFilter;
   // whenDamaged : le script à lancer
   script?: ScriptBlock[];
 
@@ -309,6 +323,9 @@ export type ScriptBlock = {
   invocation?: boolean;
   // attachEnergy : prendre les Énergies dans la pile de défausse du joueur
   fromDiscard?: boolean;
+  // plusieurs types d'Énergie possibles (« Psy ou Métal ») : à la place de `energyType`
+  // (attachEnergy, discardEnergy, moveEnergy)
+  energyTypes?: EnergyType[];
   // recoverCards : quelles cartes
   cards?: ScriptCardFilter;
 
@@ -321,6 +338,15 @@ export type ScriptBlock = {
 };
 
 /** Script en cours (état de la partie). */
+/** Un Pokémon mis K.O. (journal pour count: 'knockedOut'). */
+export type KnockoutRecord = {
+  turnId: number;
+  // joueur à qui appartenait le Pokémon
+  owner: Player;
+  // le Pokémon tel qu'il était juste avant le K.O. (pour les contraintes `filter`)
+  pokemon: PokemonInPlay;
+};
+
 export type PendingScript = {
   player: Player;
   sourceName: string;
@@ -348,6 +374,8 @@ export type PendingScript = {
   pickedCards?: number;
   // blockAttack : attaque choisie
   chosenAttack?: string | null;
+  // cibles du dernier bloc appliqué (who: 'previous')
+  lastTargets?: string[];
   // joueur qui fait le choix en cours (chooser: 'opponent'), sinon `player`
   chooser?: Player | null;
   // endTurn : le tour se termine à la fin du script

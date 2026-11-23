@@ -31,7 +31,7 @@ effectText:        'Lancez 4 pièces. Cette attaque inflige 30 dégâts pour cha
       },
       script: [
   { action: 'condition', conditions: ['poison'], poisonCounters: 10,
-    target: { side: 'opponent', who: 'active' } },
+    target: { side: 'opponent', who: 'active', includePlayer: false } },
 ],
 effectText:
   "Le Pokémon Actif de votre adversaire est maintenant Empoisonné. Placez 10 marqueurs de dégâts au lieu d'1 sur ce Pokémon entre chaque tour.",

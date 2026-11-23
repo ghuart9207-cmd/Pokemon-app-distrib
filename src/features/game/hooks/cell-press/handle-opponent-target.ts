@@ -10,6 +10,8 @@ import {
   burnAttackingPokemon,
   isAttackDamagePreventedByEffect,
   getTargetTypeBonusDamage,
+  hasScriptImmunity,
+  getScriptBoostVs,
 } from '@/features/game/rules';
 import type { BoardState } from '@/features/game/types';
 import type { CellPressContext } from './cell-press-context';
@@ -113,7 +115,9 @@ const protectedFromDamage =
   pendingAttacker != null &&
   (doesTemporaryProtectionPreventDamage(target, pendingAttacker) ||
     isAttackDamagePreventedByEffect(target, pendingAttacker) ||
-    doesToolAttackerShieldPreventDamage(target, pendingAttacker, board));
+    doesToolAttackerShieldPreventDamage(target, pendingAttacker, board) ||
+    // Code des cartes : immunité aux dégâts (ex : Attitude Patibulaire de Machopeur)
+    hasScriptImmunity(target, 'damage', pendingAttacker, board));
 
 // Talent d'Azumarill :
   // réduit de 30 les dégâts des attaques
@@ -128,7 +132,9 @@ const pendingDamage = protectedFromDamage
       pendingOpponentTarget.damage +
         pendingExtraDamage +
         // Bonus selon le type du Pokémon choisi.
-        getTargetTypeBonusDamage(pendingOpponentTarget.effects, target) -
+        getTargetTypeBonusDamage(pendingOpponentTarget.effects, target) +
+        // Code des cartes : boost « seulement contre … » (ex : Bandeau Choix)
+        (pendingOpponentTarget.damage > 0 ? getScriptBoostVs(pendingAttacker, target, '', board) : 0) -
         fireWaterReduction
     );
 
@@ -330,7 +336,11 @@ attackCoinCheck:
 
   setBoard(survivorBoard);
 
-  setMessage(`${target.card.name} subit ${pendingDamage} dégâts.${survivorRetaliationText}`);
+  setMessage(
+    protectedFromDamage
+      ? `${target.card.name} est protégé : il ne subit aucun dégât.${survivorRetaliationText}`
+      : `${target.card.name} subit ${pendingDamage} dégâts.${survivorRetaliationText}`
+  );
 
   setPendingOpponentTarget(null);
   setSelectedPokemonCell(null);

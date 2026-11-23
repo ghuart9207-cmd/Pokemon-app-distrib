@@ -7,7 +7,6 @@ import {
   describeAttackInvocationRule,
   getSummonChoiceEffect,
   getSummonChoiceCount,
-  isValidAttackInvocation,
 } from '@/features/game/rules';
 import { DeckPicker } from '@/features/decks/components/deck-picker';
 
@@ -76,7 +75,7 @@ export function GameView({ game, localPlayer, deckEditorTitle }: GameViewProps) 
         }
         isCandidate={
           attackRule
-            ? (card) => isValidAttackInvocation(card, attackRule)
+            ? (card) => game.isSummonCandidate(card)
             : undefined
         }
         setupPokemonPerRow={setupPokemonPerRow}
@@ -128,6 +127,7 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       player1Hand={game.player1Hand}
       player2Hand={game.player2Hand}
       player1Discard={game.player1Discard}
+      knockouts={game.knockouts}
       player2Discard={game.player2Discard}
       player1DiscardEnergies={game.player1DiscardEnergies}
       player2DiscardEnergies={game.player2DiscardEnergies}

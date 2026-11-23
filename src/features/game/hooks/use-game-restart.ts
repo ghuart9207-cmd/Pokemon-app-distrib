@@ -1,6 +1,7 @@
 import { createEmptyBoard, createNormalPlayerStatus } from '@/features/game/rules';
 import type { SummonChoices } from '@/features/game/rules';
 import type {
+  KnockoutRecord,
   AttackPath,
   BoardState,
   CoinAttackReference,
@@ -88,6 +89,7 @@ type UseGameRestartOptions = {
   setCoinDraft: SetState<(CoinSide | null)[]>;
   setPendingPokemonSwitch: SetState<PendingPokemonSwitch | null>;
   setPlayer1Discard: SetState<GameCard[]>;
+  setKnockouts?: SetState<KnockoutRecord[]>;
   setPlayer2Discard: SetState<GameCard[]>;
   setBoard: SetState<BoardState>;
   setCurrentPlayer: SetState<Player>;
@@ -165,6 +167,7 @@ export function useGameRestart(options: UseGameRestartOptions) {
     options.setCoinDraft([]);
     options.setPendingPokemonSwitch(null);
     options.setPlayer1Discard([]);
+    options.setKnockouts?.([]);
     options.setPlayer2Discard([]);
     options.setBoard(createEmptyBoard());
     options.setCurrentPlayer(1);

@@ -33,6 +33,7 @@ import type {
   BoardState,
   EnergyType,
   GameCard,
+  KnockoutRecord,
   PendingScript,
   Player,
   PlayerStatusState,
@@ -63,6 +64,9 @@ type UseGameScriptsOptions = {
   player2DiscardEnergies: EnergyType[];
   player1Hand: GameCard[];
   player2Hand: GameCard[];
+  // journal des K.O. (count 'knockedOut')
+  knockouts: KnockoutRecord[];
+  setKnockouts: SetState<KnockoutRecord[]>;
   setPlayer1Hand: SetState<GameCard[]>;
   setPlayer2Hand: SetState<GameCard[]>;
   // série de la partie (summon avec pokemonName)
@@ -90,6 +94,12 @@ const DESTINATION_ACTIONS: ScriptBlock['action'][] = ['switch', 'moveEnergy', 'm
 
 /** Lignes d'un joueur, de l'avant vers l'arrière. */
 const ROWS: Record<Player, string[]> = { 1: ['B', 'A'], 2: ['C', 'D'] };
+
+/** Cette Énergie est-elle permise par le bloc (`energyTypes`, sinon `energyType`, sinon toutes) ? */
+function energyAllowed(block: ScriptBlock, energy: EnergyType): boolean {
+  if (block.energyTypes?.length) return block.energyTypes.includes(energy);
+  return !block.energyType || energy === block.energyType;
+}
 
 /** Retire `removed` (une fois chacune) d'une liste d'Énergies. */
 function removeEnergies(list: EnergyType[], removed: EnergyType[]): EnergyType[] {
@@ -217,6 +227,64 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board]);
 
+  // Journal des K.O. : une carte Pokémon qui arrive dans une pile de défausse = un Pokémon mis K.O.
+  // (on retrouve le Pokémon sur le plateau d'avant pour savoir s'il était une Invocation, etc.)
+  const koWatchRef = useRef<{ board: BoardState; discard1: number; discard2: number; turnId: number }>({
+    board,
+    discard1: options.player1Discard.length,
+    discard2: options.player2Discard.length,
+    turnId: options.turnId,
+  });
+  useEffect(() => {
+    const previous = koWatchRef.current;
+    koWatchRef.current = {
+      board,
+      discard1: options.player1Discard.length,
+      discard2: options.player2Discard.length,
+      turnId: options.turnId,
+    };
+    // K.O. de fin de tour (Poison, Brûlure) : le tour vient de changer, ils comptent pour le tour qui finit.
+    const koTurnId = Math.min(previous.turnId, options.turnId);
+    if (options.triggersActive === false || options.ignoreTriggerBoardRef?.current === board) return;
+
+    const records: KnockoutRecord[] = [];
+    const used = new Set<string>();
+
+    for (const owner of [1, 2] as Player[]) {
+      const discard = owner === 1 ? options.player1Discard : options.player2Discard;
+      const before = owner === 1 ? previous.discard1 : previous.discard2;
+      if (discard.length <= before) continue;
+
+      for (const card of discard.slice(before)) {
+        if (!isPokemonCard(card)) continue;
+
+        // Le Pokémon tel qu'il était sur le plateau (et qui n'y est plus à cette case).
+        const previousBoard: BoardState = previous.board;
+        const found = (Object.entries(previousBoard) as [string, PokemonInPlay | null][]).find(
+          ([cell, pokemon]) =>
+            pokemon !== null &&
+            pokemon.owner === owner &&
+            pokemon.card.id === card.id &&
+            !used.has(cell) &&
+            board[cell]?.card.id !== card.id
+        );
+        if (found) used.add(found[0]);
+
+        records.push({
+          turnId: koTurnId,
+          owner,
+          // pas trouvé : mis K.O. en arrivant (pose)
+          pokemon: found?.[1] ?? createPokemonInPlay({ card, owner, energies: [] }),
+        });
+      }
+    }
+
+    if (records.length > 0) {
+      options.setKnockouts((list: KnockoutRecord[]) => [...list.filter((record) => record.turnId >= options.turnId - 2), ...records]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, options.player1Discard, options.player2Discard, options.turnId]);
+
   // Talents passifs « script » : leurs effets suivent le plateau tout seuls.
   useEffect(() => {
     const synced = syncAuraModifiers(board);
@@ -320,7 +388,7 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     const filter = block.target?.filter;
 
     if (filter?.excludeSelf && cell === script.sourceCell) return false;
-    if (!matchesPokemonFilter(pokemon, filter, working, cell)) return false;
+    if (!matchesPokemonFilter(pokemon, filter, working, cell, script.sourceCell)) return false;
 
     // Les cartes Dresseur ne ciblent jamais les Invocations.
     if (script.trainerCard && pokemon.isInvocation) return false;
@@ -338,12 +406,17 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     if (block.action === 'attachEnergy' && !canAttachEnergyFromSource(pokemon, block.fromDiscard ? 'discard' : 'hand')) {
       return false;
     }
-    if (block.action === 'discardEnergy' && pokemon.energies.length === 0) return false;
+    if (block.action === 'discardEnergy' && !pokemon.energies.some((energy) => energyAllowed(block, energy))) {
+      return false;
+    }
+    // Énergies de la défausse : il faut qu'il en reste une du bon type.
+    if (block.action === 'attachEnergy' && block.fromDiscard) {
+      const discardEnergies = script.player === 1 ? options.player1DiscardEnergies : options.player2DiscardEnergies;
+      if (!discardEnergies.some((energy) => energyAllowed(block, energy))) return false;
+    }
 
     // Étape 3
-    const hasEnergyToMove = block.energyType
-      ? pokemon.energies.includes(block.energyType)
-      : pokemon.energies.length > 0;
+    const hasEnergyToMove = pokemon.energies.some((energy) => energyAllowed(block, energy));
     if (block.action === 'moveEnergy' && !hasEnergyToMove) return false;
     if (block.action === 'moveDamage' && pokemon.currentHp >= getPokemonMaxHp(pokemon)) return false;
     if ((block.action === 'discardTool' || block.action === 'returnTool') && !pokemon.attachedTool) return false;
@@ -462,6 +535,15 @@ export function useGameScripts(options: UseGameScriptsOptions) {
       return players.map(PLAYER_TARGET);
     }
 
+    // La même cible que le bloc d'avant (si elle est toujours là).
+    if (who === 'previous') {
+      return (script.lastTargets ?? []).filter((key) => {
+        if (key.startsWith('joueur-')) return true;
+        const pokemon = working[key];
+        return !!pokemon && matchesFilter(script, block, working, key, pokemon);
+      });
+    }
+
     if (who === 'attacker') {
       const cell = script.attackerCell;
       const attacker = cell ? working[cell] : null;
@@ -490,7 +572,7 @@ export function useGameScripts(options: UseGameScriptsOptions) {
       });
     }
 
-    return Object.entries(working)
+    const pokemonCells = Object.entries(working)
       .filter(([cell, pokemon]) => {
         if (!pokemon || !players.includes(pokemon.owner)) return false;
         // 'active' sans Pokémon source (carte Dresseur) : un Pokémon actif au choix.
@@ -498,6 +580,19 @@ export function useGameScripts(options: UseGameScriptsOptions) {
         return matchesFilter(script, block, working, cell, pokemon);
       })
       .map(([cell]) => cell);
+
+    // Sur ce plateau, les joueurs comptent comme des Pokémon : pour des dégâts, des marqueurs
+    // ou un état spécial « sur l'un des Pokémon de l'adversaire », on peut aussi cliquer sur
+    // le JOUEUR (sauf avec un `filter`, ou target.includePlayer: false).
+    const playerCanBeChosen =
+      who === 'chosen' &&
+      block.target?.includePlayer !== false &&
+      !block.target?.filter &&
+      (block.action === 'damage' || block.action === 'counters' || block.action === 'condition');
+
+    return playerCanBeChosen
+      ? [...pokemonCells, ...players.filter((player) => player !== script.player).map(PLAYER_TARGET)]
+      : pokemonCells;
   }
 
   // ---------------------------------------------------------------
@@ -732,8 +827,12 @@ export function useGameScripts(options: UseGameScriptsOptions) {
         if (block.fromDiscard) {
           const pool = discardEnergyPool[script.player];
           const taken: EnergyType[] = [];
-          for (let index = pool.length - 1; index >= 0 && taken.length < amount; index -= 1) {
-            if (!block.energyType || pool[index] === block.energyType) {
+          // D'abord une Énergie du type du Pokémon (Psy sur un Pokémon Psy…), puis les autres permises.
+          for (const preferOwnType of [true, false]) {
+            for (let index = pool.length - 1; index >= 0 && taken.length < amount; index -= 1) {
+              const energy = pool[index];
+              if (!energyAllowed(block, energy)) continue;
+              if (preferOwnType && energy !== pokemon.card.type) continue;
               taken.push(...pool.splice(index, 1));
             }
           }
@@ -746,11 +845,17 @@ export function useGameScripts(options: UseGameScriptsOptions) {
           return `${pokemon.card.name} reçoit ${taken.length} Énergie(s) de la défausse`;
         }
 
+        // energyTypes : le type du Pokémon s'il est dans la liste, sinon le premier de la liste.
+        const givenType: EnergyType = block.energyTypes?.length
+          ? block.energyTypes.includes(pokemon.card.type)
+            ? pokemon.card.type
+            : block.energyTypes[0]
+          : energyType;
         working[targetKey] = {
           ...pokemon,
-          energies: [...pokemon.energies, ...Array(amount).fill(energyType)],
+          energies: [...pokemon.energies, ...Array(amount).fill(givenType)],
         };
-        return `${pokemon.card.name} reçoit ${amount} Énergie(s) ${energyType}`;
+        return `${pokemon.card.name} reçoit ${amount} Énergie(s) ${givenType}`;
       }
 
       case 'discardEnergy': {
@@ -758,7 +863,7 @@ export function useGameScripts(options: UseGameScriptsOptions) {
         const removed: EnergyType[] = [];
 
         for (let index = energies.length - 1; index >= 0 && removed.length < amount; index -= 1) {
-          if (!block.energyType || energies[index] === block.energyType) {
+          if (energyAllowed(block, energies[index])) {
             removed.push(...energies.splice(index, 1));
           }
         }
@@ -890,7 +995,7 @@ export function useGameScripts(options: UseGameScriptsOptions) {
       const energies = [...source.energies];
       const moved: EnergyType[] = [];
       for (let index = energies.length - 1; index >= 0 && moved.length < wanted; index -= 1) {
-        if (!block.energyType || energies[index] === block.energyType) {
+        if (energyAllowed(block, energies[index])) {
           moved.push(...energies.splice(index, 1));
         }
       }
@@ -1015,6 +1120,8 @@ export function useGameScripts(options: UseGameScriptsOptions) {
       player2Hand: options.player2Hand,
       player1DiscardEnergies: options.player1DiscardEnergies,
       player2DiscardEnergies: options.player2DiscardEnergies,
+      knockouts: options.knockouts,
+      turnId: options.turnId,
     });
 
     while (script.index < script.blocks.length) {
@@ -1225,6 +1332,8 @@ export function useGameScripts(options: UseGameScriptsOptions) {
           const text = applyMove(block, working, target, toCell, multiplier);
           if (text) texts.push(text);
         }
+        // who: 'previous' au bloc suivant : le Pokémon déplacé est maintenant en toCell
+        script = { ...script, lastTargets: block.action === 'switch' ? [toCell] : targets };
         finishBlock();
         continue;
       }
@@ -1255,6 +1364,8 @@ export function useGameScripts(options: UseGameScriptsOptions) {
         const text = applyBlock(script, block, working, target, multiplier);
         if (text) texts.push(text);
       }
+      // pour who: 'previous' au bloc suivant
+      script = { ...script, lastTargets: targets };
 
       finishBlock();
     }
@@ -1361,7 +1472,31 @@ export function useGameScripts(options: UseGameScriptsOptions) {
     return pokemon?.card.attacks.map((attack) => attack.name) ?? [];
   }
 
+  /** Clic sur un joueur pendant un choix de cible (les joueurs comptent comme des Pokémon). */
+  function handleScriptPlayerPress(player: Player): boolean {
+    if (!pendingScript || pendingScript.stage !== 'target') return false;
+    const block = pendingScript.blocks[pendingScript.index];
+    const key = PLAYER_TARGET(player);
+    const chosen = pendingScript.chosenCells ?? [];
+    if (!getCandidates(pendingScript, block, board).includes(key) || chosen.includes(key)) {
+      setMessage(`${pendingScript.sourceName} : ce joueur ne peut pas être choisi.`);
+      return true;
+    }
+    setPendingScript({ ...pendingScript, stage: 'run', chosenCells: [...chosen, key] });
+    return true;
+  }
+
+  /** Le joueur peut-il être cliqué pour le choix de cible en cours ? */
+  function canScriptSelectPlayer(player: Player): boolean {
+    if (!pendingScript || pendingScript.stage !== 'target') return false;
+    const block = pendingScript.blocks[pendingScript.index];
+    const key = PLAYER_TARGET(player);
+    return getCandidates(pendingScript, block, board).includes(key) && !(pendingScript.chosenCells ?? []).includes(key);
+  }
+
   return {
+    handleScriptPlayerPress,
+    canScriptSelectPlayer,
     answerScriptOptional,
     answerScriptCard,
     scriptAttackChoices: getScriptAttackChoices(pendingScript),

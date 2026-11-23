@@ -54,6 +54,30 @@ import { predasteriegx } from './predasteriegx';
 import { sinistrail } from './sinistrail';
 import { tokopiyongx } from './tokopiyongx';
 import { lunala } from './lunala';
+import { machopeur } from './machopeur';
+import { mackogneur } from './mackogneur';
+import { lougarocgx2 } from './lougarocgx2';
+import { bourrinos2 } from './bourrinos2';
+import { meteno } from './meteno';
+import { corboss } from './corboss';
+import { tenefix } from './tenefix';
+import { terhal } from './terhal';
+import { metalossegx } from './metalossegx';
+import { tarinorme } from './tarinorme';
+import { solgaleo } from './solgaleo';
+import { melofee } from './melofee';
+import { mucuscule } from './mucuscule';
+import { colimucus } from './colimucus';
+import { muplodocus } from './muplodocus';
+import { draieul2 } from './draieul';
+import { bebecaille } from './bebecaille';
+import { ekaisergx } from './ekaisergx';
+import { leuphorie } from './leuphorie';
+import { rayquaza } from './rayquaza';
+import { flambusard } from './flambusard';
+import { draieulgx } from './draieulgx';
+import { nirondelle } from './nirondelle';
+
 
 // =============================================================
 // EXTENSION « GARDIENS ASCENDANTS » (série Soleil et Lune)
@@ -121,6 +145,29 @@ predasteriegx,
 sinistrail,
 tokopiyongx,
 lunala,
+machopeur,
+mackogneur,
+lougarocgx2,
+bourrinos2,
+meteno,
+corboss,
+tenefix,
+terhal,
+metalossegx,
+tarinorme,
+solgaleo,
+melofee,
+mucuscule,
+colimucus,
+muplodocus,
+draieul2,
+bebecaille,
+ekaisergx,
+leuphorie,
+nirondelle,
+rayquaza,
+flambusard,
+draieulgx,
 ];
 
 export const GARDIENS_ASCENDANTS_TRAINER_CARDS: TrainerCard[] = [];

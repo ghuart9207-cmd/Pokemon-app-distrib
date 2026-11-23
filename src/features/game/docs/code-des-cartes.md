@@ -35,7 +35,7 @@ Ordre de traitement d'un bloc : **if → OUI/NON → pièces → per → cibles 
 `blockAttack`, `attackDamage`, `attackFails`, `attackIgnoresReductions`,
 `poisonDamage`, `burnDamage`, `retreatDespiteConditions`, `whenPlayed`, `swapDamage`, `endTurn`.
 
-**Tout ce qu'on peut compter** (`per` et `if`) : `discard`, `discardEnergy`, `hand`, `pokemon`, `energy`, `damageCounters`, `tools`, `retreatCost`, `conditions`, `damageDealt`.
+**Tout ce qu'on peut compter** (`per` et `if`) : `discard`, `discardEnergy`, `hand`, `pokemon`, `energy`, `damageCounters`, `tools`, `retreatCost`, `conditions`, `damageDealt`, `knockedOut`.
 
 ### Dégâts ou marqueurs ?
 
@@ -171,7 +171,7 @@ talent: { name: 'Mon talent', type: 'passive', effect: 'script', description: '�
 | Les deux camps | `side: 'both'` |
 | Soi-même (le Pokémon qui attaque / qui a le talent) | `who: 'self'` |
 | Le Pokémon actif (celui de la colonne) | `who: 'active'` |
-| Un Pokémon choisi en cliquant | `who: 'chosen'` (par défaut) |
+| Un Pokémon choisi en cliquant | `who: 'chosen'` (par défaut). Avec `damage`, `counters` ou `condition` (sans `filter`), on peut aussi cliquer sur le **joueur** adverse ; `target: { includePlayer: false }` pour l'interdire |
 | Plusieurs Pokémon choisis | `who: 'chosen', count: 2` |
 | Tous les Pokémon | `who: 'all'` |
 | Le joueur | `who: 'player'` (dégâts, Poison et Brûlure, `prevent` Objets / Supporters ; jamais soigné) |
@@ -253,6 +253,7 @@ pour une certaine **durée**. Les effets en cours s'affichent dans le panneau du
 | PV max | `action: 'maxHp', amount: 30` (ou `-30`). Les dégâts déjà subis restent. |
 | Résistance (subit moins de dégâts des attaques) | `action: 'resistance', amount: 30` (`-30` = subit 30 dégâts de PLUS) |
 | Boost (ses attaques font plus de dégâts) | `action: 'boost', amount: 30` (`-30` = moins), `attackName: 'Lance-Flammes'` = une seule attaque |
+| Boost seulement contre certains Pokémon | `action: 'boost', amount: 30, vs: { variants: ['gx', 'ex'] }` (`vs` = mêmes contraintes que `filter`) |
 | Immunité | `action: 'immunity', against: ['damage']` (voir plus bas) |
 | Empêcher | `action: 'prevent', prevent: ['attack']` (voir plus bas) |
 | Si ce Pokémon subit des dégâts | `action: 'whenDamaged', script: [ /* blocs */ ]` (voir plus bas) |
@@ -290,6 +291,7 @@ Un effet disparaît aussi quand le Pokémon quitte le plateau. Les talents passi
 | Recevoir des Énergies de la main (et l'Énergie de fin de tour) | `prevent: ['energy']` |
 | Jouer des Objets (avec `who: 'player'`) | `prevent: ['items']` |
 | Jouer des Supporters (avec `who: 'player'`) | `prevent: ['supporters']` |
+| Jouer des Outils seulement (avec `who: 'player'`) | `prevent: ['tools']` |
 
 ### Seulement contre certains attaquants (`from`)
 
@@ -557,6 +559,12 @@ script: [
 
 ### Outils en code
 
+```ts
+// Outil Bandeau Choix : « Les attaques du Pokémon auquel cette carte est attachée infligent
+//   30 dégâts supplémentaires au Pokémon GX ou EX de votre adversaire. »
+script: [ { action: 'boost', amount: 30, vs: { variants: ['gx', 'ex'] }, target: { who: 'self' } } ],
+```
+
 Un Outil peut aussi avoir un script : `subtype: 'outil', effect: 'script', script: [ … ]`.
 On l'attache comme les autres Outils ; ses blocs agissent **tant qu'il est attaché** (comme un talent passif),
 avec `who: 'self'` = le Pokémon qui le porte. `target` (sur la carte, pas dans le script) limite à qui on peut l'attacher.
@@ -675,3 +683,80 @@ Voici comment chacun s'écrit avec le code des cartes.
 | boostPokemonAttackThisTurn (Cynthia) | `{ action: 'boost', amount: 100, attackName: '…', duration: 'thisTurn', target: { side: 'own', who: 'all', filter: { pokemonNames: ['…'] } } }` |
 | toolHp40 / toolRetreatMinusOneIgnoreConditions | Outil en code (voir plus haut) |
 | moveEnergyOnKO | (ancien effet seulement) |
+
+## Pokémon mis K.O. (`count: 'knockedOut'`)
+
+Le jeu garde en mémoire les Pokémon mis K.O. (par une attaque, un Poison, une Brûlure, un effet…).
+
+| Réglage | Sens |
+|---|---|
+| `side` | `'own'` (vos Pokémon, par défaut), `'opponent'`, `'both'` |
+| `turn` | `'last'` (le tour d'avant, par défaut), `'this'` (ce tour-ci), `'both'` |
+| `filter` | les contraintes habituelles sur le Pokémon mis K.O. (`isInvocation`, type, stade, GX/EX…) |
+
+```ts
+// « Cette attaque inflige 80 dégâts supplémentaires pour chacun de vos Pokémon
+//   (hors Invocations) mis K.O. pendant le dernier tour. »
+script: [
+  { action: 'attackDamage', amount: 80,
+    per: { count: 'knockedOut', turn: 'last', filter: { isInvocation: false } } },
+],
+
+// « Si un de vos Pokémon a été mis K.O. pendant le dernier tour, … »
+if: { count: 'knockedOut' }
+```
+
+## Plusieurs types d'Énergie (`energyTypes`)
+
+À la place de `energyType` (un seul type), `energyTypes` accepte une liste : « Psy **ou** Métal ».
+Marche avec `attachEnergy` (avec ou sans `fromDiscard`), `discardEnergy` et `moveEnergy`.
+
+```ts
+// Talent : « Une fois pendant votre tour, attachez une Énergie Psy ou Métal de votre défausse
+//            à l'un de vos Pokémon Psy ou Métal. »
+script: [
+  { action: 'attachEnergy', fromDiscard: true, amount: 1, energyTypes: ['psy', 'metal'],
+    target: { side: 'own', who: 'chosen', filter: { pokemonTypes: ['psy', 'metal'] } } },
+],
+```
+
+Avec `fromDiscard`, le Pokémon reçoit d'abord une Énergie de **son** type si la défausse en a une
+(Psy sur un Pokémon Psy), sinon une autre de la liste. Si la défausse n'a aucune Énergie de la liste,
+aucun Pokémon n'est proposé.
+
+## Actif et banc (`position`)
+
+`filter: { position: 'active' }` ou `{ position: 'bench' }` suit les règles du plateau :
+
+| | Actif | Banc |
+|---|---|---|
+| **Vos** Pokémon | le Pokémon qui attaque / qui a le talent (s'il est devant dans sa colonne) | **tous vos autres** Pokémon |
+| Pokémon **adverses** | celui **juste devant** le Pokémon qui attaque / qui a le talent | **tous ses autres** Pokémon |
+| Carte Dresseur (pas de Pokémon source) | le Pokémon de devant de chaque colonne | ceux qui ont un Pokémon devant eux |
+
+```ts
+// « … si des marqueurs de dégâts sont placés sur vos Pokémon de Banc »
+if: { count: 'pokemon', side: 'own', filter: { position: 'bench', damaged: true } }
+
+// « Déplacez une Énergie de ce Pokémon vers l'un de vos Pokémon de Banc »
+{ action: 'moveEnergy', amount: 1, target: { who: 'self' }, to: { filter: { position: 'bench' } } }
+```
+
+Pour un talent passif, le « Pokémon source » est celui qui a le talent
+(ex : Machopeur protège tous vos autres Pokémon).
+
+## La même cible que le bloc d'avant (`who: 'previous'`)
+
+Un bloc n'a qu'**une** `action`. Pour faire deux choses au **même** Pokémon, écris deux blocs ;
+le deuxième vise `who: 'previous'` (la cible du bloc d'avant, sans la redemander).
+
+```ts
+// Potion Max : « Soignez tous les dégâts de l'un de vos Pokémon, mais défaussez-lui toutes ses Énergies. »
+script: [
+  { action: 'heal', amount: 999, target: { side: 'own', who: 'chosen' } },
+  { action: 'discardEnergy', amount: 99, target: { who: 'previous' } },
+],
+```
+
+Après un `switch`, `who: 'previous'` vise le Pokémon déplacé (à sa nouvelle place).
+

@@ -152,6 +152,13 @@ export function useGameCoinFlow({
       setMessage(`Joueur ${player} : tu ne peux pas jouer cette carte pour le moment (effet en cours).`);
       return;
     }
+    if (
+      trainer.subtype === 'outil' &&
+      isPlayerScriptPrevented(player === 1 ? player1Status : player2Status, board, player, 'tools')
+    ) {
+      setMessage(`Joueur ${player} : tu ne peux pas jouer de carte Outil pour le moment (effet en cours).`);
+      return;
+    }
 
     // Carte « à réglages » : on vérifie avant de lancer qu'elle peut servir.
     if (isGenericTrainerEffect(trainer)) {

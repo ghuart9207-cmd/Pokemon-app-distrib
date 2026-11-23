@@ -4,6 +4,7 @@ import type {
   CoinSide,
   EnergyType,
   GameCard,
+  KnockoutRecord,
   Player,
   AttackEffect,
   PlayerAttackBonus,
@@ -20,7 +21,7 @@ import {
 } from './retaliation-rules';
 import { calculateCoinDamage } from './coin-rules';
 import { getAttackerColumnDamageReduction } from './talent-damage-reduction';
-import { getScriptBoost } from './script-modifiers';
+import { getScriptBoost, getScriptBoostVs } from './script-modifiers';
 import { matchesCardFilter } from './script-cards';
 import { getScriptAttackDamageBonus } from './script-count';
 
@@ -376,7 +377,9 @@ export function getDisplayedAttackDamage(
   player2Discard: GameCard[] = [],
   player1Hand: GameCard[] = [],
   player2Hand: GameCard[] = [],
-  attackBonuses: PlayerAttackBonus[] = []
+  attackBonuses: PlayerAttackBonus[] = [],
+  // Code des cartes : journal des K.O. (count 'knockedOut')
+  knockouts: KnockoutRecord[] = []
 
 ): number {
 const attack = getAttackWithBaseDamageOverride(
@@ -517,6 +520,8 @@ if (attack.bonusDamagePerOwnDiscardCard) {
     player2Discard,
     player1Hand,
     player2Hand,
+    knockouts,
+    turnId,
   });
 
  
@@ -580,6 +585,11 @@ damage += getOpponentActiveEnergyBonusDamage(
     }
     if (target && attack.bonusDamageIfTargetGx && target.card.variant === 'gx') {
       damage += attack.bonusDamageIfTargetGx;
+    }
+
+    // Code des cartes : boost « seulement contre … » (affiché contre le Pokémon en face).
+    if (target && damage > 0) {
+      damage += getScriptBoostVs(pokemon, target, attack.name, board);
     }
 
     // Bonus selon le type du Pokémon en face.

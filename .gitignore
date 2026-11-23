@@ -6,4 +6,5 @@ node_modules
 expo-env.d.ts
 # @end expo-cli
 
-.expo\dev\logs\start.log
+.expo/dev/logs/start.log
+.expo/types/router.d.ts

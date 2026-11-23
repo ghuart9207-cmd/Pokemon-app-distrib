@@ -2,6 +2,7 @@ import type {
   BoardState,
   EnergyType,
   GameCard,
+  KnockoutRecord,
   Player,
   PlayerStatusState,
   PokemonInPlay,
@@ -85,6 +86,12 @@ function normalize(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
+/** Case du Pokémon de devant de cette colonne, pour ce joueur (ou null). */
+function frontCellInColumn(board: BoardState, column: string, owner: Player): string | null {
+  const rows = owner === 1 ? ['B', 'A'] : ['C', 'D'];
+  return rows.map((row) => `${row}${column}`).find((cell) => board[cell]) ?? null;
+}
+
 /** Le Pokémon en `cell` est-il l'actif de sa colonne (personne devant lui) ? */
 export function isFrontPokemonCell(board: BoardState, cell: string): boolean {
   const pokemon = board[cell];
@@ -137,7 +144,9 @@ export function matchesPokemonFilter(
   pokemon: PokemonInPlay,
   filter: ScriptTargetFilter | undefined,
   board?: BoardState | null,
-  cell?: string | null
+  cell?: string | null,
+  // Pokémon qui attaque / qui a le talent : sert à `position` (voir plus bas)
+  sourceCell?: string | null
 ): boolean {
   if (!filter) return true;
 
@@ -188,7 +197,18 @@ export function matchesPokemonFilter(
   if (filter.position && board) {
     const where = cell ?? findCell(board, pokemon);
     if (where) {
-      const isActive = isFrontPokemonCell(board, where);
+      // Avec un Pokémon source (attaque, talent) :
+      // - vos Pokémon : l'actif = celui qui attaque / a le talent, le banc = tous les autres ;
+      // - ceux de l'adversaire : l'actif = celui juste devant le Pokémon source, le banc = tous les autres.
+      // Sans source (Dresseur) : l'actif = le Pokémon de devant de sa colonne.
+      const source = sourceCell ? board[sourceCell] : null;
+      const isActive =
+        sourceCell && source
+          ? pokemon.owner === source.owner
+            ? // le Pokémon source lui-même n'est l'actif que s'il est devant dans sa colonne
+              where === sourceCell && isFrontPokemonCell(board, where)
+            : where === frontCellInColumn(board, sourceCell.slice(1), pokemon.owner)
+          : isFrontPokemonCell(board, where);
       if (filter.position === 'active' && !isActive) return false;
       if (filter.position === 'bench' && isActive) return false;
     }
@@ -256,6 +276,7 @@ export function createScriptModifier(
     prevent: block.prevent,
     from: block.from,
     attackName: block.attackName,
+    vs: block.vs,
     script: block.script,
     sourceName,
     sourcePlayer: creator,
@@ -346,7 +367,28 @@ export function getScriptBoost(pokemon: PokemonInPlay, attackName: string): numb
     .filter(
       (modifier) =>
         modifier.kind === 'boost' &&
+        // les boosts « seulement contre … » (vs) dépendent de la cible : voir getScriptBoostVs
+        !modifier.vs &&
         (!modifier.attackName || normalize(modifier.attackName) === normalize(attackName))
+    )
+    .reduce((total, modifier) => total + (modifier.amount ?? 0), 0);
+}
+
+/** Boosts « seulement contre … » (`vs`) de l'attaquant qui s'appliquent à cette cible. */
+export function getScriptBoostVs(
+  attacker: PokemonInPlay | null | undefined,
+  target: PokemonInPlay | null | undefined,
+  attackName: string,
+  board?: BoardState | null
+): number {
+  if (!attacker || !target || attacker.owner === target.owner) return 0;
+  return getActiveModifiers(attacker)
+    .filter(
+      (modifier) =>
+        modifier.kind === 'boost' &&
+        !!modifier.vs &&
+        (!modifier.attackName || normalize(modifier.attackName) === normalize(attackName)) &&
+        matchesPokemonFilter(target, modifier.vs, board)
     )
     .reduce((total, modifier) => total + (modifier.amount ?? 0), 0);
 }
@@ -610,7 +652,7 @@ export function computeAuraModifiers(board: BoardState): Record<string, ScriptMo
         if (who === 'self' && cell !== holderCell) continue;
         if (who === 'active' && (cell.slice(1) !== column || !isFrontPokemonCell(board, cell))) continue;
         if (filter?.excludeSelf && cell === holderCell) continue;
-        if (!matchesPokemonFilter(pokemon, filter, board, cell)) continue;
+        if (!matchesPokemonFilter(pokemon, filter, board, cell, holderCell)) continue;
 
         const modifier = createScriptModifier(block, continuous.names[blockIndex], holder.owner, null);
         if (modifier) (result[cell] ??= []).push(modifier);
@@ -672,6 +714,9 @@ export type ScriptCountContext = {
   player2Hand: GameCard[];
   player1DiscardEnergies?: EnergyType[];
   player2DiscardEnergies?: EnergyType[];
+  // count 'knockedOut' : journal des K.O. et tour en cours
+  knockouts?: KnockoutRecord[];
+  turnId?: number;
 };
 
 function sidePlayers(per: ScriptCount, player: Player): Player[] {
@@ -705,6 +750,19 @@ export function computeScriptCount(per: ScriptCount, context: ScriptCountContext
       return source?.lastAttackDamage ?? 0;
     }
 
+    case 'knockedOut': {
+      if (context.turnId === undefined) return 0;
+      const turn = per.turn ?? 'last';
+      const turns =
+        turn === 'this' ? [context.turnId] : turn === 'last' ? [context.turnId - 1] : [context.turnId, context.turnId - 1];
+      return (context.knockouts ?? []).filter(
+        (record) =>
+          turns.includes(record.turnId) &&
+          players.includes(record.owner) &&
+          matchesPokemonFilter(record.pokemon, per.filter)
+      ).length;
+    }
+
     case 'discardEnergy': {
       return players.reduce((total, player) => {
         const energies = (player === 1 ? context.player1DiscardEnergies : context.player2DiscardEnergies) ?? [];
@@ -726,7 +784,7 @@ export function computeScriptCount(per: ScriptCount, context: ScriptCountContext
           // l'actif de la colonne du Pokémon source (s'il y en a un)
           if (sourceColumn && cell.slice(1) !== sourceColumn) return false;
         }
-        return matchesPokemonFilter(pokemon, per.filter, context.board, cell);
+        return matchesPokemonFilter(pokemon, per.filter, context.board, cell, context.sourceCell);
       });
 
       return cells.reduce((total, cell) => {

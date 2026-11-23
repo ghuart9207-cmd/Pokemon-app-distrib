@@ -16,6 +16,7 @@ import type {
     GameCard,
     PlayerAttackBonus,
     PokemonInPlay,
+  KnockoutRecord,
 } from '@/features/game/types';
 import {
     formatAttackCost,
@@ -41,6 +42,8 @@ type PokemonActionsProps = {
   player2Discard: GameCard[];
   player1Hand: GameCard[];
   player2Hand: GameCard[];
+  // Code des cartes : journal des K.O.
+  knockouts?: KnockoutRecord[];
   onSelectAttack: (index: number, message: string) => void;
   onAttack: () => void;
   onRetreat: () => void;
@@ -67,6 +70,7 @@ export function PokemonActions({
   opponentPlayerBurned,
   player1Discard,
   player2Discard,
+  knockouts = [],
   player1Hand,
   player2Hand,
   onSelectAttack,
@@ -216,7 +220,8 @@ export function PokemonActions({
       player2Discard,
       player1Hand,
       player2Hand,
-      ownAttackBonuses
+      ownAttackBonuses,
+      knockouts
     );
 
     const displayedCost = copiedFromDiscard
