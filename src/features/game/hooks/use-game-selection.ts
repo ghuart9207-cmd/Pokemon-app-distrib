@@ -17,6 +17,8 @@ type UseGameSelectionOptions = {
   round: number;
   gameOver: boolean;
   hasPlacedThisTurn: boolean;
+  // Didacticiel : pas de restriction de pose selon la manche.
+  noPlacementRestrictions?: boolean;
   freeReplacementTokens: Record<string, number>;
   pokemonPlacementLocks: Record<string, number>;
   hasUsedSupporterThisTurn: boolean;
@@ -40,6 +42,7 @@ export function useGameSelection({
   round,
   gameOver,
   hasPlacedThisTurn,
+  noPlacementRestrictions,
   freeReplacementTokens,
   pokemonPlacementLocks,
   hasUsedSupporterThisTurn,
@@ -85,7 +88,7 @@ export function useGameSelection({
       return;
     }
 
-    if (!canPlacePokemon(card, round, owner)) {
+    if (!noPlacementRestrictions && !canPlacePokemon(card, round, owner)) {
       const firstRound = getFirstPlayableRound(card, owner);
       const stageLabel =
         card.stage === 'niveau1'

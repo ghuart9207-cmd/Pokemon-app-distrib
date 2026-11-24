@@ -10,12 +10,16 @@ import { styles } from './home-screen.styles';
 
 const TITLE_MIN_SIZE = 44;
 const TITLE_MAX_SIZE = 96;
+/** À partir de cette largeur d'écran, la liste des joueurs connectés passe à gauche. */
+const SIDE_PLAYERS_MIN_WIDTH = 800;
 
 /** Accueil : le titre du jeu, le bouton Jouer et l'état du compte en haut. */
 export default function HomeScreen() {
   const router = useRouter();
   const { player } = useAuth();
   const { width } = useWindowDimensions();
+  // Grand écran : joueurs connectés à gauche. Petit écran : sous le titre, au-dessus des boutons.
+  const playersOnSide = width >= SIDE_PLAYERS_MIN_WIDTH;
 
   // le titre grandit avec l'écran, dans des limites raisonnables
   const titleSize = Math.round(
@@ -63,6 +67,8 @@ export default function HomeScreen() {
           Pokemon Version Vincent
         </Text>
 
+        {!playersOnSide && <OnlinePlayers />}
+
         <View style={styles.buttons}>
           <Pressable
             style={({ pressed }) => [
@@ -96,10 +102,27 @@ export default function HomeScreen() {
           >
             <Text style={styles.onlineText}>📚 Decks</Text>
           </Pressable>
-        </View>
 
-        <OnlinePlayers />
+          {/* Didacticiel : pas besoin de compte. */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.onlineButton,
+              pressed && styles.onlineButtonPressed,
+            ]}
+            onPress={() => router.push('/didacticiel')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.onlineText}>🎓 Didacticiel</Text>
+          </Pressable>
+        </View>
       </View>
+
+      {/* Joueurs connectés : colonne à gauche, centrée en hauteur */}
+      {playersOnSide && (
+        <View style={styles.sidePlayers} pointerEvents="box-none">
+          <OnlinePlayers />
+        </View>
+      )}
     </SafeAreaView>
   );
 }

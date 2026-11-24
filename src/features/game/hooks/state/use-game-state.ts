@@ -145,6 +145,8 @@ export function useGameState() {
   const [pendingScript, setPendingScript] = useState<PendingScript | null>(null);
   // Code des cartes : journal des Pokémon mis K.O. (count: 'knockedOut').
   const [knockouts, setKnockouts] = useState<KnockoutRecord[]>([]);
+  // Didacticiel : pas de restriction de pose (Niveau 1 / 2 dès le premier tour).
+  const [noPlacementRestrictions, setNoPlacementRestrictions] = useState(false);
   const [pendingDragonEnergyChoices,setPendingDragonEnergyChoices,] = 
     useState<PendingDragonEnergyChoice[]>([]);
   const [pendingGeneratedBenchEnergy, setPendingGeneratedBenchEnergy] =
@@ -288,6 +290,8 @@ export function useGameState() {
     setPendingScript,
     knockouts,
     setKnockouts,
+    noPlacementRestrictions,
+    setNoPlacementRestrictions,
     pendingGeneratedBenchEnergy,
     setPendingGeneratedBenchEnergy,
     pendingEnergyTransferToBench,

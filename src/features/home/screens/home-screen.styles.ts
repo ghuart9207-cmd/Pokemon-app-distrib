@@ -27,6 +27,14 @@ export const styles = StyleSheet.create({
     textShadowOffset: { width: 4, height: 5 },
     textShadowRadius: 0,
   },
+  // Joueurs connectés à gauche (grand écran)
+  sidePlayers: {
+    position: 'absolute',
+    left: 24,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
   buttons: {
     alignItems: 'center',
     gap: 18,

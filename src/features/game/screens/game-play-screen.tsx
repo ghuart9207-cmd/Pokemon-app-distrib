@@ -10,6 +10,7 @@ import { EnergyGatherPrompt } from '@/features/game/components/panels/energy-gat
 import { HandPokemonPreview } from '@/features/game/components/panels/hand-pokemon-preview';
 import { ForfeitButton } from '@/features/game/components/panels/forfeit-button';
 import { UndoTurnButton } from '@/features/game/components/panels/undo-turn-button';
+import { TutorialPanel, type TutorialPanelInfo } from '@/features/game/components/panels/tutorial-panel';
 import type { SummonChoices } from '@/features/game/rules';
 import type { DiscardSummonCandidate } from '@/features/game/rules';
 import { KOEnergyPrompt } from '@/features/game/components/panels/ko-energy-prompt';
@@ -48,6 +49,8 @@ import type {
 import { styles } from './game-play-screen.styles';
 
 type GamePlayScreenProps = {
+  // Didacticiel : panneau d'étape à la place du message du joueur 1.
+  tutorial?: TutorialPanelInfo;
   board: BoardState;
   currentPlayer: Player;
   gameOver: boolean;
@@ -246,10 +249,15 @@ const dragonPokemon = dragonChoice
         onToggle={props.onToggleDiscard}
       />
 
-      {/* Message, côté joueur 1 : sous sa défausse, au-dessus du plateau. */}
-      <View style={sharedStyles.messageBox}>
-        <Text style={sharedStyles.message}>{props.message}</Text>
-      </View>
+      {/* Message, côté joueur 1 : sous sa défausse, au-dessus du plateau.
+          Didacticiel : le texte de l'étape et le bouton OK à la place. */}
+      {props.tutorial ? (
+        <TutorialPanel info={props.tutorial} />
+      ) : (
+        <View style={sharedStyles.messageBox}>
+          <Text style={sharedStyles.message}>{props.message}</Text>
+        </View>
+      )}
 
       <ScrollView
         horizontal
