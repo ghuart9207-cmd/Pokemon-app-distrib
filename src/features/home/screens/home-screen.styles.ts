@@ -34,6 +34,7 @@ export const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     justifyContent: 'center',
+    gap: 12,
   },
   buttons: {
     alignItems: 'center',

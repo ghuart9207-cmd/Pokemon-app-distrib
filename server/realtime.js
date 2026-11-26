@@ -7,7 +7,10 @@
  *   { type: 'join_room', code, series }   refusé si la série n'est pas celle de l'hôte
  *   { type: 'leave_room' }
  *   { type: 'action', name, payload }     une action de jeu (clic, attaque, fin de tour…)
- *   { type: 'game_over', winner }         winner : 1, 2 ou 0 (égalité)
+ *   { type: 'game_over', winner, scores?, cards? }
+ *                                         winner : 1, 2 ou 0 (égalité)
+ *                                         scores : [dégâts infligés par le joueur 1, par le joueur 2]
+ *                                         cards  : { 1: [id des Pokémon], 2: [...] } (journal de combat)
  *
  * Serveur -> client
  *   { type: 'authed', player }
@@ -256,6 +259,10 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
             if (![0, 1, 2].includes(msg.winner)) return;
 
             room.reports[seat] = msg.winner;
+            // détails pour le journal de combat (le 1er envoyé suffit : les deux écrans sont identiques)
+            if (!room.details && (msg.scores || msg.cards)) {
+              room.details = { scores: msg.scores, cards: msg.cards };
+            }
             const bothAgree =
               room.reports[1] !== undefined && room.reports[1] === room.reports[2];
             if (bothAgree && !room.recorded) {
@@ -266,6 +273,7 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
                   player2Id: room.seats[2].playerId,
                   winnerSeat: room.reports[1],
                   startedAt: room.createdAt,
+                  details: room.details || {},
                 });
                 broadcast(room, { type: 'match_recorded' });
               } catch (error) {

@@ -21,6 +21,14 @@ import type {
   ServerMessage,
 } from './protocol';
 
+/** Détails envoyés en fin de partie pour le journal de combat. */
+export type GameOverDetails = {
+  /** [dégâts infligés par le joueur 1, dégâts infligés par le joueur 2] */
+  scores: [number, number];
+  /** identifiants des Pokémon du deck de chaque joueur */
+  cards: { 1: string[]; 2: string[] };
+};
+
 type ConnectionStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
 
 type OnlineContextValue = {
@@ -41,7 +49,7 @@ type OnlineContextValue = {
   /** Envoie une action de jeu. Renvoie false si elle n'a pas pu partir. */
   sendAction: (name: ActionName, payload: unknown[]) => boolean;
   /** Annonce la fin de la partie (winner : 1, 2 ou 0 pour une égalité). */
-  reportGameOver: (winner: 0 | 1 | 2) => void;
+  reportGameOver: (winner: 0 | 1 | 2, details?: GameOverDetails) => void;
   clearError: () => void;
   /** Joueurs connectés au serveur (null : pas encore reçu, ou ancien serveur). */
   onlinePlayers: OnlinePlayer[] | null;
@@ -367,8 +375,8 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
-  function reportGameOver(winner: 0 | 1 | 2) {
-    sendRaw({ type: 'game_over', winner });
+  function reportGameOver(winner: 0 | 1 | 2, details?: GameOverDetails) {
+    sendRaw({ type: 'game_over', winner, ...details });
   }
 
   // Connecté à un compte : on ouvre la connexion tout de suite (liste des joueurs en ligne).

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/auth-context';
 
 import { AccountBar } from '../components/account-bar';
+import { MatchHistoryButton } from '../components/match-history-button';
 import { OnlinePlayers } from '../components/online-players';
 import { styles } from './home-screen.styles';
 
@@ -68,6 +69,7 @@ export default function HomeScreen() {
         </Text>
 
         {!playersOnSide && <OnlinePlayers />}
+        {!playersOnSide && <MatchHistoryButton />}
 
         <View style={styles.buttons}>
           <Pressable
@@ -121,6 +123,7 @@ export default function HomeScreen() {
       {playersOnSide && (
         <View style={styles.sidePlayers} pointerEvents="box-none">
           <OnlinePlayers />
+          <MatchHistoryButton />
         </View>
       )}
     </SafeAreaView>

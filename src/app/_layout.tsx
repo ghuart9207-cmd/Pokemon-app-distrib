@@ -98,6 +98,7 @@ export default function RootLayout() {
             }}
           />
           {/* Didacticiel : flèche de retour vers le menu du didacticiel */}
+          <Stack.Screen name="journal" options={backHeader('Journal de combat', '/')} />
           <Stack.Screen name="didacticiel" options={backHeader('Didacticiel', '/')} />
           <Stack.Screen name="didacticiel-base" options={backHeader('Base du jeu', '/didacticiel')} />
           <Stack.Screen

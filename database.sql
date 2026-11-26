@@ -115,6 +115,16 @@ CREATE TABLE IF NOT EXISTS matches (
   rounds_played  INT UNSIGNED  NOT NULL DEFAULT 0,
   started_at     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ended_at       TIMESTAMP     NULL,
+  -- Journal de combat (ajoutées aussi automatiquement par le serveur si elles manquent)
+  player1_score       INT UNSIGNED NULL,   -- dégâts infligés au joueur adverse
+  player2_score       INT UNSIGNED NULL,
+  player1_elo_before  INT          NULL,
+  player1_elo_after   INT          NULL,
+  player2_elo_before  INT          NULL,
+  player2_elo_after   INT          NULL,
+  player1_cards       TEXT         NULL,   -- identifiants des Pokémon du deck (JSON)
+  player2_cards       TEXT         NULL,
+
 
   PRIMARY KEY (id),
   KEY idx_matches_player1 (player1_id),
