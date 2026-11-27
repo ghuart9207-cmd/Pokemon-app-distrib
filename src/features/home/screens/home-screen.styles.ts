@@ -36,6 +36,14 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
   },
+  // Classement à droite (grand écran)
+  sideRanking: {
+    position: 'absolute',
+    right: 24,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
   buttons: {
     alignItems: 'center',
     gap: 18,

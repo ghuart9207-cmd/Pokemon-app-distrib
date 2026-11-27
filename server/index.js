@@ -7,6 +7,7 @@
  *   POST /api/logout     (Authorization: Bearer <token>)        -> { ok: true }
  *   GET  /api/health                                            -> { ok: true }
  *   GET  /api/matches    (Authorization: Bearer <token>)        -> { matches } (journal de combat)
+ *   GET  /api/leaderboard                                       -> { players } (classement par ELO)
  *
  * + le serveur temps réel (WebSocket sur /ws) défini dans realtime.js.
  */
@@ -20,6 +21,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const mysql = require('mysql2/promise');
 const { attachRealtime } = require('./realtime');
+const { computeElo, STARTING_ELO, MAX_DAMAGE_DIFF } = require('./elo');
 
 const PORT = Number(process.env.PORT) || 3001;
 const SESSION_DAYS = 30;
@@ -139,11 +141,6 @@ async function requireAuth(req, res, next) {
   }
 }
 
-/**
- * Enregistre une partie terminée : historique (matches) + statistiques et ELO des deux joueurs.
- * winnerSeat : 1 ou 2 pour le gagnant, 0 pour une égalité.
- */
-const ELO_K = 32;
 
 /** Liste de cartes envoyée par le jeu : identifiants simples, 12 au plus. */
 function cleanCardIds(value) {
@@ -159,7 +156,13 @@ function cleanScore(value) {
   return Number.isInteger(value) && value >= 0 && value < 100000 ? value : null;
 }
 
-async function recordMatch({ player1Id, player2Id, winnerSeat, startedAt, details = {} }) {
+/**
+ * Enregistre une partie terminée : historique (matches) + statistiques et ELO des deux joueurs.
+ * winnerSeat : 1 ou 2 pour le gagnant, 0 pour une égalité.
+ * ranked : partie classée (ELO, victoires et défaites comptés) ; amicale sinon (rien ne change).
+ * Le calcul de l'ELO est dans elo.js.
+ */
+async function recordMatch({ player1Id, player2Id, winnerSeat, startedAt, ranked = true, details = {} }) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -170,41 +173,49 @@ async function recordMatch({ player1Id, player2Id, winnerSeat, startedAt, detail
     );
     const elo = Object.fromEntries(rows.map((row) => [row.id, row.elo]));
 
-    const score1 = winnerSeat === 1 ? 1 : winnerSeat === 2 ? 0 : 0.5;
-    const expected1 = 1 / (1 + 10 ** ((elo[player2Id] - elo[player1Id]) / 400));
-    const newElo1 = Math.max(
-      0,
-      Math.round(elo[player1Id] + ELO_K * (score1 - expected1))
-    );
-    const newElo2 = Math.max(
-      0,
-      Math.round(elo[player2Id] + ELO_K * (1 - score1 - (1 - expected1)))
-    );
-
-    const winnerId = winnerSeat === 1 ? player1Id : winnerSeat === 2 ? player2Id : null;
     const scores = Array.isArray(details.scores) ? details.scores : [];
     const cards = details.cards && typeof details.cards === 'object' ? details.cards : {};
+    const score1 = cleanScore(scores[0]);
+    const score2 = cleanScore(scores[1]);
+    // écart de dégâts ; abandon (ou dégâts non envoyés) : 200, le maximum
+    const damageDiff =
+      details.forfeit === true || score1 === null || score2 === null
+        ? MAX_DAMAGE_DIFF
+        : Math.abs(score1 - score2);
+
+    const { newElo1, newElo2 } = ranked
+      ? computeElo({ elo1: elo[player1Id], elo2: elo[player2Id], winnerSeat, damageDiff })
+      : { newElo1: elo[player1Id], newElo2: elo[player2Id] };
+
+    const winnerId = winnerSeat === 1 ? player1Id : winnerSeat === 2 ? player2Id : null;
     await connection.execute(
       `INSERT INTO matches (player1_id, player2_id, winner_id, rounds_played, started_at, ended_at,
                             player1_score, player2_score,
                             player1_elo_before, player1_elo_after, player2_elo_before, player2_elo_after,
-                            player1_cards, player2_cards)
-       VALUES (?, ?, ?, 8, FROM_UNIXTIME(?), NOW(), ?, ?, ?, ?, ?, ?, ?, ?)`,
+                            player1_cards, player2_cards, ranked)
+       VALUES (?, ?, ?, 8, FROM_UNIXTIME(?), NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         player1Id,
         player2Id,
         winnerId,
         Math.floor(startedAt / 1000),
-        cleanScore(scores[0]),
-        cleanScore(scores[1]),
+        score1,
+        score2,
         elo[player1Id],
         newElo1,
         elo[player2Id],
         newElo2,
         cleanCardIds(cards[1]),
         cleanCardIds(cards[2]),
+        ranked ? 1 : 0,
       ]
     );
+
+    // Partie amicale : seulement dans le journal, rien d'autre ne change.
+    if (!ranked) {
+      await connection.commit();
+      return;
+    }
 
     const update = `UPDATE players
                        SET games_played = games_played + 1,
@@ -387,10 +398,37 @@ app.get('/api/matches', requireAuth, async (req, res, next) => {
       const me = side(row, mySeat);
       const opponent = side(row, mySeat === 1 ? 2 : 1);
       const result = row.winner_id === null ? 'draw' : row.winner_id === myId ? 'win' : 'loss';
-      return { id: row.id, endedAt: row.ended_at, result, me, opponent };
+      return { id: row.id, endedAt: row.ended_at, ranked: row.ranked !== 0, result, me, opponent };
     });
 
     res.json({ matches });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** Classement : les meilleurs joueurs par ELO (puis par victoires, puis par ancienneté). */
+const LEADERBOARD_LIMIT = 50;
+
+app.get('/api/leaderboard', async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, pseudo, avatar_url, elo, wins, losses
+         FROM players
+        ORDER BY elo DESC, wins DESC, id ASC
+        LIMIT ${LEADERBOARD_LIMIT}`
+    );
+    res.json({
+      players: rows.map((row, index) => ({
+        rank: index + 1,
+        id: row.id,
+        pseudo: row.pseudo,
+        avatarUrl: row.avatar_url ?? null,
+        elo: row.elo,
+        wins: row.wins,
+        losses: row.losses,
+      })),
+    });
   } catch (error) {
     next(error);
   }
@@ -440,7 +478,30 @@ const MATCH_EXTRA_COLUMNS = {
   player2_elo_after: 'INT NULL',
   player1_cards: 'TEXT NULL',
   player2_cards: 'TEXT NULL',
+  ranked: 'TINYINT(1) NOT NULL DEFAULT 1',
 };
+
+/**
+ * Mises à jour qui ne doivent se faire qu'UNE fois (notées dans la table server_migrations).
+ * - elo_v2_reset : nouveau système d'ELO, tout le monde repart à 100.
+ */
+async function runOneTimeMigrations() {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS server_migrations (
+       name VARCHAR(64) PRIMARY KEY,
+       applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+     )`
+  );
+  const [done] = await pool.query('SELECT name FROM server_migrations');
+  const applied = new Set(done.map((row) => row.name));
+
+  if (!applied.has('elo_v2_reset')) {
+    await pool.query(`ALTER TABLE players ALTER COLUMN elo SET DEFAULT ${STARTING_ELO}`);
+    await pool.query('UPDATE players SET elo = ?', [STARTING_ELO]);
+    await pool.query("INSERT INTO server_migrations (name) VALUES ('elo_v2_reset')");
+    console.log(`Nouveau système d'ELO : tous les joueurs repartent à ${STARTING_ELO}.`);
+  }
+}
 
 async function ensureMatchColumns() {
   const [rows] = await pool.query(
@@ -471,8 +532,9 @@ async function start() {
 
   try {
     await ensureMatchColumns();
+    await runOneTimeMigrations();
   } catch (error) {
-    console.error('Mise à jour de la table matches impossible :', error.message);
+    console.error('Mise à jour de la base impossible :', error.message);
   }
 
   await purgeExpiredSessions();

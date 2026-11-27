@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/auth-context';
 
 import { AccountBar } from '../components/account-bar';
+import { Leaderboard } from '../components/leaderboard';
 import { MatchHistoryButton } from '../components/match-history-button';
 import { OnlinePlayers } from '../components/online-players';
 import { styles } from './home-screen.styles';
@@ -13,6 +14,8 @@ const TITLE_MIN_SIZE = 44;
 const TITLE_MAX_SIZE = 96;
 /** À partir de cette largeur d'écran, la liste des joueurs connectés passe à gauche. */
 const SIDE_PLAYERS_MIN_WIDTH = 800;
+/** À partir de cette largeur d'écran, le classement passe à droite (sinon : sous les boutons). */
+const SIDE_RANKING_MIN_WIDTH = 1000;
 
 /** Accueil : le titre du jeu, le bouton Jouer et l'état du compte en haut. */
 export default function HomeScreen() {
@@ -21,6 +24,7 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   // Grand écran : joueurs connectés à gauche. Petit écran : sous le titre, au-dessus des boutons.
   const playersOnSide = width >= SIDE_PLAYERS_MIN_WIDTH;
+  const rankingOnSide = width >= SIDE_RANKING_MIN_WIDTH;
 
   // le titre grandit avec l'écran, dans des limites raisonnables
   const titleSize = Math.round(
@@ -47,9 +51,9 @@ export default function HomeScreen() {
 
   function handlePlayOnline() {
     if (player) {
-      router.push({ pathname: '/serie', params: { mode: 'en-ligne' } });
+      router.push('/mode-en-ligne');
     } else {
-      router.push({ pathname: '/connexion', params: { next: 'serie-en-ligne' } });
+      router.push({ pathname: '/connexion', params: { next: 'mode-en-ligne' } });
     }
   }
 
@@ -117,6 +121,8 @@ export default function HomeScreen() {
             <Text style={styles.onlineText}>🎓 Didacticiel</Text>
           </Pressable>
         </View>
+
+        {!rankingOnSide && <Leaderboard />}
       </View>
 
       {/* Joueurs connectés : colonne à gauche, centrée en hauteur */}
@@ -124,6 +130,13 @@ export default function HomeScreen() {
         <View style={styles.sidePlayers} pointerEvents="box-none">
           <OnlinePlayers />
           <MatchHistoryButton />
+        </View>
+      )}
+
+      {/* Classement : colonne à droite, centrée en hauteur */}
+      {rankingOnSide && (
+        <View style={styles.sideRanking} pointerEvents="box-none">
+          <Leaderboard />
         </View>
       )}
     </SafeAreaView>

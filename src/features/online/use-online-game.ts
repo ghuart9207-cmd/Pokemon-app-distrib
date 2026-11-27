@@ -128,6 +128,7 @@ export function useOnlineGame(rawGame: GameApi, you: Seat) {
       reportGameOver(getWinner(rawGame), {
         scores: [rawGame.player2Damage, rawGame.player1Damage],
         cards: { 1: pokemonIds(rawGame.player1SetupCards), 2: pokemonIds(rawGame.player2SetupCards) },
+        forfeit: rawGame.forfeitedPlayer !== null,
       });
     }
     if (!rawGame.gameOver) reportedRef.current = false;

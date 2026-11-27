@@ -27,6 +27,8 @@ export type GameOverDetails = {
   scores: [number, number];
   /** identifiants des Pokémon du deck de chaque joueur */
   cards: { 1: string[]; 2: string[] };
+  /** true : la partie s'est finie par un abandon (ELO calculé avec 200 dégâts d'écart) */
+  forfeit: boolean;
 };
 
 type ConnectionStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
@@ -42,9 +44,9 @@ type OnlineContextValue = {
   /** Vrai entre l'envoi d'une action et le moment où le serveur la renvoie. */
   isAwaitingEcho: boolean;
   /** Crée un salon pour la série choisie. */
-  createRoom: (series: CardSeries) => Promise<void>;
+  createRoom: (series: CardSeries, ranked: boolean) => Promise<void>;
   /** Rejoint un salon : la série doit être la même que celle de l'hôte. */
-  joinRoom: (code: string, series: CardSeries) => Promise<void>;
+  joinRoom: (code: string, series: CardSeries, ranked: boolean) => Promise<void>;
   leaveRoom: () => void;
   /** Envoie une action de jeu. Renvoie false si elle n'a pas pu partir. */
   sendAction: (name: ActionName, payload: unknown[]) => boolean;
@@ -165,6 +167,8 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
           code: message.code,
           // ancien serveur sans série : Soleil et Lune par défaut
           series: toCardSeries(message.series),
+          // ancien serveur sans mode : classée
+          ranked: message.ranked !== false,
           you: message.you,
           players: message.players,
         };
@@ -345,16 +349,16 @@ export function OnlineProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  async function createRoom(series: CardSeries) {
+  async function createRoom(series: CardSeries, ranked: boolean) {
     setError(null);
     await openSocket();
-    await request({ type: 'create_room', series });
+    await request({ type: 'create_room', series, ranked });
   }
 
-  async function joinRoom(code: string, series: CardSeries) {
+  async function joinRoom(code: string, series: CardSeries, ranked: boolean) {
     setError(null);
     await openSocket();
-    await request({ type: 'join_room', code: code.trim().toUpperCase(), series });
+    await request({ type: 'join_room', code: code.trim().toUpperCase(), series, ranked });
   }
 
   function leaveRoom() {

@@ -3,18 +3,20 @@
  *
  * Client -> serveur
  *   { type: 'auth', token }
- *   { type: 'create_room', series }       series : 'soleil-lune' ou 'tcg-pocket'
- *   { type: 'join_room', code, series }   refusé si la série n'est pas celle de l'hôte
+ *   { type: 'create_room', series, ranked }       series : 'soleil-lune' ou 'tcg-pocket'
+ *                                                  ranked : true (classée) / false (amicale)
+ *   { type: 'join_room', code, series, ranked }   refusé si la série ou le mode diffère de l'hôte
  *   { type: 'leave_room' }
  *   { type: 'action', name, payload }     une action de jeu (clic, attaque, fin de tour…)
  *   { type: 'game_over', winner, scores?, cards? }
  *                                         winner : 1, 2 ou 0 (égalité)
  *                                         scores : [dégâts infligés par le joueur 1, par le joueur 2]
  *                                         cards  : { 1: [id des Pokémon], 2: [...] } (journal de combat)
+ *                                         forfeit : true si la partie s'est finie par un abandon
  *
  * Serveur -> client
  *   { type: 'authed', player }
- *   { type: 'room_joined', code, series, you, players, log }
+ *   { type: 'room_joined', code, series, ranked, you, players, log }
  *   { type: 'room_update', players }
  *   { type: 'action', seq, from, name, payload }   envoyée aux DEUX joueurs, dans le même ordre
  *   { type: 'match_recorded' }
@@ -194,8 +196,8 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
           case 'join_room': {
             const result =
               msg.type === 'create_room'
-                ? manager.createRoom(session.player, msg.series)
-                : manager.joinRoom(msg.code, session.player, msg.series);
+                ? manager.createRoom(session.player, msg.series, msg.ranked)
+                : manager.joinRoom(msg.code, session.player, msg.series, msg.ranked);
             const { room, seat } = result;
             bindSeat(room, seat, socket);
             session.code = room.code;
@@ -203,6 +205,7 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
               type: 'room_joined',
               code: room.code,
               series: room.series,
+              ranked: room.ranked,
               you: seat,
               players: manager.playersInfo(room),
               log: room.log,
@@ -261,7 +264,7 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
             room.reports[seat] = msg.winner;
             // détails pour le journal de combat (le 1er envoyé suffit : les deux écrans sont identiques)
             if (!room.details && (msg.scores || msg.cards)) {
-              room.details = { scores: msg.scores, cards: msg.cards };
+              room.details = { scores: msg.scores, cards: msg.cards, forfeit: msg.forfeit === true };
             }
             const bothAgree =
               room.reports[1] !== undefined && room.reports[1] === room.reports[2];
@@ -273,6 +276,7 @@ function attachRealtime(httpServer, { authenticate, recordMatch }) {
                   player2Id: room.seats[2].playerId,
                   winnerSeat: room.reports[1],
                   startedAt: room.createdAt,
+                  ranked: room.ranked,
                   details: room.details || {},
                 });
                 broadcast(room, { type: 'match_recorded' });

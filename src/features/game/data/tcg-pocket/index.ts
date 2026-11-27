@@ -21,6 +21,16 @@ import { ondinetcg } from './ondine-tcg';
 import { potiontcg } from './potion-tcg';
 import { vitesseplustcg } from './vitesse+-tcg';
 import { pokeballtcg } from './pokeball-tcg';
+import { amonistartcg } from './amonistar-tcg';
+import { artikodinextcg } from './artikodinex-tcg';
+import { amphinobitcg } from './amphinobi-tcg';
+import { raichu } from '../pokemon';
+import { raichutcg } from './raichu-tcg';
+import { voltalitcg } from './voltali-tcg';
+import { electhorextcg } from './electhorex-tcg';
+import { alakazamtcg } from './alakazam-tcg';
+import { ectoplasmatcg } from './ectoplasma-tcg';
+import { ectoplasmaextcg } from './ectoplasmaex-tcg';
 
 // =============================================================
 // CARTES POKÉMON TCG POCKET
@@ -52,6 +62,15 @@ feunardtcg,
 sulfuraextcg,
 tortankextcg,
 tartardtcg,
+amonistartcg,
+artikodinextcg,
+amphinobitcg,
+raichutcg,
+voltalitcg,
+electhorextcg,
+alakazamtcg,
+ectoplasmatcg,
+ectoplasmaextcg,
 
 
 ];
