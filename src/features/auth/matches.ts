@@ -17,6 +17,8 @@ export type MatchSide = {
 export type MatchSummary = {
   id: number;
   endedAt: string | null;
+  /** true : partie classée ; false : amicale (pas d'ELO). */
+  ranked: boolean;
   result: 'win' | 'loss' | 'draw';
   me: MatchSide;
   opponent: MatchSide;

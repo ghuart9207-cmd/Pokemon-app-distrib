@@ -14,7 +14,7 @@ import { styles } from './series-screen.styles';
  */
 export default function SeriesScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const { mode, type } = useLocalSearchParams<{ mode?: string; type?: string }>();
   const isOnline = mode === 'en-ligne';
   // Création d'un deck : la série choisie ouvre l'écran de composition du deck.
   const isDeck = mode === 'deck';
@@ -28,7 +28,8 @@ export default function SeriesScreen() {
 
     router.push({
       pathname: isOnline ? '/en-ligne' : '/jeu',
-      params: { serie: series },
+      // en ligne : « classee » ou « amical » (choisi juste avant)
+      params: isOnline ? { serie: series, mode: type === 'amical' ? 'amical' : 'classee' } : { serie: series },
     });
   }
 

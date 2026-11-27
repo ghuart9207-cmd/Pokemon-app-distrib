@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS players (
   games_played   INT UNSIGNED  NOT NULL DEFAULT 0,
   wins           INT UNSIGNED  NOT NULL DEFAULT 0,
   losses         INT UNSIGNED  NOT NULL DEFAULT 0,
-  elo            INT UNSIGNED  NOT NULL DEFAULT 1000,          -- classement des joueurs
+  elo            INT UNSIGNED  NOT NULL DEFAULT 100,           -- classement des joueurs
 
   -- Gestion du compte
   is_active      BOOLEAN       NOT NULL DEFAULT TRUE,          -- FALSE = compte désactivé / banni
@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS matches (
   player2_elo_after   INT          NULL,
   player1_cards       TEXT         NULL,   -- identifiants des Pokémon du deck (JSON)
   player2_cards       TEXT         NULL,
+  ranked              TINYINT(1)   NOT NULL DEFAULT 1,  -- 1 : classée, 0 : amicale
 
 
   PRIMARY KEY (id),

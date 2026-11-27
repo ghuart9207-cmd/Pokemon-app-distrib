@@ -111,9 +111,10 @@ function MatchCard({ match }: { match: MatchSummary }) {
     <View style={styles.match}>
       {/* Résultat à gauche, score au milieu, date à droite */}
       <View style={styles.header}>
-        <Text style={[styles.result, styles.headerSide, { color: RESULT_COLOR[result] }]}>
-          {RESULT_LABEL[result]}
-        </Text>
+        <View style={styles.headerSide}>
+          <Text style={[styles.result, { color: RESULT_COLOR[result] }]}>{RESULT_LABEL[result]}</Text>
+          {!match.ranked && <Text style={styles.friendly}>🤝 Amical</Text>}
+        </View>
         <Text style={styles.score}>
           {me.score !== null && opponent.score !== null ? `${me.score} - ${opponent.score}` : ''}
         </Text>
@@ -126,7 +127,7 @@ function MatchCard({ match }: { match: MatchSummary }) {
         <PlayerColumn side={opponent} align="right" />
       </View>
 
-      {eloChange !== null && (
+      {match.ranked && eloChange !== null && (
         <Text style={[styles.eloChange, { color: eloChange >= 0 ? '#4CD964' : COLORS.red }]}>
           {eloChange >= 0 ? '+' : ''}
           {eloChange} ELO
@@ -186,6 +187,7 @@ const styles = {
   headerSide: { flex: 1 },
   result: { fontFamily: FONTS.title, fontSize: RESULT_SIZE, letterSpacing: 1 },
   score: { fontFamily: FONTS.title, fontSize: SCORE_SIZE, color: COLORS.text, textAlign: 'center' as const },
+  friendly: { color: COLORS.textMuted, fontFamily: FONTS.button, fontSize: 14 },
   date: { color: COLORS.textMuted, fontSize: 13, textAlign: 'right' as const },
   players: {
     flexDirection: 'row' as const,

@@ -65,6 +65,8 @@ export type RoomState = {
   code: string;
   /** Série de cartes de la partie (la même pour les deux joueurs). */
   series: CardSeries;
+  /** true : partie classée (ELO en jeu) ; false : amicale. */
+  ranked: boolean;
   /** Ma place dans la partie. */
   you: Seat;
   /** Les deux places (null = personne). */
@@ -77,6 +79,7 @@ export type ServerMessage =
       type: 'room_joined';
       code: string;
       series?: CardSeries;
+      ranked?: boolean;
       you: Seat;
       players: [RoomPlayer | null, RoomPlayer | null];
       log: OnlineAction[];

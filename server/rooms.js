@@ -63,12 +63,14 @@ function createRoomManager() {
     room.lastActivity = Date.now();
   }
 
-  function createRoom(player, series) {
+  /** ranked : partie classée (ELO en jeu) ; false = amicale. */
+  function createRoom(player, series, ranked = true) {
     leaveRoom(player.id);
 
     const room = {
       code: generateCode(),
       series: toSeries(series),
+      ranked: ranked !== false,
       seats: { 1: makeSeat(player), 2: null },
       log: [],
       createdAt: Date.now(),
@@ -81,7 +83,7 @@ function createRoomManager() {
     return { room, seat: 1 };
   }
 
-  function joinRoom(rawCode, player, series) {
+  function joinRoom(rawCode, player, series, ranked) {
     const room = rooms.get(
       String(rawCode || '')
         .trim()
@@ -110,6 +112,16 @@ function createRoomManager() {
       throw new RoomError(
         'WRONG_SERIES',
         `Cette partie se joue avec ${SERIES_LABELS[room.series]}. Choisis la même série pour la rejoindre.`
+      );
+    }
+
+    // Il doit aussi avoir choisi le même mode (classée / amicale).
+    if (ranked !== undefined && (ranked !== false) !== room.ranked) {
+      throw new RoomError(
+        'WRONG_MODE',
+        room.ranked
+          ? 'Cette partie est classée : choisis « Classée » pour la rejoindre.'
+          : 'Cette partie est amicale : choisis « Amicale » pour la rejoindre.'
       );
     }
 
