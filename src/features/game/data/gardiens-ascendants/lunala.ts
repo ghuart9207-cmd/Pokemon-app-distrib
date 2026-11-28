@@ -42,7 +42,7 @@ script: [
 
       
       effectText:
-        'Déplacez toutes les Énergies attachées à ce Pokémon sur un de vos autres Pokémon.',
+        'Déplacez toutes les Énergies attachées à ce Pokémon sur vos autres Pokémon de la manière que vous voulez.',
     },
   ],
 };

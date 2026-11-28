@@ -5,7 +5,7 @@ export const margie: TrainerCard = {
   name: 'Margie',
   category: 'supporter',
   description:
-    'Placez l’un de vos pokémon avec des marqueurs de dégâts et les cartes outils qui lui sont attachées dans votre main, mais sans énergie.',
+    'Placez l’un de vos pokémon avec des marqueurs de dégâts et les cartes outils qui lui sont attachées dans votre main (vous pouvez le reposer en plus du pokemon principal mais il apparaitra sans energie).',
 
   effect: 'returnPokemonToHand',
 

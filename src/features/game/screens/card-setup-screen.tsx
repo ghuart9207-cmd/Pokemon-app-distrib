@@ -107,7 +107,7 @@ function sortSeriesPokemon(cardSeries: CardSeriesInfo, mode: Exclude<SortMode, '
 }
 
 export function CardSetupScreen({
-  cardSeries,
+  cardSeries: rawCardSeries,
   setupPhase,
   player1SetupCards,
   player2SetupCards,
@@ -120,8 +120,29 @@ export function CardSetupScreen({
   headerRight,
   titleOverride,
 }: CardSetupScreenProps) {
+  // Une carte « vide » (undefined) dans une liste vient presque toujours d'un mauvais nom
+  // dans un index.ts / all-cards.ts : on l'ignore pour ne pas planter, et on le signale.
+  const brokenLists: string[] = [];
+  const clean = <T,>(list: (T | undefined | null)[], label: string): T[] => {
+    const ok = list.filter((card): card is T => card !== undefined && card !== null);
+    if (ok.length !== list.length) brokenLists.push(label);
+    return ok;
+  };
+  const cardSeries: CardSeriesInfo = {
+    ...rawCardSeries,
+    pokemon: clean(rawCardSeries.pokemon, 'Pokémon de la série'),
+    trainers: clean(rawCardSeries.trainers, 'Dresseurs de la série'),
+    extensions: rawCardSeries.extensions.map((extension) => ({
+      ...extension,
+      pokemon: clean(extension.pokemon, `Pokémon de ${extension.label}`),
+      trainers: clean(extension.trainers, `Dresseurs de ${extension.label}`),
+    })),
+  };
+
   const setupPlayer: Player = setupPhase === 'player1' ? 1 : 2;
-  const setupCards = setupPhase === 'player1' ? player1SetupCards : player2SetupCards;
+  const setupCards = (setupPhase === 'player1' ? player1SetupCards : player2SetupCards).filter(
+    (card): card is GameCard => card !== undefined && card !== null
+  );
   const { pokemonCount, gxExCount, objectCount, supporterCount } =
     getSetupCounts(setupCards);
 
@@ -165,6 +186,11 @@ export function CardSetupScreen({
           {titleOverride ?? `Composition de la main du joueur ${setupPlayer}`}
         </Text>
         <Text style={sharedStyles.actionInfo}>Série : {cardSeries.label}</Text>
+        {brokenLists.length > 0 && (
+          <Text style={[sharedStyles.actionInfo, { color: '#ff6b6b' }]}>
+            ⚠️ Carte introuvable (mauvais nom dans un index.ts ou all-cards.ts) dans : {[...new Set(brokenLists)].join(', ')}.
+          </Text>
+        )}
         {cardSeries.pokemon.length === 0 && (
           <Text style={sharedStyles.actionInfo}>
             Aucune carte n&apos;est encore disponible dans cette série.

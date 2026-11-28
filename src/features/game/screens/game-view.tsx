@@ -12,6 +12,7 @@ import { DeckPicker } from '@/features/decks/components/deck-picker';
 
 import { CardSetupScreen } from './card-setup-screen';
 import { GamePlayScreen } from './game-play-screen';
+import type { TutorialPanelInfo } from '@/features/game/components/panels/tutorial-panel';
 import { InvocationSetupScreen } from './invocation-setup-screen';
 
 type GameViewProps = {
@@ -20,6 +21,8 @@ type GameViewProps = {
   localPlayer?: Player;
   // Création / modification d'un deck : pas de bouton « Decks », titre adapté.
   deckEditorTitle?: string;
+  // Didacticiel : panneau d'étape à la place du message.
+  tutorial?: TutorialPanelInfo;
 };
 
 /**
@@ -27,7 +30,7 @@ type GameViewProps = {
  * Il ne contient aucune logique : tout vient de `game`, ce qui permet de lui donner
  * soit le jeu local (GameScreen), soit un jeu synchronisé en ligne.
  */
-export function GameView({ game, localPlayer, deckEditorTitle }: GameViewProps) {
+export function GameView({ game, localPlayer, deckEditorTitle, tutorial }: GameViewProps) {
   const { isTablet, setupPokemonPerRow } = useSetupLayout();
 
   // En ligne : deck envoyé, on attend que l'adversaire ait fini le sien.
@@ -123,6 +126,7 @@ onChooseDragonEnergy={game.chooseDragonEnergy}
       round={game.round}
       turnId={game.turnId}
       message={game.message}
+      tutorial={tutorial}
       // Joueurs
       player1Hand={game.player1Hand}
       player2Hand={game.player2Hand}

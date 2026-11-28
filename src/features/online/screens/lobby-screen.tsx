@@ -25,7 +25,9 @@ export default function LobbyScreen() {
   const { room, error, createRoom, joinRoom, leaveRoom, clearError } = useOnline();
 
   // Série choisie avant d'arriver ici (écran « Choisis la série »).
-  const { serie } = useLocalSearchParams<{ serie?: string }>();
+  const { serie, mode } = useLocalSearchParams<{ serie?: string; mode?: string }>();
+  // « amical » : partie amicale (pas d'ELO) ; sinon partie classée
+  const ranked = mode !== 'amical';
   const [series, setSeries] = useState<CardSeries>(toCardSeries(serie));
 
   const [code, setCode] = useState('');
@@ -53,7 +55,7 @@ export default function LobbyScreen() {
     clearError();
     setIsBusy(true);
     try {
-      await createRoom(series);
+      await createRoom(series, ranked);
       setIsWaitingForOpponent(true);
     } catch (caught) {
       setLocalError(
@@ -74,7 +76,7 @@ export default function LobbyScreen() {
     clearError();
     setIsBusy(true);
     try {
-      await joinRoom(code, series);
+      await joinRoom(code, series, ranked);
       router.push('/partie');
     } catch (caught) {
       setLocalError(
@@ -99,7 +101,9 @@ export default function LobbyScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
-          <Text style={styles.heading}>Jouer en ligne</Text>
+          <Text style={styles.heading}>
+            {(room ? room.ranked : ranked) ? '🏆 Partie classée' : '🤝 Partie amicale'}
+          </Text>
 
           {room ? (
             <>

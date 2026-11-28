@@ -10,25 +10,23 @@ export const sulfuraextcg: PokemonCard = {
   retreatCost: 2,
   artwork: require('../../../../../assets/images/sulfuraex-tcg.png'),
   attacks: [
-   {
+      {
   name: 'Danse Infernale',
   damage: 0,
   energyCost: 1,
   requiredEnergies: {
         feu: 1,
       },
-  coinCount: 3,                
-  effects: [
+  script: [
     {
-      type: 'attachEnergyToBench',
-      amount: 1,                
+      action: 'attachEnergy',
+      amount: 1,
       energyType: 'feu',
-      
-      targetPokemonType: 'feu', 
-      perCoinFace: true,
+      coin: { count: 3, need: 'perFace' },
+      target: { side: 'own', who: 'chosen', filter: { pokemonTypes: ['feu'], position: 'bench' } },
     },
   ],
-  effectText: 'Lancez 3 pièces. Pour chaque côté face, attachez une Énergie Feu à l\'un de vos Pokémon Feu de Banc.',
+  effectText: "Lancez 3 pièces. Pour chaque côté face, attachez une Énergie Feu à l'un de vos Pokémon Feu de Banc.",
 },
     {
       name: 'Explosion de Chaleur',

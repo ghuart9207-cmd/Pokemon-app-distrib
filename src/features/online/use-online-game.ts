@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { GameApi } from '@/features/game/hooks/use-game';
-import { needsAuraSync } from '@/features/game/rules';
+import { isPokemonCard, needsAuraSync } from '@/features/game/rules';
+import type { GameCard } from '@/features/game/types';
 
 import {
   TUNNEL_MARKER,
@@ -121,7 +122,14 @@ export function useOnlineGame(rawGame: GameApi, you: Seat) {
   useEffect(() => {
     if (rawGame.gameOver && !reportedRef.current) {
       reportedRef.current = true;
-      reportGameOver(getWinner(rawGame));
+      // Journal de combat : score (dégâts infligés) et Pokémon de chaque joueur
+      const pokemonIds = (cards: GameCard[]) =>
+        cards.filter(isPokemonCard).map((card) => card.id.split('~')[0]);
+      reportGameOver(getWinner(rawGame), {
+        scores: [rawGame.player2Damage, rawGame.player1Damage],
+        cards: { 1: pokemonIds(rawGame.player1SetupCards), 2: pokemonIds(rawGame.player2SetupCards) },
+        forfeit: rawGame.forfeitedPlayer !== null,
+      });
     }
     if (!rawGame.gameOver) reportedRef.current = false;
   });

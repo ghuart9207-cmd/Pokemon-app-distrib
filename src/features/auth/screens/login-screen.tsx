@@ -97,9 +97,11 @@ export default function LoginScreen() {
             ? '/jeu'
             : next === 'en-ligne'
               ? '/en-ligne'
-              : next === 'decks'
-                ? '/decks'
-                : '/'
+              : next === 'mode-en-ligne'
+                ? '/mode-en-ligne'
+                : next === 'decks'
+                  ? '/decks'
+                  : '/'
         );
       }
     } catch (caught) {
